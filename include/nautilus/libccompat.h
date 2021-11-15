@@ -30,11 +30,13 @@ extern "C" {
 #include <nautilus/nautilus.h>
 #include <nautilus/naut_types.h>
 #ifndef NAUT_CONFIG_SILENCE_UNDEF_ERR
-#define UNDEF_FUN_ERR() ({ if (0) { ERROR_PRINT("Function (%s) undefined\n", __func__); } })
+#define UNDEF_FUN_ERR() ERROR_PRINT("Function (%s) undefined\n", __func__)
 #else
 #define UNDEF_FUN_ERR() 
 #endif
 
+#define BOGUS_FUN_ERR() ERROR_PRINT("Function (%s) is BOGUS\n", __func__)
+    
 #define RAND_MAX    2147483647
 
 typedef int clockid_t;
@@ -105,6 +107,12 @@ struct pollfd {
 };
 
 typedef void* locale_t;
+
+#define suseconds_t uint64_t
+struct timeval {
+    time_t      tv_sec;     /* seconds */
+    suseconds_t tv_usec;    /* microseconds */
+};
 
 
 #ifndef _STRUCT_TIMESPEC
@@ -206,7 +214,7 @@ int rename(const char *old, const char *new);
 int remove(const char *path);
 
 int isatty(int fd);
-    
+
 
 /*==================*
 *    				*
@@ -242,6 +250,11 @@ size_t strftime(char *str, size_t maxsize, const char *format, const struct tm *
 
 void (*signal(int sig, void (*func)(int)))(int);
 
+int abs(int x);
+
+struct timezone;
+
+int gettimeofday(struct timeval *tv, struct timezone *tz_ignored);    
 double pow(double x, double y);
 char *tmpnam(char *s);
 clock_t clock(void);
@@ -251,8 +264,8 @@ time_t time(time_t * timer);
 double difftime(time_t time1, time_t time2);
 void *memchr(const void *str, int c, size_t n);
 double fabs(double __x);
-double atan(double __x);
-double atan2(double y, double x);
+/* double atan(double __x); */
+/* double atan2(double y, double x); */
 double fmodnew(int y, int x); //dupe for test
 double modf(double y, double *x);
 double fmod(double y, double x);
@@ -260,15 +273,16 @@ double fmod(double y, double x);
 double frexp(double x, int *e);
 double ldexp(double x, int exp);
 double strtod(const char *str, char **endptr);
-double abs(double x);
-double sin(double x);
-double sinh(double x);
-double cos(double x);
-double cosh(double x);
-double tan(double x);
-double tanh(double x);
-double asin(double x);
-double acos(double x);
+
+
+/* double sin(double x); */
+/* double sinh(double x); */
+/* double cos(double x); */
+/* double cosh(double x); */
+/* double tan(double x); */
+/* double tanh(double x); */
+/* double asin(double x); */
+/* double acos(double x); */
 double ceil(double x);
 double floor(double x);
 double sqrt(double x);

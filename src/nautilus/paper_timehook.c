@@ -36,6 +36,10 @@
 #include <nautilus/shell.h>
 #include <nautilus/backtrace.h>
 
+#include <dev/apic.h>
+
+struct apic_dev * apic;
+
 /*
   This is the run-time support code for compiler-based timing transforms
   and is meaningless without that feature enabled.
@@ -479,297 +483,304 @@ nk_thread_t *hook_compare_fiber_thread = 0;
 // this is where to focus performance improvement
 __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
 {
-   // return;
-   if (!ready) {
-     // DS("nr\n");
-     return;
-   }
 
-   // Hangs --- presumably because the irq 
-   // functions are instrumented
-   // cli();
-   int test = 0;
-/*
-#if GET_STACK_CALLER_TRACE
-   // Debug output --- get caller address and stack frame
-   // (roughly) based on local variable
+	nk_vc_printf("REEEEEEEEEEEE\n");
+	apic_read(apic, APIC_REG_ID);
+
+//    // return;
+//    if (!ready) {
+//      // DS("nr\n");
+//      return;
+//    }
+
+//    // Hangs --- presumably because the irq 
+//    // functions are instrumented
+//    // cli();
+//    int test = 0;
+// /*
+// #if GET_STACK_CALLER_TRACE
+//    // Debug output --- get caller address and stack frame
+//    // (roughly) based on local variable
  
-   DS("r ");
-   DHQ(((uint64_t)__builtin_return_address(0)));
-   DS(" ");
-   DHQ(((uint64_t)&test));
-   DS("\n");
-#endif 
-*/
+//    DS("r ");
+//    DHQ(((uint64_t)__builtin_return_address(0)));
+//    DS(" ");
+//    DHQ(((uint64_t)&test));
+//    DS("\n");
+// #endif 
+// */
 
-#if GET_HOOK_DATA
-   uint64_t rdtsc_hook_start = 0, rdtsc_hook_end = 0, rdtsc_hook_fire_start = 0, rdtsc_hook_fire_end = 0;
-   int local_hook_time_index = hook_time_index; 
-   if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
-	   if (hook_time_index < MAX_HOOK_DATA_COUNT) {
-	     hook_time_index++;
-	   }
-	   if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
-	     rdtsc_hook_start = rdtsc();
-	   }
-   }
-#endif
+// #if GET_HOOK_DATA
+//    uint64_t rdtsc_hook_start = 0, rdtsc_hook_end = 0, rdtsc_hook_fire_start = 0, rdtsc_hook_fire_end = 0;
+//    int local_hook_time_index = hook_time_index; 
+//    if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
+// 	   if (hook_time_index < MAX_HOOK_DATA_COUNT) {
+// 	     hook_time_index++;
+// 	   }
+// 	   if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
+// 	     rdtsc_hook_start = rdtsc();
+// 	   }
+//    }
+// #endif
 
-   // DHL(local_hook_time_index);
-   // DS("\n");
+//    // DHL(local_hook_time_index);
+//    // DS("\n");
 
-    struct sys_info *sys = per_cpu_get(system);
-    struct nk_time_hook_state *s = sys->cpus[my_cpu_id()]->timehook_state;
+//     struct sys_info *sys = per_cpu_get(system);
+//     struct nk_time_hook_state *s = sys->cpus[my_cpu_id()]->timehook_state;
 
-    // s->invocation_count++;
+//     // s->invocation_count++;
 
-    LOCAL_LOCK_DECL;
+//     LOCAL_LOCK_DECL;
     
-    if (LOCAL_TRYLOCK(s)) {
-	// failed to get lock - we will simply not execute this round
-	DEBUG("failed to acquire lock on fire (cpu %d)\n",my_cpu_id());
-/*	
-	extern int ACCESS_WRAPPER;
-	if (ACCESS_WRAPPER) {
-	  // __sync_fetch_and_and(&ready, 0); // atomically write ready
-	  // BACKTRACE(INFO, 20);
-          // panic("TL failed with aw=1\n");
-	  DS("a ");
-	  DHQ(awc);
-	  awc++; 
-	  DS("\n");
-	}
-*/	
+//     if (LOCAL_TRYLOCK(s)) {
+// 	// failed to get lock - we will simply not execute this round
+// 	DEBUG("failed to acquire lock on fire (cpu %d)\n",my_cpu_id());
+// /*	
+// 	extern int ACCESS_WRAPPER;
+// 	if (ACCESS_WRAPPER) {
+// 	  // __sync_fetch_and_and(&ready, 0); // atomically write ready
+// 	  // BACKTRACE(INFO, 20);
+//           // panic("TL failed with aw=1\n");
+// 	  DS("a ");
+// 	  DHQ(awc);
+// 	  awc++; 
+// 	  DS("\n");
+// 	}
+// */	
 
-#if GET_STACK_CALLER_TRACE
-	// Same logic as above
+// #if GET_STACK_CALLER_TRACE
+// 	// Same logic as above
 	
-	DS("failed try lock ");
-	DS("r ");
-	DHQ(((uint64_t)__builtin_return_address(0)));
-        DS(" ");
-        DHQ(((uint64_t)&test));
-        DS("\n");
-	// while(1) {}
+// 	DS("failed try lock ");
+// 	DS("r ");
+// 	DHQ(((uint64_t)__builtin_return_address(0)));
+//         DS(" ");
+//         DHQ(((uint64_t)&test));
+//         DS("\n");
+// 	// while(1) {}
 	
-	// Set ready to 0 to print on panic, output
-	// backtrace	
+// 	// Set ready to 0 to print on panic, output
+// 	// backtrace	
 	
-	__sync_fetch_and_and(&ready, 0); // atomically write ready
-	// BACKTRACE(INFO, 20);
-        panic("Try lock failed\n");
-#endif	
+// 	__sync_fetch_and_and(&ready, 0); // atomically write ready
+// 	// BACKTRACE(INFO, 20);
+//         panic("Try lock failed\n");
+// #endif	
 
-	// s->try_lock_fail_count++;	
+// 	// s->try_lock_fail_count++;	
 
-	// DS("t \n");
-	return;
-    }
+// 	// DS("t \n");
+// 	return;
+//     }
     
 
-    if (s->state!=READY_STATE) {
-	DEBUG("short circuiting fire because we are in state %d\n",s->state);
+//     if (s->state!=READY_STATE) {
+// 	DEBUG("short circuiting fire because we are in state %d\n",s->state);
 	
-#if GET_STACK_CALLER_TRACE	
-	// Same logic as above
+// #if GET_STACK_CALLER_TRACE	
+// 	// Same logic as above
 	
-	DS("failed ready state ");
-	DS("r ");
-	DHQ(((uint64_t)__builtin_return_address(0)));
-        DS(" ");
-        DHQ(((uint64_t)&test));
-        DS("\n");
-	// while (1) {} 
+// 	DS("failed ready state ");
+// 	DS("r ");
+// 	DHQ(((uint64_t)__builtin_return_address(0)));
+//         DS(" ");
+//         DHQ(((uint64_t)&test));
+//         DS("\n");
+// 	// while (1) {} 
 
-	__sync_fetch_and_and(&ready, 0); // atomically write ready
-	// BACKTRACE(INFO, 20);
-        panic("Ready state failed\n");
-#endif
+// 	__sync_fetch_and_and(&ready, 0); // atomically write ready
+// 	// BACKTRACE(INFO, 20);
+//         panic("Ready state failed\n");
+// #endif
 
-	// s->state_fail_count++;	
+// 	// s->state_fail_count++;	
 
-	// DS("f \n");
-	LOCAL_UNLOCK(s);	
-	return;
-    }
+// 	// DS("f \n");
+// 	LOCAL_UNLOCK(s);	
+// 	return;
+//     }
     
-    s->state = INPROGRESS;
+//     s->state = INPROGRESS;
     
-    int i;
-    int seen;
+//     int i;
+//     int seen;
 
-    uint64_t cur_cycles = rdtsc();
+//     uint64_t cur_cycles = rdtsc();
 
-    int count = 0;
-    struct _time_hook *queue[MAX_HOOKS];
+//     int count = 0;
+//     struct _time_hook *queue[MAX_HOOKS];
   
-    // uint64_t temp_late_count = 0;
+//     // uint64_t temp_late_count = 0;
 
-    // #pragma clang loop vectorize(disable)
-    for (i=0, seen=0; ((i < MAX_HOOKS) && (seen < s->count)); i++) {
-    //for (i=0; i < 15; i++) {
-	struct _time_hook *h = &s->hooks[i];
+//     // #pragma clang loop vectorize(disable)
+//     for (i=0, seen=0; ((i < MAX_HOOKS) && (seen < s->count)); i++) {
+//     //for (i=0; i < 15; i++) {
+// 	struct _time_hook *h = &s->hooks[i];
 	
 	
-	// DHL(i);
-	// DS("\n");
+// 	// DHL(i);
+// 	// DS("\n");
 	
-	// TESTING IDEAS 
-	// - Remove second if statment (cur_cycles ... ) --- maintain an invariant
-	//   that there's only one hook in the entire kernel that's active
-	// - Disable injection at 4000 and run a for loop somewhere that just calls
-	//   nk_time_hook_fire. Compare the queueing time with no injections (just for
-	//   loop) and with injections (everywhere)	
+// 	// TESTING IDEAS 
+// 	// - Remove second if statment (cur_cycles ... ) --- maintain an invariant
+// 	//   that there's only one hook in the entire kernel that's active
+// 	// - Disable injection at 4000 and run a for loop somewhere that just calls
+// 	//   nk_time_hook_fire. Compare the queueing time with no injections (just for
+// 	//   loop) and with injections (everywhere)	
 
-	if (h->state==ENABLED) {
-	    seen++;
-	    if (cur_cycles >= (h->last_start_cycles + h->period_cycles)) {
+// 	if (h->state==ENABLED) {
+// 	    seen++;
+// 	    if (cur_cycles >= (h->last_start_cycles + h->period_cycles)) {
 		
-		DEBUG("queueing hook func=%p state=%p last=%lu cur=%lu\n",
-		      h->hook_func, h->hook_state, h->last_start_cycles, cur_cycles);
+// 		DEBUG("queueing hook func=%p state=%p last=%lu cur=%lu\n",
+// 		      h->hook_func, h->hook_state, h->last_start_cycles, cur_cycles);
 		
-		queue[count++] = h;
-		    /*		    
-		    if (h->last_start_cycles) {
-			    // Debug
-			    temp_late_count = h->late_count;
+// 		queue[count++] = h;
+// 		    /*		    
+// 		    if (h->last_start_cycles) {
+// 			    // Debug
+// 			    temp_late_count = h->late_count;
 
-			    h->late_count++;
+// 			    h->late_count++;
 			    
-			    // Debug
+// 			    // Debug
 			    
-			    if ((h->late_count - temp_late_count) > 1) {
-			       DHQ(h->late_count);
-			       DS("\n");
-			    }
+// 			    if ((h->late_count - temp_late_count) > 1) {
+// 			       DHQ(h->late_count);
+// 			       DS("\n");
+// 			    }
 			    
 
-			    h->late_sum += (cur_cycles - (h->last_start_cycles + h->period_cycles));
-			    h->late_sum2 += (cur_cycles - (h->last_start_cycles + h->period_cycles)) * (cur_cycles - (h->last_start_cycles + h->period_cycles)); 
-			    h->late_min = MIN((cur_cycles - (h->last_start_cycles + h->period_cycles)), h->late_min);
-			    h->late_max = MAX((cur_cycles - (h->last_start_cycles + h->period_cycles)), h->late_max);
-		   }
+// 			    h->late_sum += (cur_cycles - (h->last_start_cycles + h->period_cycles));
+// 			    h->late_sum2 += (cur_cycles - (h->last_start_cycles + h->period_cycles)) * (cur_cycles - (h->last_start_cycles + h->period_cycles)); 
+// 			    h->late_min = MIN((cur_cycles - (h->last_start_cycles + h->period_cycles)), h->late_min);
+// 			    h->late_max = MAX((cur_cycles - (h->last_start_cycles + h->period_cycles)), h->late_max);
+// 		   }
 
-	    */ } /*else {
-	      // First call cannot be early
-	      h->early_count++;
-	      h->early_sum += (h->last_start_cycles + h->period_cycles - cur_cycles);
-	      h->early_sum2 += (h->last_start_cycles + h->period_cycles - cur_cycles) * (h->last_start_cycles + h->period_cycles - cur_cycles); 
-	      h->early_min = MIN((h->last_start_cycles + h->period_cycles - cur_cycles), h->early_min);
-	      h->early_max = MAX((h->last_start_cycles + h->period_cycles - cur_cycles), h->early_max);
-	    }*/
-	} else {
-	    DS("ne ");
-	    DHL(h->state);
-	    DS("\n");
-	    __sync_fetch_and_and(&ready, 0);
-	    panic("h->state isn't one\n");
+// 	    */ } /*else {
+// 	      // First call cannot be early
+// 	      h->early_count++;
+// 	      h->early_sum += (h->last_start_cycles + h->period_cycles - cur_cycles);
+// 	      h->early_sum2 += (h->last_start_cycles + h->period_cycles - cur_cycles) * (h->last_start_cycles + h->period_cycles - cur_cycles); 
+// 	      h->early_min = MIN((h->last_start_cycles + h->period_cycles - cur_cycles), h->early_min);
+// 	      h->early_max = MAX((h->last_start_cycles + h->period_cycles - cur_cycles), h->early_max);
+// 	    }*/
+// 	} else {
+// 	    DS("ne ");
+// 	    DHL(h->state);
+// 	    DS("\n");
+// 	    __sync_fetch_and_and(&ready, 0);
+// 	    panic("h->state isn't one\n");
 	
-	}
-    }
+// 	}
+//     }
 
 
-    // Goes along with DS at top of for loop
-    // __sync_fetch_and_and(&ready, 0); // atomically write ready
-    // panic("done\n");
+//     // Goes along with DS at top of for loop
+//     // __sync_fetch_and_and(&ready, 0); // atomically write ready
+//     // panic("done\n");
 
-    // Extra check --- for loop debugging
-#if GET_STACK_CALLER_TRACE	
-    if (my_cpu_id() == 1)
-    {
-	    if (s->count != 1) {
-		    DS("sc ");
-		    DHL(s->count);
-		    DS("\n");
-		    __sync_fetch_and_and(&ready, 0);
-		    panic("s->count isn't one\n");
-	    }
+//     // Extra check --- for loop debugging
+// #if GET_STACK_CALLER_TRACE	
+//     if (my_cpu_id() == 1)
+//     {
+// 	    if (s->count != 1) {
+// 		    DS("sc ");
+// 		    DHL(s->count);
+// 		    DS("\n");
+// 		    __sync_fetch_and_and(&ready, 0);
+// 		    panic("s->count isn't one\n");
+// 	    }
 	    
-	    if ((count != 1) && (count != 0)) {
-		    DS("c ");
-		    DHL(count);
-		    DS("\n");
-		    __sync_fetch_and_and(&ready, 0);
-		    panic("Count isn't one\n");
-	    }
+// 	    if ((count != 1) && (count != 0)) {
+// 		    DS("c ");
+// 		    DHL(count);
+// 		    DS("\n");
+// 		    __sync_fetch_and_and(&ready, 0);
+// 		    panic("Count isn't one\n");
+// 	    }
 	    
-	    if ((seen != 1) && (seen != 0)) {
-		    DS("s ");
-		    DHL(seen);
-		    DS("\n");
-		    __sync_fetch_and_and(&ready, 0);
-		    panic("Seen isn't one\n");
-	    }
-    }
-#endif 
+// 	    if ((seen != 1) && (seen != 0)) {
+// 		    DS("s ");
+// 		    DHL(seen);
+// 		    DS("\n");
+// 		    __sync_fetch_and_and(&ready, 0);
+// 		    panic("Seen isn't one\n");
+// 	    }
+//     }
+// #endif 
 
-    // we now need to prepare for the next batch.
-    // note that a hook could context switch away from us, so we need to do
-    // handle cleanup *before* we execute any hooks
+//     // we now need to prepare for the next batch.
+//     // note that a hook could context switch away from us, so we need to do
+//     // handle cleanup *before* we execute any hooks
 
-    // ** TODO ** --- need to limit nested "interrupts"
+//     // ** TODO ** --- need to limit nested "interrupts"
 
-    s->state = READY_STATE;
-    LOCAL_UNLOCK(s);
+//     s->state = READY_STATE;
+//     LOCAL_UNLOCK(s);
 
    
-    // now we actually fire the hooks.   Note that the execution of one batch of hooks
-    // can race with queueing/execution of the next batch.  that's the hook
-    // implementor's problem
+//     // now we actually fire the hooks.   Note that the execution of one batch of hooks
+//     // can race with queueing/execution of the next batch.  that's the hook
+//     // implementor's problem
 
 
-#if GET_HOOK_DATA
-    if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
-	    rdtsc_hook_end = rdtsc();
-	    if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
-	      hook_data[local_hook_time_index] = rdtsc_hook_end - rdtsc_hook_start;
-	    }
-	    rdtsc_hook_fire_start = rdtsc();
-    }
-#endif
+// #if GET_HOOK_DATA
+//     if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
+// 	    rdtsc_hook_end = rdtsc();
+// 	    if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
+// 	      hook_data[local_hook_time_index] = rdtsc_hook_end - rdtsc_hook_start;
+// 	    }
+// 	    rdtsc_hook_fire_start = rdtsc();
+//     }
+// #endif
     
     
-    for (i=0; i<count; i++) {
-	struct _time_hook *h = queue[i];
-	DEBUG("launching hook func=%p state=%p last=%lu cur=%lu\n",
-	      h->hook_func, h->hook_state, h->last_start_cycles, cur_cycles);
+//     for (i=0; i<count; i++) {
+// 	struct _time_hook *h = queue[i];
+// 	DEBUG("launching hook func=%p state=%p last=%lu cur=%lu\n",
+// 	      h->hook_func, h->hook_state, h->last_start_cycles, cur_cycles);
 	
-	h->hook_func(h->hook_state);
-	h->last_start_cycles = cur_cycles;
-	// h->fire_count++;
+// 	h->hook_func(h->hook_state);
+// 	h->last_start_cycles = cur_cycles;
+// 	// h->fire_count++;
 
-	// Debug
-	// foo = temp_late_count; 
-	/*
-	if (temp_late_count > h->fire_count) {
-	  panic("last count exceeded");
-	}
-	*/	
+// 	// Debug
+// 	// foo = temp_late_count; 
+// 	/*
+// 	if (temp_late_count > h->fire_count) {
+// 	  panic("last count exceeded");
+// 	}
+// 	*/	
 
-    }
+//     }
 
 
-#if GET_HOOK_DATA
-    if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
-	    rdtsc_hook_fire_end = rdtsc();
-	    if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
-	      hook_fire_data[local_hook_time_index] = rdtsc_hook_fire_end - rdtsc_hook_fire_start;
-	    }
-    }
-#endif
+// #if GET_HOOK_DATA
+//     if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
+// 	    rdtsc_hook_fire_end = rdtsc();
+// 	    if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
+// 	      hook_fire_data[local_hook_time_index] = rdtsc_hook_fire_end - rdtsc_hook_fire_start;
+// 	    }
+//     }
+// #endif
    
 
-    // Unlocking at the end --- for loop debugging 
-    // s->state = READY_STATE;
-    // LOCAL_UNLOCK(s);
+//     // Unlocking at the end --- for loop debugging 
+//     // s->state = READY_STATE;
+//     // LOCAL_UNLOCK(s);
 
-    // sti();
+//     // sti();
 
 }
 
 
 static int shared_init()
 {
+
+		apic = per_cpu_get(apic);
+
     struct sys_info *sys = per_cpu_get(system);
     struct cpu *cpu = sys->cpus[my_cpu_id()];
     struct nk_time_hook_state *s;
