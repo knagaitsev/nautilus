@@ -83,7 +83,7 @@ using namespace std;
 #define DEBUG 0
 #define LOOP_DEBUG 1
 #define VERIFY 0
-#define INLINE 0
+#define INLINE 1
 #define WHOLE 1 // Whole kernel injection
 #define INJECT 1
 #define FALSE 0

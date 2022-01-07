@@ -1348,6 +1348,8 @@ static int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
 
     struct apic_dev * apic = (struct apic_dev*)per_cpu_get(apic);
 
+    // apic_write(apic, APIC_GET_IER(7), 0); // Disable this interrupt
+
     uint64_t time_to_next_ns;
 
     apic->in_timer_interrupt=1;
@@ -1383,6 +1385,13 @@ static int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
     }
 
     IRQ_HANDLER_END();
+
+    // if (apic_read(apic, APIC_REG_EXFC) != 3) IRQ_HANDLER_END();
+    // else {
+    //     apic_write(apic, APIC_REG_SEOI, APIC_TIMER_INT_VEC); // Write to seoi to clear isr bit
+    //     nk_vc_printf("Interrupt did SEOI\n");
+    
+    // }
 
     NK_GPIO_OUTPUT_MASK(~0x2,GPIO_AND);
 

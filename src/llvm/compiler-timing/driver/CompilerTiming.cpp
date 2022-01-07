@@ -134,8 +134,8 @@ struct CAT : public ModulePass
          * (nk_fiber_start calls nk_fiber_create internally) --- we can extract all
          * fiber routines in the kernel by following the arguments of nk_fiber_create.  
          */ 
-        Utils::InlineNKFunction((*SpecialRoutines)[FIBER_START]);
-        set<Function *> Routines = *(Utils::IdentifyFiberRoutines());
+        // Utils::InlineNKFunction((*SpecialRoutines)[FIBER_START]);
+        // set<Function *> Routines = *(Utils::IdentifyFiberRoutines());
 
 #if WHOLE
 
@@ -145,6 +145,7 @@ struct CAT : public ModulePass
          * to do so, we want to identify all valid functions in the bitcode and mark
          * them (add them in the Routines set) 
          */ 
+        set<Function *> Routines = *(new set<Function *>());
 
         Utils::IdentifyAllNKFunctions(M, Routines);
 

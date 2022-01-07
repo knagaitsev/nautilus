@@ -36,6 +36,10 @@
 #include <nautilus/shell.h>
 #include <nautilus/backtrace.h>
 
+#include <dev/apic.h>
+
+struct apic_dev * apic;
+
 /*
   This is the run-time support code for compiler-based timing transforms
   and is meaningless without that feature enabled.
@@ -581,381 +585,36 @@ extern uint64_t wrapper_data[MAX_WRAPPER_COUNT];
 extern uint64_t overhead_count;
 extern uint32_t rdtsc_count;
 
+#define LAPIC_ID_REGISTER 0xFEE00020
+#define APIC_READ_ID_MEM (*((volatile uint32_t*)(LAPIC_ID_REGISTER)))
+
+#define likely(x)      __builtin_expect(!!(x), 1)
+#define unlikely(x)    __builtin_expect(!!(x), 0)
+
+
 __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
 {
-   // Some CPU is not yet up --- usually
-   // before all per-cpu and/or time-hook
-   // state is correctly set
-   if (!ready) {
-       return;
-   }
+  // Both of these slow it down...
+  // if (likely(!ready)) return;
+  // if (unlikely(!ready)) return;
 
+  if (!ready) return;
 
-   int mycpu = my_cpu_id();
-
-// PAD: CONSIDER SEEING WHAT HAPPENS WHEN WE DO cpu<n for different
-// VALUES OF n 
-
-// Handle CPU access
-
-#if ONLY_CPU_ONE
-   if (mycpu != 1) {
-	   return;
-   }
-#endif
-
-
-#if RANGE
-   if (!(mycpu < NUM_CPUS_PHI)) {
-       return;
-   }
-#endif
-
-#if RANGE_NOT_ZERO
-   if (!((mycpu < (NUM_CPUS_PHI)) && (mycpu > 0))) { 
-	   return;
-   }
-#endif
-
-
-// Overhead instrumentation
-#if GET_WHOLE_HOOK_DATA
-
-   uint64_t whole_rdtsc_queue = 0, whole_rdtsc_fire = 0;
-   //if ((mycpu == TARGET_CPU)
-	 //  && (hook_compare_fiber_thread == get_cur_thread())) {
-
-   if (mycpu == TARGET_CPU) {
-	   if (ACCESS_WRAPPER && (hook_compare_fiber_thread == get_cur_thread())) {
-      		whole_rdtsc_queue = rdtsc(); 
-			// rdtsc_count++;
-	   }
-     // if (!(nk_fiber_current()->is_idle)) { 
-
-      //  if (ACCESS_WRAPPER) { whole_rdtsc_queue = rdtsc(); rdtsc_count++; }
-	 
-	 // }
-	
-   }
+  uint32_t id = *((volatile uint32_t *)(apic->base_addr + APIC_REG_ID));
+	// uint32_t id = apic_read(apic, APIC_REG_ID);
   
-#endif
+  // uint32_t id = APIC_READ_ID_MEM;
+  // uint32_t id = (uint32_t) _apic_msr_read(X2APIC_MMIO_REG_OFFSET_TO_MSR(APIC_REG_ID));
 
-
-// CHANGE --- move data collection for yield hooks into
-// nk_time_hook_fire --- much more straightforward to 
-// read and control
-#if GET_FIBER_DATA
-
-  // Determine if we're on the target CPU and we're on the
-  // fiber thread of that target CPU
-  if ((mycpu == TARGET_CPU)
-	  && (hook_compare_fiber_thread == get_cur_thread())) {
-
-	// Determine if we're on a non-idle fiber on 
-	// the fiber thread
-    if (!(nk_fiber_current()->is_idle)) { 
-
-	  // Determine if we have enough capacity in our data array
-	  // and if we have access/"permissions" to yield --- then
-	  // yield if necessary
-      if (ACCESS_WRAPPER && (time_interval < MAX_WRAPPER_COUNT)) { 
-		wrapper_data[time_interval++] =  rdtsc() - last;
-		last = rdtsc();
-      }
-	
-	}
-  
-  }
-
-#endif
-
-
-// Handle data collection --- start queueing portion
-#if GET_HOOK_DATA
-   uint64_t rdtsc_hook_start = 0, rdtsc_hook_end = 0, rdtsc_hook_fire_start = 0, rdtsc_hook_fire_end = 0;
-   int local_hook_time_index = hook_time_index; 
-   if (mycpu == TARGET_CPU) {	
-	   if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
-    		if (!(nk_fiber_current()->is_idle)) { 
-			   if (hook_time_index < MAX_HOOK_DATA_COUNT) {
-				   hook_time_index++;
-			   }
-			   if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
-				   rdtsc_hook_start = rdtsc();
-			   }
-			}
-	   }
-   }
-#endif
-
-   // ------ QUEUEING PORTION ------
-
-   
-#if 0
-   static struct sys_info *sys = 0; // per_cpu_get(system);
-   
-   if (!sys) {
-       sys = per_cpu_get(system);
-   }
-#endif
-
-   struct sys_info *sys = per_cpu_get(system);
-   struct nk_time_hook_state *s = sys->cpus[mycpu]->timehook_state;
-   
-#if IRQ
-   // Disable interrupts --- prevent CPU "mycpu" from reentering nk_time_hook_fire
-   // and preventing the CPU from context switching into another thread while in
-   // nk_time_hook_fire --- i.e. allow fire to act as an actual interrupt handler
-   uint8_t flags;
-   flags = hook_irq_disable_save();
-#endif
-
-
-
-// Set the state accordingly (and/or locks), perform 
-// necessary checks
-
-#if USE_SET
-   if (CACHE_MANAGED_STATE(mycpu).state != READY_STATE) {
-       DEBUG("short circuiting fire because we are in state %d\n",CACHE_MANAGED_STATE(mycpu).state);
-   	   // DS("n");
-	   // DS("\n");
-#if IRQ
-	   hook_irq_enable_restore(flags);
-#endif
-   	   return;
-   }
-
-   CACHE_MANAGED_STATE(mycpu).state = INPROGRESS;
-#endif
-
-
-#if USE_ATOMICS
-   if (!__sync_bool_compare_and_swap(&(CACHE_MANAGED_STATE(mycpu).state),
-				     READY_STATE,
-				     INPROGRESS)) {
-       DEBUG("short circuiting fire because we are in state %d\n",CACHE_MANAGED_STATE(mycpu).state);
-       return;
-   }
-#endif
-
-#if USE_LOCK_AND_SET 
-   LOCAL_LOCK_DECL;
-   
-   if (LOCAL_TRYLOCK(mycpu)) {
-       DEBUG("failed to acquire lock on fire (cpu %d)\n",mycpu);
-       // PAD: DOES THIS EVER HAPPEN?
-       return;
-   }
-   
-   
-   if (CACHE_MANAGED_STATE(mycpu).state != READY_STATE) {
-       DEBUG("short circuiting fire because we are in state %d\n",CACHE_MANAGED_STATE(mycpu).state);
-       LOCAL_UNLOCK(mycpu);
-       return;
-   }
-
-
-   CACHE_MANAGED_STATE(mycpu).state = INPROGRESS;
-#endif
-  
-   // Start actual set up for queueing hooks 
- 
-   int i;
-   int seen;
-   
-   uint64_t cur_cycles = rdtsc();
-
-   int count = 0;
-   struct _time_hook *queue[MAX_HOOKS];
-		
-   // TESTING IDEAS 
-   // - Remove second if statment (cur_cycles ... ) --- maintain an invariant
-   //   that there's only one hook in the entire kernel that's active
-   // - Disable injection at 4000 and run a for loop somewhere that just calls
-   //   nk_time_hook_fire. Compare the queueing time with no injections (just for
-   //   loop) and with injections (everywhere)	
-
-   // full blown code, should still be fast
-   for (i = 0, seen = 0; ((i < MAX_HOOKS) && (seen < CACHE_MANAGED_STATE(mycpu).count)); i++) {
-       struct _time_hook *h = &s->hooks[i];
-       
-       if (h->state==ENABLED) {
-		   
-		   seen++;
-		   
-		   // if (1 || (cur_cycles >= (h->last_start_cycles + h->period_cycles))) {
-		   if (cur_cycles >= (h->last_start_cycles + h->period_cycles)) {
-			   DEBUG("queueing hook func=%p state=%p last=%lu cur=%lu\n",
-				 h->hook_func, h->hook_state, h->last_start_cycles, cur_cycles);
-			   
-			   queue[count++] = h;
-
-// Get statistics
-#if 0 
-			 if (mycpu == TARGET_CPU) {	
-		       if (ACCESS_WRAPPER && (hook_compare_fiber_thread == get_cur_thread())) {
-			 	late_count++;
-		       }
-		     }
-#endif
-
-		   }    
-
-// Get statistics
-#if 0
-		   else {
-		     if (mycpu == TARGET_CPU) {	
-		       if (ACCESS_WRAPPER && (hook_compare_fiber_thread == get_cur_thread())) {
-			 	early_count++;
-		       }
-		     }
-		   }
-#endif
-
-       }
-   }
-   
-   // Simplified code for one hook
-   // struct _time_hook *h = &s->hooks[0];
-   // queue[count++] = h;
-   
-   
-   // we now need to prepare for the next batch.
-   // note that a hook could context switch away from us, so we need to do
-   // handle cleanup *before* we execute any hooks
-   
-   // ** TODO ** --- need to limit nested "interrupts"
-
-
-// Reset per-cpu time-hook state accordingly
-
-#if USE_SET
-   CACHE_MANAGED_STATE(mycpu).state = READY_STATE;
-#endif
-
-#if USE_ATOMICS
-   __atomic_store_n(&(CACHE_MANAGED_STATE(mycpu).state),READY_STATE,__ATOMIC_SEQ_CST);
-#endif
-
-#if USE_LOCK_AND_SET 
-   CACHE_MANAGED_STATE(mycpu).state = READY_STATE;
-   
-   LOCAL_UNLOCK(mycpu);
-#endif
-
- 
-// ------ END QUEUEING PORTION ------
-
-// Overhead instrumentation
-#if GET_WHOLE_HOOK_DATA
-
-   // if ((mycpu == TARGET_CPU)
-   //	   && (hook_compare_fiber_thread == get_cur_thread())) {
-
-     // if (!(nk_fiber_current()->is_idle)) { 
-   if (mycpu == TARGET_CPU) {
-	   if (ACCESS_WRAPPER && (hook_compare_fiber_thread == get_cur_thread())) {
-
-       // if (ACCESS_WRAPPER) { 
-		   whole_rdtsc_queue = rdtsc() - whole_rdtsc_queue;
-	  	   overhead_count += whole_rdtsc_queue;
-		   // rdtsc_count++;
-	   }
-	 
-	 // }
-	
-   }
-  
-#endif
-
-
-#if 0// GET_WHOLE_HOOK_DATA
-   
-   if (mycpu == TARGET_CPU) {
-	   if (ACCESS_WRAPPER && (hook_compare_fiber_thread == get_cur_thread())) {
-		   whole_rdtsc_fire = rdtsc();
-	   }
-	 
-   }
-   
-#endif
-
-   
-// Set up data collection for firing portion
-#if GET_HOOK_DATA
-   if (mycpu == TARGET_CPU) { 
-	   if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
-    		if (!(nk_fiber_current()->is_idle)) { 
-				rdtsc_hook_end = rdtsc();
-				if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
-				  hook_data[local_hook_time_index] = rdtsc_hook_end - rdtsc_hook_start;
-				}
-				rdtsc_hook_fire_start = rdtsc();
-			}
-		}
-    }
-#endif
-    
-   // now we actually fire the hooks.   Note that the execution of one batch of hooks
-   // can race with queueing/execution of the next batch.  that's the hook
-   // implementor's problem
-
-    // ------ FIRING PORTION ------
-    
-    for (i=0; i<count; i++) {
-		struct _time_hook *h = queue[i];
-		DEBUG("launching hook func=%p state=%p last=%lu cur=%lu\n",
-			  h->hook_func, h->hook_state, h->last_start_cycles, cur_cycles);
-		
-		h->last_start_cycles = cur_cycles;
-		h->hook_func(h->hook_state);
-    }
-    
-// ------ END FIRING PORTION ------
-
-// Overhead instrumentation
-#if 0// GET_WHOLE_HOOK_DATA
-
-   if (mycpu == TARGET_CPU) {
-	   if (ACCESS_WRAPPER && (hook_compare_fiber_thread == get_cur_thread())) {
-		   whole_rdtsc_fire = rdtsc() - whole_rdtsc_fire;
-	  	   overhead_count += whole_rdtsc_fire;
-	   }
-	 
-   }
-    
-#endif
-
-    
-    
-#if GET_HOOK_DATA
-	if (mycpu == TARGET_CPU) {
-		if (ACCESS_HOOK && (hook_compare_fiber_thread == get_cur_thread())) {
-    		if (!(nk_fiber_current()->is_idle)) { 
-				rdtsc_hook_fire_end = rdtsc();
-				if (local_hook_time_index < MAX_HOOK_DATA_COUNT) {
-					hook_fire_data[local_hook_time_index] = rdtsc_hook_fire_end - rdtsc_hook_fire_start;
-				}
-			}
-		}
-	}
-#endif
-
-#if IRQ
-	// Enable interrupts --- location in code is suspicious
-	// THIS MUST REALLY BE BEFORE THE HOOK FUNCTION IS FIRED!!!!!!!
-	// WHAT IF THE HOOK FUNCTION YIELDS>>>>>>>
-	hook_irq_enable_restore(flags);
-#endif
-   
-
-    return;
+  return;
 }
 
 
 static int shared_init()
 {
+
+    apic = per_cpu_get(apic);
+
     int mycpu = my_cpu_id();
     struct sys_info *sys = per_cpu_get(system);
     struct cpu *cpu = sys->cpus[mycpu];

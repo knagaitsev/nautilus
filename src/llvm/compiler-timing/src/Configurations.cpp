@@ -41,8 +41,10 @@ const string CALLBACK_LOC = "cb.loc",
              FUNCTION_MD = "func.";
 
 // Functions necessary to find in order to inject (hook_fire, fiber_start/create for fiber explicit injections)
-const vector<uint32_t> NKIDs = {HOOK_FIRE, FIBER_START, FIBER_CREATE, IDLE_FIBER_ROUTINE};
-const vector<string> NKNames = {"nk_time_hook_fire", "nk_fiber_start", "nk_fiber_create", "__nk_fiber_idle"};
+// const vector<uint32_t> NKIDs = {HOOK_FIRE, FIBER_START, FIBER_CREATE, IDLE_FIBER_ROUTINE};
+// const vector<string> NKNames = {"nk_time_hook_fire", "nk_fiber_start", "nk_fiber_create", "__nk_fiber_idle"};
+const vector<uint32_t> NKIDs = {HOOK_FIRE};
+const vector<string> NKNames = {"nk_time_hook_fire"};
 
 // No hook function names functionality --- (non-injectable)
 const string ANNOTATION = "llvm.global.annotations",

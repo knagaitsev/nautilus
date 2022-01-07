@@ -12,6 +12,8 @@ obj-y += fiberbench/
 
 obj-y += NPB-NAS/
 
+obj-y += polling_bench.o
+
 obj-$(NAUT_CONFIG_TEST_FIBERS) += fibers.o \
 								   fibers_random.o \
 								   fiber_timehook.o \

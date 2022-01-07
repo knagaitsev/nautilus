@@ -138,6 +138,10 @@ extern "C" {
 #define   APIC_EXFC_IERN         0x1
 #define   APIC_GET_EXT_ID(x)     (((x) >> 24) & 0xffu)
 
+#define APIC_REG_SEOI     0x420
+#define APIC_REG_IER      0x480
+#define     APIC_GET_IER(x)  (APIC_REG_IER + 0x10*(x))
+
 /* Extended LVT entries */
 #define APIC_REG_EXTLVT(n) (0x500 + 0x10*(n))
 
