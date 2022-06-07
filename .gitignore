@@ -22,3 +22,6 @@ GTAGS
 .clangd
 .ccls-cache
 compile_commands.json
+
+# Emacs backup files. Has format filename~
+**~
