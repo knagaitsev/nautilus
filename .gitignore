@@ -1,6 +1,15 @@
 *.o
 *.cmd
+
+# ctags
 tags
+# Emacs etags
+TAGS
+# GNU Global Tags DBs
+GPATH
+GRTAGS
+GTAGS
+
 .config*
 *.bin
 *.iso
@@ -8,3 +17,8 @@ tags
 *.bc
 *.ll
 ./src/llvm/toolchain
+
+# LSP-related tools
+.clangd
+.ccls-cache
+compile_commands.json
