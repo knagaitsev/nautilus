@@ -31,3 +31,14 @@ include/config/
 include/autoconf.h
 .kconfig.d
 nautilus.secs
+
+# Scripts created by Kconfig when building the ncurses menu system
+scripts/basic/docproc
+scripts/basic/fixdep
+scripts/basic/split-include
+scripts/format_secs
+scripts/format_syms
+scripts/kconfig/conf
+scripts/kconfig/lxdialog/lxdialog
+scripts/kconfig/mconf
+scripts/kconfig/lkc_defs.h
