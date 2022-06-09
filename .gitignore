@@ -25,3 +25,9 @@ compile_commands.json
 
 # Emacs backup files. Has format filename~
 **~
+
+# Auto-generated files by Kconfig
+include/config/
+include/autoconf.h
+.kconfig.d
+nautilus.secs
