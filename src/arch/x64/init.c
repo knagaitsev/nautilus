@@ -594,7 +594,7 @@ init (unsigned long mbd,
     nk_linker_init(naut);
     nk_prog_init(naut);
 
-    nk_loader_init();
+    // nk_loader_init();
 
     nk_pmc_init(naut);
 

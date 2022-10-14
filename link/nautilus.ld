@@ -119,7 +119,7 @@ SECTIONS
        *(.tdata .tdata*);
        . = ALIGN(0x1000);
        _tdata_end = .;
-
+   }
 
   
    _loadEnd = .;

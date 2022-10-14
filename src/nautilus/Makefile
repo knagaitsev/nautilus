@@ -11,7 +11,6 @@ obj-y += \
 	cpuid.o \
 	crypto.o \
 	mtrr.o \
-	fpu.o \
 	spinlock.o \
 	rwlock.o \
 	condvar.o \
@@ -69,7 +68,6 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	nemo.o \
 	pmc.o \
 	setjmp.o \
-	loader.o \
 
 obj-$(NAUT_CONFIG_ARCH_RISCV) += devicetree.o
 
