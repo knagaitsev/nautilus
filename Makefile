@@ -344,6 +344,7 @@ ARCH		?= $(SUBARCH)
 COMPILER_PREFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_PREFIX))
 COMPILER_SUFFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_SUFFIX))
 
+COMPILER_PREFIX := riscv64-linux-gnu-
 
 #
 # Note we use the system linker in all cases
