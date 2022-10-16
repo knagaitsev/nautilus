@@ -103,15 +103,15 @@ void arch_print_regs(struct nk_regs * r) {
 
 void * arch_read_sp(void) {
     void * sp = NULL;
-    __asm__ __volatile__ ( "mv %[_r], sp" : [_r] "=r" (rsp) : : "memory" );
+    __asm__ __volatile__ ( "mv %[_r], sp" : [_r] "=r" (sp) : : "memory" );
     return sp;
 }
 
 void arch_relax(void) {
-    asm volatile ("pause");
+    // asm volatile ("pause");
 }
 
 void arch_halt(void) {
-    asm volatile ("hlt");
+    // asm volatile ("hlt");
 }
 

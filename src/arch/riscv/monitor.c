@@ -111,8 +111,8 @@ int my_strcmp (const char * s1, const char * s2)
     }
 }
 
-#define DB(x) serial_putchar(x)
-#define DHN(x) serial_putchar(((x & 0xF) >= 10) ? (((x & 0xF) - 10) + 'a') : ((x & 0xF) + '0'))
+#define DB(x) sifive_serial_putchar(x)
+#define DHN(x) sifive_serial_putchar(((x & 0xF) >= 10) ? (((x & 0xF) - 10) + 'a') : ((x & 0xF) + '0'))
 #define DHB(x) DHN(x >> 4) ; DHN(x);
 #define DHW(x) DHB(x >> 8) ; DHB(x);
 #define DHL(x) DHW(x >> 16) ; DHW(x);
@@ -122,10 +122,10 @@ int my_strcmp (const char * s1, const char * s2)
 static void print(char *b)
 {
     while (b && *b) {
-        serial_putchar(*b);
+        sifive_serial_putchar(*b);
         b++;
     }
-    serial_putchar('\n');
+    sifive_serial_putchar('\n');
 }
 
 // Keyboard stuff repeats here to be self-contained
@@ -164,7 +164,7 @@ static void wait_for_command(char *buf, int buffer_size)
 
 		// continue;
 
-    /* key = serial_getchar(); */
+    /* key = sifive_serial_getchar(); */
     /* printk("%c", key); */
     // key = ps2_wait_for_key();
     // uint16_t key_encoded = kbd_translate_monitor(key);
@@ -695,7 +695,7 @@ static int nk_monitor_loop()
   while (!done) {
     DS("monitor> ");
     wait_for_command(buffer, buffer_size);
-    serial_putchar('\n');
+    sifive_serial_putchar('\n');
     done = execute_potential_command(buffer);
   };
   return 0;

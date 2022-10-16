@@ -244,7 +244,7 @@ void init_full(unsigned long hartid, unsigned long fdt) {
   plic_init_hart(hartid);
 
   // We now have serial output without SBI
-  serial_init();
+  sifive_serial_init();
 
   sbi_init();
 
@@ -334,7 +334,7 @@ void init(unsigned long hartid, unsigned long fdt) {
   arch_enable_ints();
 
   // We now have serial output without SBI
-  serial_init();
+  sifive_serial_init();
 
   plic_dump();
 

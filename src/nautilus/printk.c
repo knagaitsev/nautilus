@@ -47,8 +47,8 @@
 #ifdef NAUT_CONFIG_ARCH_RISCV
 #include <dev/sifive.h>
 // All output is handled via UART
-#define do_putchar(x) do { serial_putchar(x); } while (0)
-#define do_puts(x)    do { serial_write(x); serial_putchar('\n'); } while (0)
+#define do_putchar(x) do { sifive_serial_putchar(x); } while (0)
+#define do_puts(x)    do { sifive_serial_write(x); sifive_serial_putchar('\n'); } while (0)
 #else
 // All output is handled via the virtual console
 #define do_putchar(x) do { nk_vc_putchar(x);} while (0)
@@ -57,7 +57,7 @@
 
 spinlock_t printk_lock;
 
-extern void serial_putchar(uchar_t c);
+extern void sifive_serial_putchar(uchar_t c);
 extern void serial_putln(const char * ln);
 
 struct printk_state {

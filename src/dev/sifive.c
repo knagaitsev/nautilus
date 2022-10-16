@@ -23,7 +23,7 @@ int sifive_handler (excp_entry_t * excp, excp_vec_t vector, void *state) {
         if (r & UART_RXFIFO_EMPTY) break;
         char buf = r & 0xFF;
         // call virtual console here!
-        serial_putchar(buf);
+        sifive_serial_putchar(buf);
     }
 }
 
@@ -32,7 +32,7 @@ int sifive_test(void) {
     while(1) {
         printk("ie=%p, ip=%p, sie=%p, status=%p, sip=%p, pp=%p\t\n", regs->ie, regs->ip, read_csr(sie), read_csr(sstatus), read_csr(sip), plic_pending());
         asm volatile ("wfi");
-        /* printk("%d\n", serial_getchar()); */
+        /* printk("%d\n", sifive_serial_getchar()); */
     }
 }
 
@@ -67,24 +67,24 @@ bool_t dtb_node_get_sifive(struct dtb_node *n) {
     return true;
 }
 
-void serial_init(void) {
+void sifive_serial_init(void) {
     /* dtb_walk_devices(dtb_node_get_sifive); */
     /* regs = (struct sifive_serial_regs *)0x10010000L; */
     sifive_init(0x10010000L, 4);
 }
 
-void serial_write(const char *b) {
+void sifive_serial_write(const char *b) {
     while (b && *b) {
-        serial_putchar(*b);
+        sifive_serial_putchar(*b);
         b++;
     }
 }
 
-void serial_putchar(unsigned char ch) {
+void sifive_serial_putchar(unsigned char ch) {
     sbi_call(SBI_CONSOLE_PUTCHAR, ch);
 }
 
-int serial_getchar(void) {
+int sifive_serial_getchar(void) {
     if (!inited) {
         struct sbiret ret = sbi_call(SBI_CONSOLE_GETCHAR);
         return ret.error == -1 ? -1 : ret.value;
