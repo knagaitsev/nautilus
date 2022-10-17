@@ -296,7 +296,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
 static void nk_thread_brain_wipe(nk_thread_t *t);
 
 
-
+#ifdef NAUT_CONFIG_HARDWARE_TLS
 static int hwtls_config_kernel_tls(nk_thread_t *t)
 {
 
@@ -353,6 +353,7 @@ static int hwtls_config_kernel_tls(nk_thread_t *t)
     return 0;
 
 }
+#endif
 
 
 

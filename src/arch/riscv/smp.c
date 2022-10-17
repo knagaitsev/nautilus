@@ -119,16 +119,18 @@ out_ok:
     return 0;
 }
 
-/* Some fakery to get the scheduler working */
-uint8_t
-nk_topo_cpus_share_socket (struct cpu * a, struct cpu * b)
-{
-    return 1;
-    // return a->coord->pkg_id == b->coord->pkg_id;
-}
+// RISCV HACK
 
-uint8_t
-nk_topo_cpus_share_phys_core (struct cpu * a, struct cpu * b)
-{
-    return nk_topo_cpus_share_socket(a, b) && (a->coord->core_id == b->coord->core_id);
-}
+// /* Some fakery to get the scheduler working */
+// uint8_t
+// nk_topo_cpus_share_socket (struct cpu * a, struct cpu * b)
+// {
+//     return 1;
+//     // return a->coord->pkg_id == b->coord->pkg_id;
+// }
+
+// uint8_t
+// nk_topo_cpus_share_phys_core (struct cpu * a, struct cpu * b)
+// {
+//     return nk_topo_cpus_share_socket(a, b) && (a->coord->core_id == b->coord->core_id);
+// }

@@ -32,8 +32,6 @@ obj-y += \
 	barrier.o \
 	backtrace.o \
 	cpu.o \
-	acpi.o \
-	numa.o \
 	env.o \
 	nemo.o \
 	pmc.o \

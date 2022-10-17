@@ -20,18 +20,12 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
-#ifndef __SHUTDOWN_H__
-#define __SHUTDOWN_H__
+#include <nautilus/irq.h>
 
-
-void reboot(void) __attribute__((noreturn));;
-void acpi_shutdown(void) __attribute__((noreturn));
-void shutdown(void) __attribute__((noreturn));
-void qemu_shutdown(void) __attribute__((noreturn));
 // RISCV HACK
-#ifndef NAUT_CONFIG_ARCH_RISCV
-void qemu_shutdown_with_code(uint16_t code) __attribute__((noreturn));
-#endif
 
+void
+nk_unmask_irq (uint8_t irq)
+{
+}
 
-#endif

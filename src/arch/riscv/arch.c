@@ -108,10 +108,12 @@ void * arch_read_sp(void) {
 }
 
 void arch_relax(void) {
+    // RISCV HACK
     // asm volatile ("pause");
 }
 
 void arch_halt(void) {
+    // RISCV HACK
     // asm volatile ("hlt");
 }
 

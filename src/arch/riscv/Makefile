@@ -9,4 +9,6 @@ obj-y += asm/ \
 	 trap.o \
 	 plic.o \
 	 monitor.o \
-	 paging.o
+	 paging.o \
+	 shutdown.o \
+	 irq.o

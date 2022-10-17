@@ -34,7 +34,11 @@ extern "C" {
 
 extern void apic_do_eoi();
 
+#ifdef NAUT_CONFIG_ARCH_X86
 #define IRQ_HANDLER_END() apic_do_eoi()
+# else
+#define IRQ_HANDLER_END() 
+#endif
 
 typedef enum { INT_TYPE_INT, INT_TYPE_NMI, INT_TYPE_SMI, INT_TYPE_EXT } int_type_t;
 typedef enum { INT_POL_BUS, INT_POL_ACTHI, INT_POL_RSVD, INT_POL_ACTLO } int_pol_t;
