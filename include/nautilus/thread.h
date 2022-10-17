@@ -308,10 +308,13 @@ put_cur_thread (nk_thread_t * t)
 __attribute__((used))
 static inline nk_thread_t *get_cur_thread_fast(void)
 {
+    #ifdef NAUT_CONFIG_ARCH_X86
+    uint64_t thread;
+    asm("movq %%gs:0, %0" : "=a" (thread));    
+    return ((nk_thread_t *) thread);
+    #else
     return get_cur_thread();
-    // uint64_t thread;
-    // asm("movq %%gs:0, %0" : "=a" (thread));    
-    // return ((nk_thread_t *) thread);
+    #endif
 }
 
 
