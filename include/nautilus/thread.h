@@ -296,6 +296,7 @@ void nk_tls_test(void);
 static inline nk_thread_t*
 get_cur_thread (void)
 {
+    // RISCV HACK
     #ifdef NAUT_CONFIG_ARCH_X86
     return (nk_thread_t*)per_cpu_get(cur_thread);
     #else
