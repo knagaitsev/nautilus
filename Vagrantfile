@@ -67,6 +67,11 @@ Vagrant.configure("2") do |config|
     v.vmx["memsize"] = 2048
   end
 
+  config.vm.provider "libvirt" do |v|
+    v.cpus = 2
+    v.memory = 4096
+  end
+
   # Enable provisioning with a shell script. Additional provisioners such as
   # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
   # documentation for more information about their specific syntax and use.
