@@ -57,6 +57,7 @@
 #include <nautilus/timer.h>
 #include <nautilus/vc.h>
 #include <nautilus/waitqueue.h>
+#include <nautilus/fdt.h>
 
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
 #include <nautilus/gdb-stub.h>
@@ -326,6 +327,18 @@ void init(unsigned long hartid, unsigned long fdt) {
   /*   panic("Problem parsing devicetree header\n"); */
   /* } */
 
+  // printk("FDT data: %p, first val: %d\n", *(uint32_t *)fdt, *((uint32_t *)(*(uint32_t *)fdt)));
+
+  int depth = 0;
+  int offset = 0;
+  do {
+    offset = fdt_next_node((void *)fdt, offset, &depth);
+    printk("Offset: %d, Depth: %d\n", offset, depth);
+    depth = 0;
+  } while (offset > 0);
+
+  asm volatile ("wfi");
+
   // Initialize platform level interrupt controller for this HART
   plic_init();
 
@@ -336,7 +349,11 @@ void init(unsigned long hartid, unsigned long fdt) {
   // We now have serial output without SBI
   sifive_serial_init();
 
+  printk("hartid: %ld, fdt: %p (%x) \n", hartid, fdt, *(uint32_t*)fdt);
+
   plic_dump();
+
+  // my_monitor_entry();
 
   sifive_test();
 }

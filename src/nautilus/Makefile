@@ -51,7 +51,8 @@ obj-y += \
 	prog.o \
 	getopt.o \
 	cmdline.o \
-	lru_cache.o
+	lru_cache.o \
+	fdt.o
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \
