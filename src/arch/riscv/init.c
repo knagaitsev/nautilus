@@ -344,14 +344,14 @@ void init(unsigned long hartid, unsigned long fdt) {
     // depth = 0;
   } while (offset > 0);
 
-  asm volatile ("wfi");
-
   // Initialize platform level interrupt controller for this HART
   plic_init();
 
   plic_init_hart(hartid);
 
   arch_enable_ints();
+
+  asm volatile ("wfi");
 
   // We now have serial output without SBI
   sifive_serial_init();

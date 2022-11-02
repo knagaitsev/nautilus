@@ -7,7 +7,7 @@
 
 static addr_t plic_addr = 0;
 
-#define MREG(x) *((uint32_t *)x)
+#define MREG(x) *((uint32_t *)(x))
 
 #define PLIC plic_addr
 #define PLIC_PRIORITY MREG(PLIC + 0x0)
