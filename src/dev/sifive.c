@@ -83,7 +83,14 @@ void sifive_serial_write(const char *b) {
 }
 
 void sifive_serial_putchar(unsigned char ch) {
-    sbi_call(SBI_CONSOLE_PUTCHAR, ch);
+    if (!inited) {
+        sbi_call(SBI_CONSOLE_PUTCHAR, ch);
+    } else {
+        while (regs->txfifo & UART_TXFIFO_FULL) {
+        }
+
+        regs->txfifo = ch;
+    }
 }
 
 int sifive_serial_getchar(void) {

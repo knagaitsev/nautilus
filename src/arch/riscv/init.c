@@ -362,13 +362,11 @@ void init(unsigned long hartid, unsigned long fdt) {
   // We now have serial output without SBI
   sifive_serial_init();
 
-  asm volatile ("wfi");
-
   printk("hartid: %ld, fdt: %p (%x) \n", hartid, fdt, *(uint32_t*)fdt);
 
   plic_dump();
 
-  // my_monitor_entry();
+  my_monitor_entry();
 
   sifive_test();
 }
