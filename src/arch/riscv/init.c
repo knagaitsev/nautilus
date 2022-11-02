@@ -340,8 +340,16 @@ void init(unsigned long hartid, unsigned long fdt) {
     // int off_dt_strings = fdt_off_dt_strings(fdt);
     int lenp = 0;
     char *name = fdt_get_name(fdt, offset, &lenp);
-    printk("Offset: %d, Depth: %d, name: %s\n", offset, depth, name);
-    // depth = 0;
+    char *compatible_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+    printk("Offset: %d, Depth: %d, name: %s, comp: %s\n", offset, depth, name, compatible_prop);
+
+    void *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
+    if (reg_prop != NULL) {
+      uint32_t *vals = (uint32_t *)reg_prop;
+      for (unsigned int i = 0; i < lenp / 4; i++) {
+        printk("\treg prop: %p\n", vals[i]);
+      }
+    }
   } while (offset > 0);
 
   // Initialize platform level interrupt controller for this HART
@@ -351,10 +359,10 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   arch_enable_ints();
 
-  asm volatile ("wfi");
-
   // We now have serial output without SBI
   sifive_serial_init();
+
+  asm volatile ("wfi");
 
   printk("hartid: %ld, fdt: %p (%x) \n", hartid, fdt, *(uint32_t*)fdt);
 
