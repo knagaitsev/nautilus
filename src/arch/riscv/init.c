@@ -332,9 +332,16 @@ void init(unsigned long hartid, unsigned long fdt) {
   int depth = 0;
   int offset = 0;
   do {
-    offset = fdt_next_node((void *)fdt, offset, &depth);
-    printk("Offset: %d, Depth: %d\n", offset, depth);
-    depth = 0;
+    // int subnode_offset = fdt_first_subnode(fdt, offset);
+
+    // printk("Subnode Offset: %d\n", subnode_offset);
+
+    offset = fdt_next_node(fdt, offset, &depth);
+    // int off_dt_strings = fdt_off_dt_strings(fdt);
+    int lenp = 0;
+    char *name = fdt_get_name(fdt, offset, &lenp);
+    printk("Offset: %d, Depth: %d, name: %s\n", offset, depth, name);
+    // depth = 0;
   } while (offset > 0);
 
   asm volatile ("wfi");
