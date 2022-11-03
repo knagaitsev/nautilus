@@ -638,6 +638,37 @@ static int execute_test(char command[])
   return 0;
 }
 
+static int execute_plic_bench(char command[]) {
+  arch_disable_ints();
+
+  print("type on keyboard\n\r");
+
+  int c = 0;
+  while (true) {
+    int irq = plic_claim();
+    if (irq != 0) {
+      print(long_to_string(irq));
+      print(" (interrupt)\n");
+      // print("%d\n", irq);
+
+      // the incoming interrupt will be due to serial input, so we
+      // need to clear out the input or else the interrupt will be
+      // triggered again
+      sifive_serial_getchar();
+
+      plic_complete(irq);
+      c++;
+    }
+
+    if (c == 10) {
+      break;
+    }
+  }
+
+  arch_enable_ints();
+  return 0;
+}
+
 extern int execute_threading(char command[]);
 
 static int execute_potential_command(char command[])
@@ -675,6 +706,10 @@ static int execute_potential_command(char command[])
   else if (my_strcmp(word, "threading") == 0)
   {
     quit = execute_threading(command);
+  }
+  else if (my_strcmp(word, "plic-bench") == 0)
+  {
+    quit = execute_plic_bench(command);
   }
   else /* default: */
   {

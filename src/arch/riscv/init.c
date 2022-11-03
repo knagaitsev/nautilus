@@ -340,8 +340,18 @@ void init(unsigned long hartid, unsigned long fdt) {
     // int off_dt_strings = fdt_off_dt_strings(fdt);
     int lenp = 0;
     char *name = fdt_get_name(fdt, offset, &lenp);
-    char *compatible_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
-    printk("Offset: %d, Depth: %d, name: %s, comp: %s\n", offset, depth, name, compatible_prop);
+    char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+    printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
+
+    // TODO: these array fields currently have the wrong endianness, so need to keep in
+    // mind the numbers here look backwards
+    void *int_prop = fdt_getprop(fdt, offset, "interrupts", &lenp);
+    if (int_prop != NULL) {
+      uint8_t *vals = (uint8_t *)int_prop;
+      for (unsigned int i = 0; i < lenp; i++) {
+        printk("\tint prop: %d\n", vals[i]);
+      }
+    }
 
     void *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
     if (reg_prop != NULL) {
