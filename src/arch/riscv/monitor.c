@@ -645,10 +645,16 @@ static int execute_plic_bench(char command[]) {
 
   int c = 0;
   while (true) {
+    // TODO: need to also measure this difference when it is a poll miss
+    unsigned long t1 = read_csr(cycle);
     int irq = plic_claim();
+    unsigned long t2 = read_csr(cycle);
     if (irq != 0) {
+      unsigned long diff = t2 - t1;
       print(long_to_string(irq));
-      print(" (interrupt)\n");
+      print(" (irq number) ");
+      print(long_to_string(diff));
+      print(" cycles\n");
       // print("%d\n", irq);
 
       // the incoming interrupt will be due to serial input, so we
@@ -666,6 +672,13 @@ static int execute_plic_bench(char command[]) {
   }
 
   arch_enable_ints();
+  return 0;
+}
+
+static int execute_time_test(char command[]) {
+  
+  sbi_set_timer(read_csr(time) + 10000000);
+
   return 0;
 }
 
@@ -710,6 +723,10 @@ static int execute_potential_command(char command[])
   else if (my_strcmp(word, "plic-bench") == 0)
   {
     quit = execute_plic_bench(command);
+  }
+  else if (my_strcmp(word, "time-test") == 0)
+  {
+    quit = execute_time_test(command);
   }
   else /* default: */
   {

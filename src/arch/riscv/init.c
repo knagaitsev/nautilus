@@ -71,6 +71,8 @@
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
 
+#define fdt_ntohl(x) ((((x)<<24)&0xff000000)|(((x)<<8)&0xff0000)|(((x)>>8)&0xff00)|(((x)>>24)&0xff))
+
 struct nk_sched_config sched_cfg = {
     .util_limit = NAUT_CONFIG_UTILIZATION_LIMIT * 10000ULL,  // convert percent to 10^-6 units
     .sporadic_reservation = NAUT_CONFIG_SPORADIC_RESERVATION * 10000ULL,  // ..
@@ -343,24 +345,56 @@ void init(unsigned long hartid, unsigned long fdt) {
     char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
     printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
 
-    // TODO: these array fields currently have the wrong endianness, so need to keep in
-    // mind the numbers here look backwards
-    void *int_prop = fdt_getprop(fdt, offset, "interrupts", &lenp);
-    if (int_prop != NULL) {
-      uint8_t *vals = (uint8_t *)int_prop;
-      for (unsigned int i = 0; i < lenp; i++) {
-        printk("\tint prop: %d\n", vals[i]);
+    if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
+      void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
+      if (ints_extended_prop != NULL) {
+        uint32_t *vals = (uint32_t *)ints_extended_prop;
+        int context_count = lenp / 8;
+        // printk("\tlenp: %d, context count %d\n", lenp, context_count);
+        for (int context = 0; context < context_count; context++) {
+          int c_off = context * 2;
+          int phandle = fdt_ntohl(vals[c_off]);
+          int nr = fdt_ntohl(vals[c_off + 1]);
+          if (nr != 9) {
+            continue;
+          }
+          printk("\tcontext %d: (%d, %d)\n", context, phandle, nr);
+
+          int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
+          int cpu_offset = fdt_parent_offset(fdt, intc_offset);
+          char *name = fdt_get_name(fdt, cpu_offset, &lenp);
+          printk("\tcpu: %s\n", name);
+        }
       }
     }
 
-    void *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
-    if (reg_prop != NULL) {
-      uint32_t *vals = (uint32_t *)reg_prop;
-      for (unsigned int i = 0; i < lenp / 4; i++) {
-        printk("\treg prop: %p\n", vals[i]);
-      }
-    }
+    // uint32_t phandle = fdt_get_phandle(fdt, offset);
+    // if (phandle) {
+    //   printk("\tphandle: %d\n", phandle);
+    // }
+
+    // TODO: these array fields currently have the wrong endianness, so need to keep in
+    // mind the numbers here look backwards
+    // void *int_prop = fdt_getprop(fdt, offset, "interrupts", &lenp);
+    // if (int_prop != NULL) {
+      // uint8_t *vals = (uint8_t *)int_prop;
+      // for (unsigned int i = 0; i < lenp; i++) {
+      //   printk("\tint prop: %d\n", vals[i]);
+      // }
+    // }
+
+    // void *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
+    // if (reg_prop != NULL) {
+    //   uint32_t *vals = (uint32_t *)reg_prop;
+    //   for (unsigned int i = 0; i < lenp / 4; i++) {
+    //     printk("\treg prop: %p\n", vals[i]);
+    //   }
+    // }
   } while (offset > 0);
+
+  while(1) {
+
+  }
 
   // Initialize platform level interrupt controller for this HART
   plic_init();
