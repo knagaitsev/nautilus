@@ -141,6 +141,8 @@ extern "C" {
 #define APIC_REG_SEOI     0x420
 #define APIC_REG_IER      0x480
 #define     APIC_GET_IER(x)  (APIC_REG_IER + 0x10*(x))
+#define     APIC_VEC_TO_IER(vec) (APIC_GET_IER(vec/32))
+#define     APIC_VEC_TO_BIT(vec) (vec%32)
 
 /* Extended LVT entries */
 #define APIC_REG_EXTLVT(n) (0x500 + 0x10*(n))

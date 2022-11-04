@@ -455,6 +455,8 @@ apic_bcast_sipi (struct apic_dev * apic, uint8_t target)
 static void calibrate_apic_timer(struct apic_dev *apic);
 static int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state);
 
+static int apic_timer_null_handler(excp_entry_t * excp, excp_vec_t vec, void *state);
+static int apic_timer_dp_handler();
 
 static void
 apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms)
@@ -483,6 +485,13 @@ apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms)
 			     NULL) != 0) {
         panic("Could not register APIC timer handler\n");
     }
+    // DPCODE
+    // if (register_int_handler_dp(APIC_TIMER_INT_VEC,
+	// 		     apic_timer_handler,
+	// 		     NULL,
+    //              apic_timer_dp_handler) != 0) {
+    //     panic("Could not register APIC timer handler\n");
+    // }
 
     calibrate_apic_timer(apic);
 
@@ -1342,13 +1351,38 @@ static void calibrate_apic_timer(struct apic_dev *apic)
 }
 
 
+static int apic_timer_dp_handler() {
+
+    NK_GPIO_OUTPUT_MASK(0x2,GPIO_OR);
+
+    struct apic_dev * apic = (struct apic_dev*)per_cpu_get(apic);
+
+    uint64_t time_to_next_ns;
+
+    apic->in_timer_interrupt=1;
+
+    apic->timer_count++;
+
+    apic->timer_set = 0;
+
+    time_to_next_ns = nk_timer_handler();
+    if (time_to_next_ns == -1) { 
+	apic_set_oneshot_timer(apic,-1);
+    } else {
+	apic_set_oneshot_timer(apic,apic_realtime_to_ticks(apic,time_to_next_ns));
+    }
+
+    NK_GPIO_OUTPUT_MASK(~0x2,GPIO_AND);
+
+    return 0;
+
+}
+
 static int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
 {
     NK_GPIO_OUTPUT_MASK(0x2,GPIO_OR);
 
     struct apic_dev * apic = (struct apic_dev*)per_cpu_get(apic);
-
-    // apic_write(apic, APIC_GET_IER(7), 0); // Disable this interrupt
 
     uint64_t time_to_next_ns;
 
@@ -1385,13 +1419,6 @@ static int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
     }
 
     IRQ_HANDLER_END();
-
-    // if (apic_read(apic, APIC_REG_EXFC) != 3) IRQ_HANDLER_END();
-    // else {
-    //     apic_write(apic, APIC_REG_SEOI, APIC_TIMER_INT_VEC); // Write to seoi to clear isr bit
-    //     nk_vc_printf("Interrupt did SEOI\n");
-    
-    // }
 
     NK_GPIO_OUTPUT_MASK(~0x2,GPIO_AND);
 

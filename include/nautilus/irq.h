@@ -74,6 +74,15 @@ int register_int_handler (uint16_t int_vec,
                           int (*handler)(excp_entry_t *, excp_vec_t, void *priv_data),
                           void * priv_data);
 
+int register_irq_handler_dp (uint16_t irq, 
+                          int (*handler)(excp_entry_t *, excp_vec_t, void *),
+                          void * priv_data,
+                          int (*dp_handler)());
+int register_int_handler_dp (uint16_t int_vec, 
+                          int (*handler)(excp_entry_t *, excp_vec_t, void *),
+                          void * priv_data,
+                          int (*dp_handler)());
+
 int nk_int_init(struct sys_info * sys);
 
 uint8_t nk_int_matches_bus(struct nk_int_entry * entry, const char * bus_type, const uint8_t len);

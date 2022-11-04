@@ -456,6 +456,61 @@ static int switcher(nk_scancode_t scan)
 
 
 static int 
+kbd_dp_handler ()
+{
+
+  DEBUG("Keyboard dp handler firing\n");
+  
+  uint8_t status;
+  nk_scancode_t scan;
+  uint8_t key;
+  uint8_t flag;
+  
+  status = inb(KBD_CMD_REG);
+
+  io_delay();
+
+  if ((status & STATUS_OUTPUT_FULL) != 0) {
+    scan  = inb(KBD_DATA_REG);
+    DEBUG("Keyboard: status=0x%x, scancode=0x%x\n", status, scan);
+    io_delay();
+    
+    
+#if NAUT_CONFIG_THREAD_EXIT_KEYCODE == 0xc4
+    // Vestigal debug handling to force thread exit
+    if (scan == 0xc4) {
+      void * ret = NULL;
+      ps2_kbd_reset();
+      nk_thread_exit(ret);
+    }
+#endif
+
+#ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
+    if (scan == 0x42) {
+      // F8 down - stop
+        nk_gdb_handle_exception(excp, vec, 0, (void *)0x1ULL);
+      // now ignore the key
+      goto out;
+    }
+    if (scan == 0xc2) {
+      // F8 up - ignore the key
+      goto out;
+    }
+#endif
+    
+    
+    switcher(scan);
+
+    goto out; // to avoid label warning
+    
+  }
+
+ out:
+
+  return 0;
+}
+
+static int 
 kbd_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
 {
   
@@ -753,6 +808,9 @@ int ps2_init(struct naut_info * naut)
   } else {
     if (rc==HAVE_KEYBOARD || rc == HAVE_KEYBOARD_AND_MOUSE) { 
       nk_dev_register("ps2-keyboard",NK_DEV_GENERIC,0,&kops,0);
+
+      // DPCODE
+      // register_irq_handler_dp(1, kbd_handler, NULL, kbd_dp_handler);
       register_irq_handler(1, kbd_handler, NULL);
       nk_unmask_irq(1);
     } 

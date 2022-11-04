@@ -135,6 +135,27 @@ register_int_handler (uint16_t int_vec,
     return 0;
 }
 
+int 
+register_int_handler_dp (uint16_t int_vec, 
+                      int (*handler)(excp_entry_t *, excp_vec_t, void *),
+                      void * priv_data,
+                      int (*dp_handler)())
+{
+
+    if (!handler) {
+        ERROR_PRINT("Attempt to register interrupt %d with invalid handler\n", int_vec);
+        return -1;
+    }
+
+    if (int_vec > 0xff) {
+        ERROR_PRINT("Attempt to register invalid interrupt(0x%x)\n", int_vec);
+        return -1;
+    }
+
+    idt_assign_entry_dp(int_vec, (ulong_t)handler, (ulong_t)priv_data, dp_handler);
+
+    return 0;
+}
 
 int 
 register_irq_handler (uint16_t irq, 
@@ -156,6 +177,31 @@ register_irq_handler (uint16_t irq,
     int_vector = irq_to_vec(irq);
 
     idt_assign_entry(int_vector, (ulong_t)handler, (ulong_t)priv_data);
+
+    return 0;
+}
+
+int 
+register_irq_handler_dp (uint16_t irq, 
+                      int (*handler)(excp_entry_t *, excp_vec_t, void *),
+                      void * priv_data,
+                      int (*dp_handler)())
+{
+    uint8_t int_vector;
+
+    if (!handler) {
+        ERROR_PRINT("Attempt to register IRQ %d with invalid handler\n", irq);
+        return -1;
+    }
+
+    if (irq > MAX_IRQ_NUM) {
+        ERROR_PRINT("Attempt to register invalid IRQ (0x%x)\n", irq);
+        return -1;
+    }
+
+    int_vector = irq_to_vec(irq);
+
+    idt_assign_entry_dp(int_vector, (ulong_t)handler, (ulong_t)priv_data, dp_handler);
 
     return 0;
 }

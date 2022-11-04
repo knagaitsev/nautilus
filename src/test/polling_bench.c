@@ -910,7 +910,7 @@ int test_apic_msr_rdtsc_wrap_loop() {
   struct apic_dev * apic = per_cpu_get(apic);
   uint64_t start = rdtsc();
   for (uint32_t i = 0; i < IO_ITERATIONS; i++) {
-    apic_read(apic, APIC_REG_ID);
+    apic_read(apic, APIC_GET_IER(1));
   }
   uint64_t end = rdtsc();
   uint64_t t_avg = (end-start) / IO_ITERATIONS;
@@ -922,7 +922,7 @@ int test_apic_msr_rdtscp_wrap_loop() {
   struct apic_dev * apic = per_cpu_get(apic);
   uint64_t start = rdtscp();
   for (uint32_t i = 0; i < IO_ITERATIONS; i++) {
-    apic_read(apic, APIC_REG_ID);
+    apic_read(apic, APIC_GET_IER(1));
   }
   uint64_t end = rdtscp();
   uint64_t t_avg = (end-start) / IO_ITERATIONS;
@@ -938,7 +938,7 @@ int test_apic_msr_rdtsc_within_loop() {
   uint64_t max = 0;
   for (uint32_t i = 0; i < IO_ITERATIONS; i++) {
     uint64_t start = rdtsc();
-    apic_read(apic, APIC_REG_ID);
+    apic_read(apic, APIC_GET_IER(1));
     uint64_t end = rdtsc();
     uint64_t diff = end-start;
     sum += diff;
@@ -960,7 +960,7 @@ int test_apic_msr_rdtscp_within_loop() {
   uint64_t max = 0;
   for (uint32_t i = 0; i < IO_ITERATIONS; i++) {
     uint64_t start = rdtscp();
-    apic_read(apic, APIC_REG_ID);
+    apic_read(apic, APIC_GET_IER(1));
     uint64_t end = rdtscp();
     uint64_t diff = end-start;
     sum += diff;
@@ -973,6 +973,10 @@ int test_apic_msr_rdtscp_within_loop() {
   nk_vc_printf("test_apic_msr_rdtscp_within_loop.\n\tAverage cycles: %lu\n\tMinimum cycle: %lu\n\tVariance: %lu\n\tSum: %lu\n\tMax: %lu\n", t_avg, min, variance, sum, max);
   return 0;
 }
+
+//
+// READ IER x7 ?
+//
 
 //
 // RDTSC and RDTSCP
@@ -1161,7 +1165,7 @@ int test_ier_disable_interrupts() {
 
   // First check to see if seoi is enabled. If this faults the extended feature set is not even mapped and so none of this is enabled
   nk_vc_printf("Checking if processor is IER and SEOI capable\n");
-  uint32_t extended_apic_feature_register = apic_read(apic, APIC_REG_EXFR);\
+  uint32_t extended_apic_feature_register = apic_read(apic, APIC_REG_EXFR);
   int ier_capable = extended_apic_feature_register & 1;
   int seoi_capable = extended_apic_feature_register & 2;
 
@@ -1234,6 +1238,29 @@ int test_ier_handle_interrupt() {
 
   return 0;
 
+}
+
+int test_ier_index_computation() {
+  struct apic_dev * apic = per_cpu_get(apic);
+  nk_vc_printf("Writing control register to enable use of IER and SEOI\n");
+  apic_write(apic, APIC_REG_EXFC, 3);
+  nk_vc_printf("Disabling interrupts through the IER mechansim\n");
+  for (int i = 0; i < 8; i++) {
+    apic_write(apic, APIC_GET_IER(i), 0);
+  }
+  // We can typically count on the apic timer interrupt (vec 240/0xF0) to fire first
+  // So we will put our special code in Mr. apic_timer_handler()
+  wait_for_any_interrupt(apic);
+
+  // Show that the timer interrupt has fired (output should be 00010000)
+  uint32_t this_irr = apic_read(apic, APIC_GET_IRR(7));
+  nk_vc_printf("%08x\n", this_irr);
+
+  uint8_t bit_pos = __builtin_ctz(this_irr);
+  uint8_t interrupt_vector_index = bit_pos + 32*7;
+  nk_vc_printf("bit_pos: %d\n", bit_pos);
+  nk_vc_printf("sizeof(this_irr)*7: %d\n", 32*7);
+  nk_vc_printf("interrupt_vector_index: %d\nIt should be 240\n", interrupt_vector_index);
 }
 
 /******************* Test Handlers *******************/
@@ -1393,6 +1420,14 @@ static int handle_timing_test(char * buf, void *priv) {
   return 0;
 }
 
+static int handle_ier_index_computation_test(char * buf, void *priv) {
+  test_ier_index_computation();
+
+  return 0;
+}
+
+
+
 // static int handle_test_port_80_rdtsc_wrap_loop(char * buf, void *priv) {
 //   test_rdtsc_within_loop();
 //   test_rdtscp_within_loop();
@@ -1493,6 +1528,12 @@ static struct shell_cmd_impl handle_int_test = {
   .handler  = handle_ier_interrupt,
 };
 
+static struct shell_cmd_impl ier_index_computation_test = {
+  .cmd      = "ier_index_computation_test",
+  .help_str = "ier_index_computation_test",
+  .handler  = handle_ier_index_computation_test,
+};
+
 /******************* Shell Commands *******************/
 
 nk_register_shell_cmd(pmio_arithmetic_test);
@@ -1509,3 +1550,4 @@ nk_register_shell_cmd(io_stats_apic_msr_test);
 nk_register_shell_cmd(clear_int_test);
 nk_register_shell_cmd(disable_int_test);
 nk_register_shell_cmd(handle_int_test);
+nk_register_shell_cmd(ier_index_computation_test);

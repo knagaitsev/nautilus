@@ -125,6 +125,10 @@ int setup_idt(void);
 int idt_assign_entry(ulong_t entry, ulong_t handler_addr, ulong_t state_addr);
 int idt_get_entry(ulong_t entry, ulong_t *handler_addr, ulong_t *state_addr);
 
+int idt_assign_entry_dp (ulong_t entry, ulong_t handler_addr, ulong_t state_addr, int (*dp_handler)());
+inline ulong_t idt_get_dp_table_entry(ulong_t entry);
+inline void idt_set_entry_to_handler(ulong_t entry, ulong_t *handler_addr);
+
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first);
 
 int null_excp_handler(excp_entry_t * excp, excp_vec_t vec, addr_t fault_addr, void * state_addr);

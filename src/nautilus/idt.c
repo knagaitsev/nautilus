@@ -34,6 +34,14 @@
 extern ulong_t idt_handler_table[NUM_IDT_ENTRIES];
 extern ulong_t idt_state_table[NUM_IDT_ENTRIES]; 
 
+
+// DPCODE
+// Not sure what the best way to define this is. Or where to define it
+// If each cpu has its own idt, each should have its own this
+// From what I can tell nautilus uses one shared idt
+// Do dp handlers need any arguments?
+ulong_t dp_handler_table[NUM_IDT_ENTRIES];
+
 struct gate_desc64 idt64[NUM_IDT_ENTRIES] __align(8);
 
 extern uint8_t cpu_info_ready;
@@ -175,6 +183,49 @@ pic_spur_int_handler (excp_entry_t * excp,
     return 0;
 }
 
+// DPCODE
+// Registration of a valid* interrupt handler always goes through here
+// Might be a good place to declare a dp handler as well
+int
+idt_assign_entry_dp (ulong_t entry, ulong_t handler_addr, ulong_t state_addr, int (*dp_handler)())
+{
+
+    if (entry >= NUM_IDT_ENTRIES) {
+        ERROR_PRINT("Assigning invalid IDT entry\n");
+        return -1;
+    }
+
+    if (!handler_addr) {
+        ERROR_PRINT("attempt to assign null handler\n");
+        return -1;
+    }
+
+    idt_handler_table[entry] = handler_addr;
+    idt_state_table[entry]   = state_addr;
+
+    // Assign dp handler
+    dp_handler_table[entry] = dp_handler;
+
+    // Disable the interrupt
+    // DANGER DANGER RACE
+    // Disable this stuff for enable on startup
+    // ---------------------------
+    // struct apic_dev * apic = per_cpu_get(apic);
+    // uint32_t ier = apic_read(apic, APIC_VEC_TO_IER(entry));
+    // ier = ier & ~(1 << APIC_VEC_TO_BIT(entry));
+    // apic_write(apic, APIC_VEC_TO_IER(entry), ier);
+    // ---------------------------
+
+    return 0;
+}
+
+inline ulong_t idt_get_dp_table_entry(ulong_t entry) {
+  return dp_handler_table[entry];
+}
+
+inline void idt_set_entry_to_handler(ulong_t entry, ulong_t *handler_addr) {
+  idt_handler_table[entry] = handler_addr;
+}
 
 int
 idt_assign_entry (ulong_t entry, ulong_t handler_addr, ulong_t state_addr)
