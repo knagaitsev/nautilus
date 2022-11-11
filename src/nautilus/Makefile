@@ -69,8 +69,6 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	pmc.o \
 	setjmp.o \
 
-obj-$(NAUT_CONFIG_ARCH_RISCV) += devicetree.o
-
 obj-$(NAUT_CONFIG_PROFILE) += instrument.o
 obj-$(NAUT_CONFIG_XEON_PHI) += sfi.o
 

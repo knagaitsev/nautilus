@@ -26,7 +26,7 @@
 #include <nautilus/mb_utils.h>
 #include <nautilus/macros.h>
 #include <nautilus/multiboot2.h>
-#include <nautilus/devicetree.h>
+#include <nautilus/fdt.h>
 
 extern char * mem_region_types[6];
 
@@ -43,29 +43,29 @@ extern ulong_t kernel_end;
 off_t dtb_ram_start = 0;
 size_t dtb_ram_size = 0;
 
-bool_t dtb_node_get_rsv_ram (struct dtb_node *n) {
-    if(strstr(n->name, "mmode_resv")) {
-        addr_t start = n->reg.address;
-        ulong_t len = n->reg.length;
-        INFO_PRINT("Reseving %s region (%p, size %lu)\n", n->name, start, len);
-        mm_boot_reserve_mem(start, len);
-    }
-    return true;
-}
+// bool_t dtb_node_get_rsv_ram (struct dtb_node *n) {
+//     if(strstr(n->name, "mmode_resv")) {
+//         addr_t start = n->reg.address;
+//         ulong_t len = n->reg.length;
+//         INFO_PRINT("Reseving %s region (%p, size %lu)\n", n->name, start, len);
+//         mm_boot_reserve_mem(start, len);
+//     }
+//     return true;
+// }
 
-bool_t dtb_node_get_ram (struct dtb_node * n) {
-    if(!strcmp(n->name, "memory")) {
-        dtb_ram_size = n->reg.length;
-        dtb_ram_start = n->reg.address;
-        return false;
-    }
-    return true;
-}
+// bool_t dtb_node_get_ram (struct dtb_node * n) {
+//     if(!strcmp(n->name, "memory")) {
+//         dtb_ram_size = n->reg.length;
+//         dtb_ram_start = n->reg.address;
+//         return false;
+//     }
+//     return true;
+// }
 
 void
 arch_reserve_boot_regions (unsigned long mbd)
 {
-    dtb_walk_devices(dtb_node_get_rsv_ram);
+    // dtb_walk_devices(dtb_node_get_rsv_ram);
 }
 
 void
@@ -73,7 +73,37 @@ arch_detect_mem_map (mmap_info_t * mm_info,
                      mem_map_entry_t * memory_map,
                      ulong_t fdt)
 {
-    dtb_walk_devices(dtb_node_get_ram);
+    // dtb_walk_devices(dtb_node_get_ram);
+    // int depth = 0;
+    int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "memory", 6);
+    int lenp = 0;
+    char *name = fdt_get_name(fdt, offset, &lenp);
+
+    printk("Offset: %d, name: %s\n", offset, name);
+
+    char *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
+
+    for (int i = 0; i < lenp / 8; i++) {
+        printk("%02x ", ((ulong_t *)reg_prop)[i]);
+    }
+    printk("\n");
+
+    // do {
+    //     // int subnode_offset = fdt_first_subnode(fdt, offset);
+
+    //     // printk("Subnode Offset: %d\n", subnode_offset);
+
+    //     offset = fdt_next_node(fdt, offset, &depth);
+    //     // int off_dt_strings = fdt_off_dt_strings(fdt);
+    //     int lenp = 0;
+    //     char *name = fdt_get_name(fdt, offset, &lenp);
+    //     char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+    //     printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
+
+    //     // if (name && strcmp(name, "memory") == 0) {
+    //     //     printk("Found memory\n");
+    //     // }
+    // } while (offset > 0);
 
     if (dtb_ram_start == 0) {
       BMM_WARN("DTB did not contain memory segment. Assuming 128MB...\n");

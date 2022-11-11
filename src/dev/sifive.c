@@ -1,5 +1,4 @@
 #include <nautilus/nautilus.h>
-#include <nautilus/devicetree.h>
 #include <nautilus/irq.h>
 #include <arch/riscv/sbi.h>
 #include <dev/sifive.h>
@@ -52,22 +51,22 @@ static void sifive_init(addr_t addr, uint16_t irq) {
     arch_irq_install(irq, sifive_handler);
 }
 
-bool_t dtb_node_sifive_compatible(struct dtb_node *n) {
-    for (off_t i = 0; i < n->ncompat; i++) {
-        if (strstr(n->compatible[i], "sifive,uart0")) {
-            return true;
-        }
-    }
-    return false;
-}
+// bool_t dtb_node_sifive_compatible(struct dtb_node *n) {
+//     for (off_t i = 0; i < n->ncompat; i++) {
+//         if (strstr(n->compatible[i], "sifive,uart0")) {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
 
-bool_t dtb_node_get_sifive(struct dtb_node *n) {
-    if (dtb_node_sifive_compatible(n)) {
-        sifive_init(n->address, n->irq);
-        return false;
-    }
-    return true;
-}
+// bool_t dtb_node_get_sifive(struct dtb_node *n) {
+//     if (dtb_node_sifive_compatible(n)) {
+//         sifive_init(n->address, n->irq);
+//         return false;
+//     }
+//     return true;
+// }
 
 void sifive_serial_init(void) {
     /* dtb_walk_devices(dtb_node_get_sifive); */

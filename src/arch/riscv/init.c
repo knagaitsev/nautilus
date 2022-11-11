@@ -31,7 +31,6 @@
 #include <nautilus/cmdline.h>
 #include <nautilus/cpu.h>
 #include <nautilus/dev.h>
-#include <nautilus/devicetree.h>
 #include <nautilus/errno.h>
 #include <nautilus/fs.h>
 #include <nautilus/future.h>
@@ -203,9 +202,9 @@ void init(unsigned long hartid, unsigned long fdt) {
   naut->sys.bsp_id = hartid;
   naut->sys.dtb = (struct dtb_fdt_header *)fdt;
 
-  if (!dtb_parse(naut->sys.dtb)) {
-    panic("Problem parsing devicetree header\n");
-  }
+  // if (!dtb_parse(naut->sys.dtb)) {
+  //   panic("Problem parsing devicetree header\n");
+  // }
 
   printk("RISCV: hart %d mvendorid: %llx\n", hartid, sbi_call(SBI_GET_MVENDORID).value);
   printk("RISCV: hart %d marchid:   %llx\n", hartid, sbi_call(SBI_GET_MARCHID).value);
@@ -213,6 +212,44 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   // Initialize platform level interrupt controller for this HART
   plic_init();
+
+  // int depth = 0;
+  // int offset = 0;
+  // do {
+  //   // int subnode_offset = fdt_first_subnode(fdt, offset);
+
+  //   // printk("Subnode Offset: %d\n", subnode_offset);
+
+  //   offset = fdt_next_node(fdt, offset, &depth);
+  //   // int off_dt_strings = fdt_off_dt_strings(fdt);
+  //   int lenp = 0;
+  //   char *name = fdt_get_name(fdt, offset, &lenp);
+  //   char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+  //   printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
+
+  //   if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
+  //     void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
+  //     if (ints_extended_prop != NULL) {
+  //       uint32_t *vals = (uint32_t *)ints_extended_prop;
+  //       int context_count = lenp / 8;
+  //       // printk("\tlenp: %d, context count %d\n", lenp, context_count);
+  //       for (int context = 0; context < context_count; context++) {
+  //         int c_off = context * 2;
+  //         int phandle = fdt_ntohl(vals[c_off]);
+  //         int nr = fdt_ntohl(vals[c_off + 1]);
+  //         if (nr != 9) {
+  //           continue;
+  //         }
+  //         printk("\tcontext %d: (%d, %d)\n", context, phandle, nr);
+
+  //         int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
+  //         int cpu_offset = fdt_parent_offset(fdt, intc_offset);
+  //         char *name = fdt_get_name(fdt, cpu_offset, &lenp);
+  //         printk("\tcpu: %s\n", name);
+  //       }
+  //     }
+  //   }
+  // } while (offset > 0);
 
   nk_dev_init();
   nk_char_dev_init();
@@ -223,6 +260,8 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   // Setup the temporary boot-time allocator
   mm_boot_init(fdt);
+
+  asm volatile ("wfi");
 
   // Enumate CPUs and initialize them
   smp_early_init(naut);
@@ -331,67 +370,6 @@ void init_full(unsigned long hartid, unsigned long fdt) {
   /* } */
 
   // printk("FDT data: %p, first val: %d\n", *(uint32_t *)fdt, *((uint32_t *)(*(uint32_t *)fdt)));
-
-  int depth = 0;
-  int offset = 0;
-  do {
-    // int subnode_offset = fdt_first_subnode(fdt, offset);
-
-    // printk("Subnode Offset: %d\n", subnode_offset);
-
-    offset = fdt_next_node(fdt, offset, &depth);
-    // int off_dt_strings = fdt_off_dt_strings(fdt);
-    int lenp = 0;
-    char *name = fdt_get_name(fdt, offset, &lenp);
-    char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
-    printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
-
-    if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
-      void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
-      if (ints_extended_prop != NULL) {
-        uint32_t *vals = (uint32_t *)ints_extended_prop;
-        int context_count = lenp / 8;
-        // printk("\tlenp: %d, context count %d\n", lenp, context_count);
-        for (int context = 0; context < context_count; context++) {
-          int c_off = context * 2;
-          int phandle = fdt_ntohl(vals[c_off]);
-          int nr = fdt_ntohl(vals[c_off + 1]);
-          if (nr != 9) {
-            continue;
-          }
-          printk("\tcontext %d: (%d, %d)\n", context, phandle, nr);
-
-          int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
-          int cpu_offset = fdt_parent_offset(fdt, intc_offset);
-          char *name = fdt_get_name(fdt, cpu_offset, &lenp);
-          printk("\tcpu: %s\n", name);
-        }
-      }
-    }
-
-    // uint32_t phandle = fdt_get_phandle(fdt, offset);
-    // if (phandle) {
-    //   printk("\tphandle: %d\n", phandle);
-    // }
-
-    // TODO: these array fields currently have the wrong endianness, so need to keep in
-    // mind the numbers here look backwards
-    // void *int_prop = fdt_getprop(fdt, offset, "interrupts", &lenp);
-    // if (int_prop != NULL) {
-      // uint8_t *vals = (uint8_t *)int_prop;
-      // for (unsigned int i = 0; i < lenp; i++) {
-      //   printk("\tint prop: %d\n", vals[i]);
-      // }
-    // }
-
-    // void *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
-    // if (reg_prop != NULL) {
-    //   uint32_t *vals = (uint32_t *)reg_prop;
-    //   for (unsigned int i = 0; i < lenp / 4; i++) {
-    //     printk("\treg prop: %p\n", vals[i]);
-    //   }
-    // }
-  } while (offset > 0);
 
   // struct sbiret ret = sbi_call(SBI_EXT_HSM, SBI_EXT_HSM_HART_START, 0, &init_smp_boot, 1);
   // if (ret.error != SBI_SUCCESS) {

@@ -1,7 +1,6 @@
 #include <arch/riscv/plic.h>
 #include <arch/riscv/sbi.h>
 #include <nautilus/cpu.h>
-#include <nautilus/devicetree.h>
 #include <nautilus/naut_types.h>
 #include <nautilus/percpu.h>
 
@@ -25,26 +24,7 @@ static addr_t plic_addr = 0;
 #define ENABLE_BASE 0x2000
 #define ENABLE_PER_HART 0x100
 
-bool_t dtb_node_plic_compatible(struct dtb_node *n) {
-    for (off_t i = 0; i < n->ncompat; i++) {
-        if (strstr(n->compatible[i], "plic")) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool_t dtb_node_get_plic(struct dtb_node *n) {
-    if (strstr(n->name, "interrupt-controller") && dtb_node_plic_compatible(n)) {
-        printk("PLIC @ %p\n", n->address);
-        PLIC = n->address;
-        return false;
-    }
-    return true;
-}
-
 void plic_init(void) {
-    /* dtb_walk_devices(dtb_node_get_plic); */
     PLIC = 0x0c000000L;
 }
 
