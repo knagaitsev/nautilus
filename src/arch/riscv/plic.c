@@ -19,6 +19,9 @@ static addr_t plic_addr = 0;
 #define PLIC_MCLAIM(hart) MREG(PLI + 0x201004 + (hart)*0x2000)
 #define PLIC_SCLAIM(hart) MREG(PLIC + 0x200004 + (hart)*0x2000)
 
+#define PLIC_ENABLE(n, h) (contexts[h].enable_offset + ((n) / 32) * sizeof(uint32_t))
+#define PLIC_THRESHOLD(h) (contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
+
 #define ENABLE_BASE 0x2000
 #define ENABLE_PER_HART 0x100
 

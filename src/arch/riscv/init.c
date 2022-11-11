@@ -177,7 +177,7 @@ int start_secondary(struct sys_info *sys) {
 
 void my_monitor_entry(void);
 
-void init_full(unsigned long hartid, unsigned long fdt) {
+void init(unsigned long hartid, unsigned long fdt) {
 
   if (!fdt) panic("Invalid FDT: %p\n", fdt);
 
@@ -298,19 +298,20 @@ void init_full(unsigned long hartid, unsigned long fdt) {
   // kick off the timer subsystem by setting a timer sometime in the future
   sbi_set_timer(read_csr(time) + TICK_INTERVAL);
 
-  sifive_test();
+  // sifive_test();
   /* my_monitor_entry(); */
 
-  start_secondary(&(naut->sys));
+  // start_secondary(&(naut->sys));
 
-  nk_launch_shell("root-shell",my_cpu_id(),0,0);
+  // nk_launch_shell("root-shell",my_cpu_id(),0,0);
+  execute_threading(NULL);
 
   printk("Nautilus boot thread yielding (indefinitely)\n");
 
   idle(NULL, NULL);
 }
 
-void init(unsigned long hartid, unsigned long fdt) {
+void init_full(unsigned long hartid, unsigned long fdt) {
 
   if (!fdt) panic("Invalid FDT: %p\n", fdt);
 
@@ -392,9 +393,18 @@ void init(unsigned long hartid, unsigned long fdt) {
     // }
   } while (offset > 0);
 
-  while(1) {
+  // struct sbiret ret = sbi_call(SBI_EXT_HSM, SBI_EXT_HSM_HART_START, 0, &init_smp_boot, 1);
+  // if (ret.error != SBI_SUCCESS) {
+  //   printk("bad!\n");
+  // }
 
-  }
+  // printk("waiting\n");
+
+  // asm volatile ("wfi");
+
+  // while(1) {
+
+  // }
 
   // Initialize platform level interrupt controller for this HART
   plic_init();
@@ -435,7 +445,7 @@ static void print_ones(void)
 {
     while (!done) {
         printk("1");
-        /* nk_yield(); */
+        nk_yield();
     }
 }
 
@@ -443,7 +453,7 @@ static void print_twos(void)
 {
     while (!done) {
         printk("2");
-        /* nk_yield(); */
+        nk_yield();
     }
 }
 
