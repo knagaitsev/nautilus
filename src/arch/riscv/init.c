@@ -220,7 +220,6 @@ void init(unsigned long hartid, unsigned long fdt) {
 
     // printk("Subnode Offset: %d\n", subnode_offset);
 
-    offset = fdt_next_node(fdt, offset, &depth);
     // int off_dt_strings = fdt_off_dt_strings(fdt);
     int lenp = 0;
     char *name = fdt_get_name(fdt, offset, &lenp);
@@ -278,6 +277,8 @@ void init(unsigned long hartid, unsigned long fdt) {
         printk("\treg prop: %p\n", vals[i]);
       }
     }
+
+    offset = fdt_next_node(fdt, offset, &depth);
   } while (offset > 0);
 
   // asm volatile ("wfi");
