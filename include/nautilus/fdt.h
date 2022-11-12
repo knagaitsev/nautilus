@@ -2244,3 +2244,28 @@ static inline struct fdt_reserve_entry *fdt_mem_rsv_w_(void *fdt, int n)
 #define FDT_SW_MAGIC		(~FDT_MAGIC)
 
 #endif /* LIBFDT_INTERNAL_H */
+
+// this is our own addition to libfdt
+#ifndef NAUT_FDT_H
+#define NAUT_FDT_H
+
+// uint64_t swapLong(void *X) {
+//     uint64_t x = (uint64_t) X;
+//     x = (x & 0x00000000FFFFFFFF) << 32 | (x & 0xFFFFFFFF00000000) >> 32;
+//     x = (x & 0x0000FFFF0000FFFF) << 16 | (x & 0xFFFF0000FFFF0000) >> 16;
+//     x = (x & 0x00FF00FF00FF00FF) << 8  | (x & 0xFF00FF00FF00FF00) >> 8;
+//     return x;
+// }
+
+// #define reverse_bytes_32(num) ( ((num & 0xFF000000) >> 24) | ((num & 0x00FF0000) >> 8) | ((num & 0x0000FF00) << 8) | ((num & 0x000000FF) << 24) )
+
+#define bswap_32(num) ( ((num & 0xFF000000) >> 24) | ((num & 0x00FF0000) >> 8) | ((num & 0x0000FF00) << 8) | ((num & 0x000000FF) << 24) )
+#define bswap_64(x) ({ \
+	uint64_t __x = (uint64_t) x; \
+	__x = (__x & 0x00000000FFFFFFFF) << 32 | (__x & 0xFFFFFFFF00000000) >> 32; \
+    __x = (__x & 0x0000FFFF0000FFFF) << 16 | (__x & 0xFFFF0000FFFF0000) >> 16; \
+    __x = (__x & 0x00FF00FF00FF00FF) << 8  | (__x & 0xFF00FF00FF00FF00) >> 8; \
+	__x; \
+})
+
+#endif

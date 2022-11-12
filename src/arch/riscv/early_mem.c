@@ -78,13 +78,12 @@ arch_detect_mem_map (mmap_info_t * mm_info,
     int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "memory", 6);
     int lenp = 0;
     char *name = fdt_get_name(fdt, offset, &lenp);
-
     printk("Offset: %d, name: %s\n", offset, name);
 
     char *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
 
     for (int i = 0; i < lenp / 8; i++) {
-        printk("%02x ", ((ulong_t *)reg_prop)[i]);
+        printk("%x ", bswap_64(((uint64_t *)reg_prop)[i]));
     }
     printk("\n");
 

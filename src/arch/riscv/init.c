@@ -213,43 +213,74 @@ void init(unsigned long hartid, unsigned long fdt) {
   // Initialize platform level interrupt controller for this HART
   plic_init();
 
-  // int depth = 0;
-  // int offset = 0;
-  // do {
-  //   // int subnode_offset = fdt_first_subnode(fdt, offset);
+  int depth = 0;
+  int offset = 0;
+  do {
+    // int subnode_offset = fdt_first_subnode(fdt, offset);
 
-  //   // printk("Subnode Offset: %d\n", subnode_offset);
+    // printk("Subnode Offset: %d\n", subnode_offset);
 
-  //   offset = fdt_next_node(fdt, offset, &depth);
-  //   // int off_dt_strings = fdt_off_dt_strings(fdt);
-  //   int lenp = 0;
-  //   char *name = fdt_get_name(fdt, offset, &lenp);
-  //   char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
-  //   printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
+    offset = fdt_next_node(fdt, offset, &depth);
+    // int off_dt_strings = fdt_off_dt_strings(fdt);
+    int lenp = 0;
+    char *name = fdt_get_name(fdt, offset, &lenp);
+    char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+    printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
 
-  //   if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
-  //     void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
-  //     if (ints_extended_prop != NULL) {
-  //       uint32_t *vals = (uint32_t *)ints_extended_prop;
-  //       int context_count = lenp / 8;
-  //       // printk("\tlenp: %d, context count %d\n", lenp, context_count);
-  //       for (int context = 0; context < context_count; context++) {
-  //         int c_off = context * 2;
-  //         int phandle = fdt_ntohl(vals[c_off]);
-  //         int nr = fdt_ntohl(vals[c_off + 1]);
-  //         if (nr != 9) {
-  //           continue;
-  //         }
-  //         printk("\tcontext %d: (%d, %d)\n", context, phandle, nr);
+    if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
+      void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
+      if (ints_extended_prop != NULL) {
+        uint32_t *vals = (uint32_t *)ints_extended_prop;
+        int context_count = lenp / 8;
+        // printk("\tlenp: %d, context count %d\n", lenp, context_count);
+        for (int context = 0; context < context_count; context++) {
+          int c_off = context * 2;
+          int phandle = fdt_ntohl(vals[c_off]);
+          int nr = fdt_ntohl(vals[c_off + 1]);
+          if (nr != 9) {
+            continue;
+          }
+          printk("\tcontext %d: (%d, %d)\n", context, phandle, nr);
 
-  //         int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
-  //         int cpu_offset = fdt_parent_offset(fdt, intc_offset);
-  //         char *name = fdt_get_name(fdt, cpu_offset, &lenp);
-  //         printk("\tcpu: %s\n", name);
-  //       }
-  //     }
-  //   }
-  // } while (offset > 0);
+          int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
+          int cpu_offset = fdt_parent_offset(fdt, intc_offset);
+          char *name = fdt_get_name(fdt, cpu_offset, &lenp);
+          printk("\tcpu: %s\n", name);
+        }
+      }
+    }
+
+    // from the device tree spec:
+    // #size-cells and #address-cells are number of 32-bit cells that the
+    // address and size data will be stored in for each reg prop
+    // if not specified, assume: 2 for #address-cells, 1 for #size-cells
+
+    // TODO: it's odd that the memory@...
+    // entry seems to have 2 bytes for both #size-cells and #address-cells
+    // but it does not specify that when it should, given the above defaults
+
+    void *address_cells = fdt_getprop(fdt, offset, "#address-cells", &lenp);
+    if (address_cells) {
+      uint32_t v = bswap_32(*((uint32_t *)address_cells));
+      printk("\t\tAddress Cells: %d\n", v);
+    }
+
+    void *size_cells = fdt_getprop(fdt, offset, "#size-cells", &lenp);
+    if (size_cells) {
+      uint32_t v = bswap_32(*((uint32_t *)size_cells));
+      printk("\t\tSize Cells: %d\n", v);
+    }
+
+    void *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
+    if (reg_prop != NULL) {
+      uint32_t *vals = (uint32_t *)reg_prop;
+      for (unsigned int i = 0; i < lenp / 4; i++) {
+        printk("\treg prop: %p\n", vals[i]);
+      }
+    }
+  } while (offset > 0);
+
+  // asm volatile ("wfi");
 
   nk_dev_init();
   nk_char_dev_init();
