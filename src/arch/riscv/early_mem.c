@@ -76,33 +76,15 @@ arch_detect_mem_map (mmap_info_t * mm_info,
     // dtb_walk_devices(dtb_node_get_ram);
     // int depth = 0;
     int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "memory", 6);
-    int lenp = 0;
-    char *name = fdt_get_name(fdt, offset, &lenp);
-    printk("Offset: %d, name: %s\n", offset, name);
 
-    char *reg_prop = fdt_getprop(fdt, offset, "reg", &lenp);
+    fdt_reg_t reg = { .address = 0, .size = 0 };
+    int getreg_result = fdt_getreg(fdt, offset, &reg);
+    // printk("Res: %d, Reg: %x, %x\n\n", getreg_result, reg.address, reg.size);
 
-    for (int i = 0; i < lenp / 8; i++) {
-        printk("%x ", bswap_64(((uint64_t *)reg_prop)[i]));
+    if (getreg_result == 0) {
+        dtb_ram_start = reg.address;
+        dtb_ram_size = reg.size;
     }
-    printk("\n");
-
-    // do {
-    //     // int subnode_offset = fdt_first_subnode(fdt, offset);
-
-    //     // printk("Subnode Offset: %d\n", subnode_offset);
-
-    //     offset = fdt_next_node(fdt, offset, &depth);
-    //     // int off_dt_strings = fdt_off_dt_strings(fdt);
-    //     int lenp = 0;
-    //     char *name = fdt_get_name(fdt, offset, &lenp);
-    //     char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
-    //     printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
-
-    //     // if (name && strcmp(name, "memory") == 0) {
-    //     //     printk("Found memory\n");
-    //     // }
-    // } while (offset > 0);
 
     if (dtb_ram_start == 0) {
       BMM_WARN("DTB did not contain memory segment. Assuming 128MB...\n");

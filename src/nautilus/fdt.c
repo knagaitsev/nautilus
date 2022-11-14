@@ -247,3 +247,55 @@ int fdt_move(const void *fdt, void *buf, int bufsize)
 	memmove(buf, fdt, fdt_totalsize(fdt));
 	return 0;
 }
+
+// this is our own addition to libfdt
+
+int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
+	// from the device tree spec:
+    // #size-cells and #address-cells are number of 32-bit cells that the
+    // address and size data will be stored in for each reg prop
+    // if not specified, assume: 2 for #address-cells, 1 for #size-cells
+
+	int reg_lenp = 0;
+    char *reg_prop = fdt_getprop(fdt, offset, "reg", &reg_lenp);
+
+	void *address_cells_p = NULL;
+	void *size_cells_p = NULL;
+	int parent_iter_offset = offset;
+	while (!address_cells_p || !size_cells_p) {
+		// unclear if we should return here or if we should fall back to the default values
+		// listed above (2, 1)
+		if (parent_iter_offset < 0) {
+			return -1;
+		}
+		int lenp = 0;
+
+		address_cells_p = fdt_getprop(fdt, parent_iter_offset, "#address-cells", &lenp);
+		size_cells_p = fdt_getprop(fdt, parent_iter_offset, "#size-cells", &lenp);
+
+		parent_iter_offset = fdt_parent_offset(fdt, parent_iter_offset);
+	}
+
+	uint32_t address_cells = bswap_32(*((uint32_t *)address_cells_p));
+	uint32_t size_cells = bswap_32(*((uint32_t *)size_cells_p));
+
+	// printk("Addr: %d, size: %d\n", address_cells, size_cells);
+
+	int i = 0;
+	if (address_cells > 0) {
+		if (address_cells == 1) reg->address = bswap_32(*((uint32_t *)reg_prop));
+		if (address_cells == 2) reg->address = bswap_64(*((uint64_t *)reg_prop));
+	}
+	reg_prop += 4 * address_cells;
+	if (size_cells > 0) {
+		if (size_cells == 1) reg->size = bswap_32(*((uint32_t *)reg_prop));
+		if (size_cells == 2) reg->size = bswap_64(*((uint64_t *)reg_prop));
+	}
+
+    // for (int i = 0; i < lenp / 8; i++) {
+    //     printk("%x ", bswap_64(((uint64_t *)reg_prop)[i]));
+    // }
+    // printk("\n");
+
+	return 0;
+}

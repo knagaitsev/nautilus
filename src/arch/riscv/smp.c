@@ -7,6 +7,7 @@
 #include <nautilus/percpu.h>
 #include <nautilus/numa.h>
 #include <nautilus/cpu.h>
+#include <nautilus/fdt.h>
 
 #ifndef NAUT_CONFIG_DEBUG_SMP
 #undef DEBUG_PRINT
@@ -18,41 +19,44 @@
 
 static struct sys_info * sys;
 
-// static int
-// dtb_parse_cpu (struct dtb_node * n) {
-//     struct cpu * new_cpu = NULL;
+static int
+parse_cpu (unsigned long fdt, int offset) {
+    fdt_reg_t reg = { .address = 0, .size = 0 };
+    int getreg_result = fdt_getreg(fdt, offset, &reg);
 
-//     if (sys->num_cpus == NAUT_CONFIG_MAX_CPUS) {
-//         panic("CPU count exceeded max (check your .config)\n");
-//     }
+    struct cpu * new_cpu = NULL;
 
-//     if(!(new_cpu = mm_boot_alloc(sizeof(struct cpu)))) {
-//         panic("Couldn't allocate CPU struct\n");
-//     } 
+    if (sys->num_cpus == NAUT_CONFIG_MAX_CPUS) {
+        panic("CPU count exceeded max (check your .config)\n");
+    }
 
-//     memset(new_cpu, 0, sizeof(struct cpu));
+    if(!(new_cpu = mm_boot_alloc(sizeof(struct cpu)))) {
+        panic("Couldn't allocate CPU struct\n");
+    } 
 
-//     new_cpu->id         = n->reg.address;
-//     new_cpu->lapic_id   = 0;
+    memset(new_cpu, 0, sizeof(struct cpu));
 
-//     new_cpu->enabled    = 1;
-//     new_cpu->is_bsp     = (new_cpu->id == sys->bsp_id ? 1 : 0);
-//     new_cpu->cpu_sig    = 0;
-//     new_cpu->feat_flags = 0;
-//     new_cpu->system     = sys;
-//     new_cpu->cpu_khz    = 0;
+    new_cpu->id         = reg.address;
+    new_cpu->lapic_id   = 0;
 
-//     SMP_DEBUG("CPU %u\n", new_cpu->id);
-//     SMP_DEBUG("\tEnabled?=%01d\n", new_cpu->enabled);
-//     SMP_DEBUG("\tBSP?=%01d\n", new_cpu->is_bsp);
+    new_cpu->enabled    = 1;
+    new_cpu->is_bsp     = (new_cpu->id == sys->bsp_id ? 1 : 0);
+    new_cpu->cpu_sig    = 0;
+    new_cpu->feat_flags = 0;
+    new_cpu->system     = sys;
+    new_cpu->cpu_khz    = 0;
 
-//     spinlock_init(&new_cpu->lock);
+    SMP_DEBUG("CPU %u\n", new_cpu->id);
+    SMP_DEBUG("\tEnabled?=%01d\n", new_cpu->enabled);
+    SMP_DEBUG("\tBSP?=%01d\n", new_cpu->is_bsp);
 
-//     sys->cpus[new_cpu->id] = new_cpu;
-//     sys->num_cpus++;
+    spinlock_init(&new_cpu->lock);
 
-//     return 0;
-// }
+    sys->cpus[new_cpu->id] = new_cpu;
+    sys->num_cpus++;
+
+    return 0;
+}
 
 // static int
 // dtb_parse_plic (struct dtb_node * n) {
@@ -93,9 +97,25 @@ static struct sys_info * sys;
 //     return true;
 // }
 
+void parse_cpus(unsigned long fdt) {
+    int depth = 0;
+    int offset = 0;
+    do {
+        int lenp = 0;
+        char *name = fdt_get_name(fdt, offset, &lenp);
+        // maybe not the ideal way to do this
+        if(name && !strncmp(name, "cpu@", 4)) {
+            // printk("Hit: %s\n", name);
+            parse_cpu(fdt, offset);
+        }
+
+        offset = fdt_next_node(fdt, offset, &depth);
+    } while (offset > 0);
+}
+
 static int __early_init_dtb(struct naut_info * naut) {
     sys = &(naut->sys);
-    // dtb_walk_devices(dtb_node_get_cpu);
+    parse_cpus(naut->sys.dtb);
     return 0;
 }
 
