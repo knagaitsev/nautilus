@@ -2276,4 +2276,9 @@ typedef struct fdt_reg {
 // returns 0 on success, anything else on failure
 int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg);
 
+void print_fdt(const void *fdt);
+
+// callback returns 0 if walking should stop, 1 otherwise
+void fdt_walk_devices(const void *fdt, int (*callback)(const void *fdt, int offset, int depth));
+
 #endif

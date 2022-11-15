@@ -20,7 +20,7 @@
 static struct sys_info * sys;
 
 static int
-parse_cpu (unsigned long fdt, int offset) {
+configure_cpu (unsigned long fdt, int offset) {
     fdt_reg_t reg = { .address = 0, .size = 0 };
     int getreg_result = fdt_getreg(fdt, offset, &reg);
 
@@ -97,20 +97,20 @@ parse_cpu (unsigned long fdt, int offset) {
 //     return true;
 // }
 
-void parse_cpus(unsigned long fdt) {
-    int depth = 0;
-    int offset = 0;
-    do {
-        int lenp = 0;
-        char *name = fdt_get_name(fdt, offset, &lenp);
-        // maybe not the ideal way to do this
-        if(name && !strncmp(name, "cpu@", 4)) {
-            // printk("Hit: %s\n", name);
-            parse_cpu(fdt, offset);
-        }
+int fdt_get_cpu(const void *fdt, int offset, int depth) {
+    int lenp = 0;
+    char *name = fdt_get_name(fdt, offset, &lenp);
+    // maybe not the ideal way to do this
+    if(name && !strncmp(name, "cpu@", 4)) {
+        // printk("Hit: %s\n", name);
+        configure_cpu(fdt, offset);
+    }
 
-        offset = fdt_next_node(fdt, offset, &depth);
-    } while (offset > 0);
+    return 1;
+}
+
+void parse_cpus(unsigned long fdt) {
+    fdt_walk_devices(fdt, fdt_get_cpu);
 }
 
 static int __early_init_dtb(struct naut_info * naut) {

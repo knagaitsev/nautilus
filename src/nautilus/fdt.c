@@ -299,3 +299,57 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 
 	return 0;
 }
+
+int print_device(const void *fdt, int offset, int depth) {
+	int lenp = 0;
+	char *name = fdt_get_name(fdt, offset, &lenp);
+	char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+	// show tree depth with spaces
+	for (int i = 0; i < depth; i++) {
+		printk("  ");
+	}
+	printk("%s (%s)\n", name, compat_prop);
+
+	if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
+		void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
+		if (ints_extended_prop != NULL) {
+			uint32_t *vals = (uint32_t *)ints_extended_prop;
+			int context_count = lenp / 8;
+			// printk("\tlenp: %d, context count %d\n",
+			// lenp, context_count);
+			for (int context = 0; context < context_count; context++) {
+				int c_off = context * 2;
+				int phandle = bswap_32(vals[c_off]);
+				int nr = bswap_32(vals[c_off + 1]);
+				if (nr != 9) {
+					continue;
+				}
+				printk("\tcontext %d: (%d, %d)\n", context,
+						phandle, nr);
+
+				int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
+				int cpu_offset = fdt_parent_offset(fdt, intc_offset);
+				char *name = fdt_get_name(fdt, cpu_offset, &lenp);
+				printk("\tcpu: %s\n", name);
+			}
+		}
+	}
+
+	return 1;
+}
+
+void print_fdt(const void *fdt) {
+	fdt_walk_devices(fdt, print_device);
+}
+
+void fdt_walk_devices(const void *fdt, int (*callback)(const void *fdt, int offset, int depth)) {
+	int depth = 0;
+	int offset = 0;
+	do {
+		if (!callback(fdt, offset, depth)) {
+			break;
+		}
+
+		offset = fdt_next_node(fdt, offset, &depth);
+	} while (offset > 0);
+}

@@ -213,39 +213,7 @@ void init(unsigned long hartid, unsigned long fdt) {
   // Initialize platform level interrupt controller for this HART
   plic_init();
 
-  int depth = 0;
-  int offset = 0;
-  do {
-    int lenp = 0;
-    char *name = fdt_get_name(fdt, offset, &lenp);
-    char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
-    printk("Offset: %d, Depth: %d, name: %s (%s)\n", offset, depth, name, compat_prop);
-
-    if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
-      void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
-      if (ints_extended_prop != NULL) {
-        uint32_t *vals = (uint32_t *)ints_extended_prop;
-        int context_count = lenp / 8;
-        // printk("\tlenp: %d, context count %d\n", lenp, context_count);
-        for (int context = 0; context < context_count; context++) {
-          int c_off = context * 2;
-          int phandle = bswap_32(vals[c_off]);
-          int nr = bswap_32(vals[c_off + 1]);
-          if (nr != 9) {
-            continue;
-          }
-          printk("\tcontext %d: (%d, %d)\n", context, phandle, nr);
-
-          int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
-          int cpu_offset = fdt_parent_offset(fdt, intc_offset);
-          char *name = fdt_get_name(fdt, cpu_offset, &lenp);
-          printk("\tcpu: %s\n", name);
-        }
-      }
-    }
-
-    offset = fdt_next_node(fdt, offset, &depth);
-  } while (offset > 0);
+  print_fdt(fdt);
 
   // asm volatile ("wfi");
 
@@ -346,7 +314,7 @@ void init(unsigned long hartid, unsigned long fdt) {
   idle(NULL, NULL);
 }
 
-void init_full(unsigned long hartid, unsigned long fdt) {
+void init_simple(unsigned long hartid, unsigned long fdt) {
 
   if (!fdt) panic("Invalid FDT: %p\n", fdt);
 
@@ -360,25 +328,6 @@ void init_full(unsigned long hartid, unsigned long fdt) {
 
   struct naut_info *naut = &nautilus_info;
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
-
-  /* if (!dtb_parse(fdt)) { */
-  /*   panic("Problem parsing devicetree header\n"); */
-  /* } */
-
-  // printk("FDT data: %p, first val: %d\n", *(uint32_t *)fdt, *((uint32_t *)(*(uint32_t *)fdt)));
-
-  // struct sbiret ret = sbi_call(SBI_EXT_HSM, SBI_EXT_HSM_HART_START, 0, &init_smp_boot, 1);
-  // if (ret.error != SBI_SUCCESS) {
-  //   printk("bad!\n");
-  // }
-
-  // printk("waiting\n");
-
-  // asm volatile ("wfi");
-
-  // while(1) {
-
-  // }
 
   // Initialize platform level interrupt controller for this HART
   plic_init();
