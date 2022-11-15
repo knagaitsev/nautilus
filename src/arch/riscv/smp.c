@@ -21,8 +21,7 @@ static struct sys_info * sys;
 
 static int
 configure_cpu (unsigned long fdt, int offset) {
-    fdt_reg_t reg = { .address = 0, .size = 0 };
-    int getreg_result = fdt_getreg(fdt, offset, &reg);
+    off_t reg_addr = fdt_getreg_address(fdt, offset);
 
     struct cpu * new_cpu = NULL;
 
@@ -36,7 +35,7 @@ configure_cpu (unsigned long fdt, int offset) {
 
     memset(new_cpu, 0, sizeof(struct cpu));
 
-    new_cpu->id         = reg.address;
+    new_cpu->id         = reg_addr;
     new_cpu->lapic_id   = 0;
 
     new_cpu->enabled    = 1;

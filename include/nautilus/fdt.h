@@ -2269,12 +2269,15 @@ static inline struct fdt_reserve_entry *fdt_mem_rsv_w_(void *fdt, int n)
 })
 
 typedef struct fdt_reg {
-	uint64_t address;
-	uint64_t size;
+	off_t address;
+	size_t size;
 } fdt_reg_t;
 
 // returns 0 on success, anything else on failure
 int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg);
+
+// NULL on failure (not ideal for the zero CPU)
+off_t fdt_getreg_address(const void *fdt, int offset);
 
 void print_fdt(const void *fdt);
 

@@ -300,6 +300,13 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 	return 0;
 }
 
+off_t fdt_getreg_address(const void *fdt, int offset) {
+	fdt_reg_t reg = { .address = 0, .size = 0 };
+    int getreg_result = fdt_getreg(fdt, offset, &reg);
+
+	return reg.address;
+}
+
 int print_device(const void *fdt, int offset, int depth) {
 	int lenp = 0;
 	char *name = fdt_get_name(fdt, offset, &lenp);
