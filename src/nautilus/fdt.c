@@ -307,6 +307,18 @@ off_t fdt_getreg_address(const void *fdt, int offset) {
 	return reg.address;
 }
 
+// TODO: this makes a lot of assumptions about the device:
+// it only grabs the first interrupt, and it assumes that
+// the #interrupt-cells property is 1 (32 bit)
+uint32_t *fdt_get_interrupt(const void *fdt, int offset) {
+	int lenp = 0;
+
+	void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
+	uint32_t *vals = (uint32_t *)ints;
+
+	return bswap_32(vals[0]);
+}
+
 int print_device(const void *fdt, int offset, int depth) {
 	int lenp = 0;
 	char *name = fdt_get_name(fdt, offset, &lenp);
@@ -317,6 +329,13 @@ int print_device(const void *fdt, int offset, int depth) {
 		printk("  ");
 	}
 	printk("%s (%s - %s)\n", name, compat_prop, status);
+
+	void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
+	uint32_t *vals = (uint32_t *)ints;
+	for (int i = 0; i < lenp / 4; i++) {
+		uint32_t val = bswap_32(vals[i]);
+		printk("\tInt: %d\n", val);
+	}
 
 	if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
 		void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);

@@ -2279,6 +2279,8 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg);
 // NULL on failure (not ideal for the zero CPU)
 off_t fdt_getreg_address(const void *fdt, int offset);
 
+uint32_t *fdt_get_interrupt(const void *fdt, int offset);
+
 void print_fdt(const void *fdt);
 
 // callback returns 0 if walking should stop, 1 otherwise

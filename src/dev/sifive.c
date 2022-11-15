@@ -73,8 +73,8 @@ int fdt_node_get_sifive(const void *fdt, int offset, int depth) {
     char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
     if (compat_prop && strstr(compat_prop, "sifive,uart0")) {
         off_t addr = fdt_getreg_address(fdt, offset);
-        // TODO: get 4 as the irq for this
-        sifive_init(addr, 4);
+        uint32_t irq = fdt_get_interrupt(fdt, offset);
+        sifive_init(addr, (uint16_t)irq);
         return 0;
     }
     return 1;
