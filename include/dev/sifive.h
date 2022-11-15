@@ -13,7 +13,7 @@ struct sifive_serial_regs {
     volatile uint32_t div;
 };
 
-void sifive_serial_init(void);
+void sifive_serial_init(unsigned long fdt);
 void sifive_serial_write(const char *b);
 void sifive_serial_putchar(unsigned char ch);
 int  sifive_serial_getchar(void);

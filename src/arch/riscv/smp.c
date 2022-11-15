@@ -96,7 +96,7 @@ configure_cpu (unsigned long fdt, int offset) {
 //     return true;
 // }
 
-int fdt_get_cpu(const void *fdt, int offset, int depth) {
+int fdt_node_get_cpu(const void *fdt, int offset, int depth) {
     int lenp = 0;
     char *name = fdt_get_name(fdt, offset, &lenp);
     // maybe not the ideal way to do this
@@ -109,7 +109,7 @@ int fdt_get_cpu(const void *fdt, int offset, int depth) {
 }
 
 void parse_cpus(unsigned long fdt) {
-    fdt_walk_devices(fdt, fdt_get_cpu);
+    fdt_walk_devices(fdt, fdt_node_get_cpu);
 }
 
 static int __early_init_dtb(struct naut_info * naut) {

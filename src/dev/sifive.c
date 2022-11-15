@@ -68,10 +68,22 @@ static void sifive_init(addr_t addr, uint16_t irq) {
 //     return true;
 // }
 
-void sifive_serial_init(void) {
+int fdt_node_get_sifive(const void *fdt, int offset, int depth) {
+    int lenp = 0;
+    char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+    if (compat_prop && strstr(compat_prop, "sifive,uart0")) {
+        off_t addr = fdt_getreg_address(fdt, offset);
+        // TODO: get 4 as the irq for this
+        sifive_init(addr, 4);
+        return 0;
+    }
+    return 1;
+}
+
+void sifive_serial_init(unsigned long fdt) {
     /* dtb_walk_devices(dtb_node_get_sifive); */
     /* regs = (struct sifive_serial_regs *)0x10010000L; */
-    sifive_init(0x10010000L, 4);
+    fdt_walk_devices(fdt, fdt_node_get_sifive);
 }
 
 void sifive_serial_write(const char *b) {
