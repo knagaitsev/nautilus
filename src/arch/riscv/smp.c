@@ -22,6 +22,13 @@ static struct sys_info * sys;
 static int
 configure_cpu (unsigned long fdt, int offset) {
     off_t reg_addr = fdt_getreg_address(fdt, offset);
+    int lenp = 0;
+    char *status = fdt_getprop(fdt, offset, "status", &lenp);
+    int enabled = 1;
+    // sifive disables 1 CPU and indicates it with this property
+    if (status && !strcmp(status, "disabled")) {
+        enabled = 0;
+    }
 
     struct cpu * new_cpu = NULL;
 
@@ -38,7 +45,7 @@ configure_cpu (unsigned long fdt, int offset) {
     new_cpu->id         = reg_addr;
     new_cpu->lapic_id   = 0;
 
-    new_cpu->enabled    = 1;
+    new_cpu->enabled    = enabled;
     new_cpu->is_bsp     = (new_cpu->id == sys->bsp_id ? 1 : 0);
     new_cpu->cpu_sig    = 0;
     new_cpu->feat_flags = 0;

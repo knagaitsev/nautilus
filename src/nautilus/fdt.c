@@ -311,11 +311,12 @@ int print_device(const void *fdt, int offset, int depth) {
 	int lenp = 0;
 	char *name = fdt_get_name(fdt, offset, &lenp);
 	char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+	char *status = fdt_getprop(fdt, offset, "status", &lenp);
 	// show tree depth with spaces
 	for (int i = 0; i < depth; i++) {
 		printk("  ");
 	}
-	printk("%s (%s)\n", name, compat_prop);
+	printk("%s (%s - %s)\n", name, compat_prop, status);
 
 	if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
 		void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);

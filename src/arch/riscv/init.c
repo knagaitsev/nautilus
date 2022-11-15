@@ -304,7 +304,7 @@ void init(unsigned long hartid, unsigned long fdt) {
   // sifive_test();
   /* my_monitor_entry(); */
 
-  // start_secondary(&(naut->sys));
+  start_secondary(&(naut->sys));
 
   // nk_launch_shell("root-shell",my_cpu_id(),0,0);
   execute_threading(NULL);
