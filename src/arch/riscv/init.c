@@ -210,9 +210,6 @@ void init(unsigned long hartid, unsigned long fdt) {
   printk("RISCV: hart %d marchid:   %llx\n", hartid, sbi_call(SBI_GET_MARCHID).value);
   printk("RISCV: hart %d mimpid:    %llx\n", hartid, sbi_call(SBI_GET_MIMPID).value);
 
-  // Initialize platform level interrupt controller for this HART
-  plic_init();
-
   print_fdt(fdt);
 
   // asm volatile ("wfi");
@@ -246,6 +243,9 @@ void init(unsigned long hartid, unsigned long fdt) {
    * allocated in the boot mem allocator are kept reserved */
   mm_boot_kmem_init();
 
+  // Initialize platform level interrupt controller for this HART
+  plic_init(fdt);
+
   /* from this point on, we can use percpu macros (even if the APs aren't up) */
   plic_init_hart(hartid);
 
@@ -272,6 +272,9 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   nk_thread_group_init();
   nk_group_sched_init();
+
+  // my_monitor_entry();
+  // asm volatile ("wfi");
 
   /* we now switch away from the boot-time stack */
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
@@ -330,7 +333,7 @@ void init_simple(unsigned long hartid, unsigned long fdt) {
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
 
   // Initialize platform level interrupt controller for this HART
-  plic_init();
+  plic_init(fdt);
 
   plic_init_hart(hartid);
 

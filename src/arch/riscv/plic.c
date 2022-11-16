@@ -3,6 +3,7 @@
 #include <nautilus/cpu.h>
 #include <nautilus/naut_types.h>
 #include <nautilus/percpu.h>
+#include <nautilus/fdt.h>
 
 typedef struct plic_context {
   off_t enable_offset;
@@ -47,11 +48,57 @@ static plic_context_t *contexts = NULL;
 // #define ENABLE_BASE 0x2000
 // #define ENABLE_PER_HART 0x100
 
-void plic_init(void) {
-    PLIC = 0x0c000000L;
+void plic_init(unsigned long fdt) {
+    int offset = fdt_node_offset_by_compatible(fdt, -1, "sifive,plic-1.0.0");
+    if (offset < 0) {
+        // something is bad, no plic found
+        return;
+    }
+    off_t addr = fdt_getreg_address(fdt, offset);
+    PLIC = addr;
+
+    int lenp = 0;
+    void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
+    if (ints_extended_prop != NULL) {
+        uint32_t *vals = (uint32_t *)ints_extended_prop;
+        int context_count = lenp / 8;
+
+        contexts = kmem_malloc(context_count * sizeof(plic_context_t));
+
+        for (int context = 0; context < context_count; context++) {
+            int c_off = context * 2;
+            int phandle = bswap_32(vals[c_off]);
+            int nr = bswap_32(vals[c_off + 1]);
+            if (nr != 9) {
+                continue;
+            }
+            // printk("\tcontext %d: (%d, %d)\n", context, phandle, nr);
+
+            int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
+            int cpu_offset = fdt_parent_offset(fdt, intc_offset);
+            off_t hartid = fdt_getreg_address(fdt, cpu_offset);
+            // printk("\tcpu num: %d\n", hartid);
+            contexts[hartid].enable_offset = PLIC_ENABLE_BASE + context * PLIC_ENABLE_STRIDE;
+            contexts[hartid].context_offset = PLIC_CONTEXT_BASE + context * PLIC_CONTEXT_STRIDE;
+            // printk("%d, %x, %x\n", hartid, contexts[hartid].enable_offset, &MREG(PLIC_ENABLE(0, hartid)));
+        }
+    }
 }
 
 static void plic_toggle(int hart, int hwirq, int priority, bool_t enable) {
+    if (hwirq == 0) return;
+
+    uint32_t mask = (1 << (hwirq % 32));
+    uint32_t val = MREG(PLIC_ENABLE(hwirq, hart));
+    // printk("Hart: %d, hwirq: %d, v1: %d\n", hart, hwirq, val);
+    if (enable)
+        val |= mask;
+    else
+        val &= ~mask;
+
+    MREG(PLIC_ENABLE(hwirq, hart)) = val;
+    // printk("hart: %d, addr: %x, val: %d\n", hart, &MREG(PLIC_ENABLE(hwirq, hart)), MREG(PLIC_ENABLE(hwirq, hart)));
+
     // printk("toggling on hart %d, irq=%d, priority=%d, enable=%d, plic=%p\n", hart, hwirq, priority, enable, PLIC);
     // off_t enable_base = PLIC + ENABLE_BASE + hart * ENABLE_PER_HART;
     // printk("enable_base=%p\n", enable_base);
@@ -74,20 +121,22 @@ static void plic_toggle(int hart, int hwirq, int priority, bool_t enable) {
 
 void plic_enable(int hwirq, int priority)
 {
-    // plic_toggle(1, hwirq, priority, true);
+    plic_toggle(my_cpu_id(), hwirq, priority, true);
 }
 void plic_disable(int hwirq)
 {
-    // plic_toggle(1, hwirq, 0, false);
+    plic_toggle(my_cpu_id(), hwirq, 0, false);
 }
 int plic_claim(void)
 {
     // return PLIC_SCLAIM(1);
-    return 0;
+    // printk("%d, %x\n", my_cpu_id(), &MREG(PLIC_CLAIM(my_cpu_id())));
+    return MREG(PLIC_CLAIM(my_cpu_id()));
 }
 void plic_complete(int irq)
 {
     // PLIC_SCLAIM(1) = irq;
+    MREG(PLIC_CLAIM(my_cpu_id())) = irq;
 }
 int plic_pending(void)
 {
