@@ -53,18 +53,10 @@ size_t dtb_ram_size = 0;
 //     return true;
 // }
 
-// bool_t dtb_node_get_ram (struct dtb_node * n) {
-//     if(!strcmp(n->name, "memory")) {
-//         dtb_ram_size = n->reg.length;
-//         dtb_ram_start = n->reg.address;
-//         return false;
-//     }
-//     return true;
-// }
-
 void
 arch_reserve_boot_regions (unsigned long mbd)
 {
+    // TODO: we still need to reimplement this
     // dtb_walk_devices(dtb_node_get_rsv_ram);
 }
 
@@ -73,8 +65,6 @@ arch_detect_mem_map (mmap_info_t * mm_info,
                      mem_map_entry_t * memory_map,
                      ulong_t fdt)
 {
-    // dtb_walk_devices(dtb_node_get_ram);
-    // int depth = 0;
     int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "memory", 6);
 
     fdt_reg_t reg = { .address = 0, .size = 0 };

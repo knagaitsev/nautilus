@@ -70,8 +70,6 @@
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
 
-#define fdt_ntohl(x) ((((x)<<24)&0xff000000)|(((x)<<8)&0xff0000)|(((x)>>8)&0xff00)|(((x)>>24)&0xff))
-
 struct nk_sched_config sched_cfg = {
     .util_limit = NAUT_CONFIG_UTILIZATION_LIMIT * 10000ULL,  // convert percent to 10^-6 units
     .sporadic_reservation = NAUT_CONFIG_SPORADIC_RESERVATION * 10000ULL,  // ..
@@ -202,10 +200,6 @@ void init(unsigned long hartid, unsigned long fdt) {
   naut->sys.bsp_id = hartid;
   naut->sys.dtb = (struct dtb_fdt_header *)fdt;
 
-  // if (!dtb_parse(naut->sys.dtb)) {
-  //   panic("Problem parsing devicetree header\n");
-  // }
-
   printk("RISCV: hart %d mvendorid: %llx\n", hartid, sbi_call(SBI_GET_MVENDORID).value);
   printk("RISCV: hart %d marchid:   %llx\n", hartid, sbi_call(SBI_GET_MARCHID).value);
   printk("RISCV: hart %d mimpid:    %llx\n", hartid, sbi_call(SBI_GET_MIMPID).value);
@@ -274,9 +268,6 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   nk_thread_group_init();
   nk_group_sched_init();
-
-  // my_monitor_entry();
-  // asm volatile ("wfi");
 
   /* we now switch away from the boot-time stack */
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
