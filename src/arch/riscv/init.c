@@ -31,7 +31,6 @@
 #include <nautilus/cmdline.h>
 #include <nautilus/cpu.h>
 #include <nautilus/dev.h>
-#include <nautilus/devicetree.h>
 #include <nautilus/errno.h>
 #include <nautilus/fs.h>
 #include <nautilus/future.h>
@@ -57,6 +56,7 @@
 #include <nautilus/timer.h>
 #include <nautilus/vc.h>
 #include <nautilus/waitqueue.h>
+#include <nautilus/fdt.h>
 
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
 #include <nautilus/gdb-stub.h>
@@ -134,15 +134,20 @@ void secondary_entry(int hartid) {
   // Write supervisor trap vector location
   trap_init();
 
+  nk_sched_init_ap(&sched_cfg);
+
   /* set the timer with sbi :) */
   // sbi_set_timer(rv::get_time() + TICK_INTERVAL);
 
   second_done = true;
 
+  naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+
+  nk_sched_start();
+
   sti();
 
-  while (1) {
-  }
+  idle(NULL, NULL);
 }
 
 int start_secondary(struct sys_info *sys) {
@@ -174,7 +179,7 @@ int start_secondary(struct sys_info *sys) {
 
 void my_monitor_entry(void);
 
-void init_full(unsigned long hartid, unsigned long fdt) {
+void init(unsigned long hartid, unsigned long fdt) {
 
   if (!fdt) panic("Invalid FDT: %p\n", fdt);
 
@@ -200,16 +205,13 @@ void init_full(unsigned long hartid, unsigned long fdt) {
   naut->sys.bsp_id = hartid;
   naut->sys.dtb = (struct dtb_fdt_header *)fdt;
 
-  if (!dtb_parse(naut->sys.dtb)) {
-    panic("Problem parsing devicetree header\n");
-  }
-
   printk("RISCV: hart %d mvendorid: %llx\n", hartid, sbi_call(SBI_GET_MVENDORID).value);
   printk("RISCV: hart %d marchid:   %llx\n", hartid, sbi_call(SBI_GET_MARCHID).value);
   printk("RISCV: hart %d mimpid:    %llx\n", hartid, sbi_call(SBI_GET_MIMPID).value);
 
-  // Initialize platform level interrupt controller for this HART
-  plic_init();
+  print_fdt(fdt);
+
+  // asm volatile ("wfi");
 
   nk_dev_init();
   nk_char_dev_init();
@@ -240,11 +242,16 @@ void init_full(unsigned long hartid, unsigned long fdt) {
    * allocated in the boot mem allocator are kept reserved */
   mm_boot_kmem_init();
 
+  // Initialize platform level interrupt controller for this HART
+  plic_init(fdt);
+
   /* from this point on, we can use percpu macros (even if the APs aren't up) */
   plic_init_hart(hartid);
 
   // We now have serial output without SBI
-  serial_init();
+  sifive_serial_init(fdt);
+
+  // my_monitor_entry();
 
   sbi_init();
 
@@ -272,8 +279,6 @@ void init_full(unsigned long hartid, unsigned long fdt) {
 
   /* mm_boot_kmem_cleanup(); */
 
-  nk_sched_start();
-
   arch_enable_ints();
 
   /* interrupts are now on */
@@ -295,19 +300,22 @@ void init_full(unsigned long hartid, unsigned long fdt) {
   // kick off the timer subsystem by setting a timer sometime in the future
   sbi_set_timer(read_csr(time) + TICK_INTERVAL);
 
-  sifive_test();
+  // sifive_test();
   /* my_monitor_entry(); */
 
   start_secondary(&(naut->sys));
 
-  nk_launch_shell("root-shell",my_cpu_id(),0,0);
+  nk_sched_start();
+
+  // nk_launch_shell("root-shell",my_cpu_id(),0,0);
+  execute_threading(NULL);
 
   printk("Nautilus boot thread yielding (indefinitely)\n");
 
   idle(NULL, NULL);
 }
 
-void init(unsigned long hartid, unsigned long fdt) {
+void init_simple(unsigned long hartid, unsigned long fdt) {
 
   if (!fdt) panic("Invalid FDT: %p\n", fdt);
 
@@ -322,21 +330,21 @@ void init(unsigned long hartid, unsigned long fdt) {
   struct naut_info *naut = &nautilus_info;
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
 
-  /* if (!dtb_parse(fdt)) { */
-  /*   panic("Problem parsing devicetree header\n"); */
-  /* } */
-
   // Initialize platform level interrupt controller for this HART
-  plic_init();
+  plic_init(fdt);
 
   plic_init_hart(hartid);
 
   arch_enable_ints();
 
   // We now have serial output without SBI
-  serial_init();
+  sifive_serial_init(fdt);
+
+  printk("hartid: %ld, fdt: %p (%x) \n", hartid, fdt, *(uint32_t*)fdt);
 
   plic_dump();
+
+  my_monitor_entry();
 
   sifive_test();
 }
@@ -361,7 +369,7 @@ static void print_ones(void)
 {
     while (!done) {
         printk("1");
-        /* nk_yield(); */
+        nk_yield();
     }
 }
 
@@ -369,7 +377,7 @@ static void print_twos(void)
 {
     while (!done) {
         printk("2");
-        /* nk_yield(); */
+        nk_yield();
     }
 }
 

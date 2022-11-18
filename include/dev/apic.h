@@ -376,7 +376,7 @@ void     apic_set_oneshot_timer(struct apic_dev *apic, uint32_t ticks);
 // only once in interrupt context
 // the intent is that it is once of the last things the scheduler
 // invokes on any reschedule path
-typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
+
 void     apic_update_oneshot_timer(struct apic_dev *apic,  uint32_t ticks, 
 				   nk_timer_condition_t cond);
 			       

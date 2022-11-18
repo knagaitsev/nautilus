@@ -46,8 +46,8 @@ void arch_update_timer(uint32_t ticks, nk_timer_condition_t cond) {
         break;
     }
     }
-    get_cpu()->in_timer_interrupt=0;
-    get_cpu()->in_kick_interrupt=0;
+    get_cpu()->in_timer_interrupt = 0;
+    get_cpu()->in_kick_interrupt = 0;
 }
 
 void arch_set_timer(uint32_t ticks) {
@@ -64,7 +64,7 @@ int  arch_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
 {
     uint64_t time_to_next_ns;
 
-    get_cpu()->in_timer_interrupt=1;
+    get_cpu()->in_timer_interrupt = 1;
 
     timer_count++;
 
@@ -103,15 +103,17 @@ void arch_print_regs(struct nk_regs * r) {
 
 void * arch_read_sp(void) {
     void * sp = NULL;
-    __asm__ __volatile__ ( "mv %[_r], sp" : [_r] "=r" (rsp) : : "memory" );
+    __asm__ __volatile__ ( "mv %[_r], sp" : [_r] "=r" (sp) : : "memory" );
     return sp;
 }
 
 void arch_relax(void) {
-    asm volatile ("pause");
+    // RISCV HACK
+    // asm volatile ("pause");
 }
 
 void arch_halt(void) {
-    asm volatile ("hlt");
+    // RISCV HACK
+    // asm volatile ("hlt");
 }
 

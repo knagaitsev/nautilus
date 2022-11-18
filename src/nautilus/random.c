@@ -29,7 +29,10 @@
 #include <nautilus/spinlock.h>
 #include <nautilus/random.h>
 #include <nautilus/mm.h>
+
+#ifdef NAUT_CONFIG_ARCH_X86
 #include <dev/apic.h>
+#endif
 
 
 void
@@ -70,6 +73,8 @@ nk_rand_set_xi (uint64_t xi)
 static char
 get_rand_byte (void) 
 {
+// RISCV HACK
+#ifdef NAUT_CONFIG_ARCH_X86
     struct apic_dev * apic = per_cpu_get(apic);
     struct nk_rand_info * rand = per_cpu_get(rand);
     uint64_t cycles;
@@ -98,6 +103,9 @@ get_rand_byte (void)
     }
 
     return b + b2;
+#else
+    return 0;
+#endif
 }
 
 

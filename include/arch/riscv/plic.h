@@ -2,7 +2,7 @@
 #define __PLIC_H__
 
 void plic_init_hart(int hart);
-void plic_init(void);
+void plic_init(unsigned long fdt);
 int  plic_claim(void);
 void plic_complete(int irq);
 void plic_enable(int irq, int priority);

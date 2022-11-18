@@ -27,7 +27,6 @@
 #include <nautilus/errno.h>
 #include <nautilus/acpi.h>
 #include <nautilus/list.h>
-#include <nautilus/devicetree.h>
 
 #define u8  uint8_t
 #define u16 uint16_t

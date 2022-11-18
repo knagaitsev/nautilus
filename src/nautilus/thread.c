@@ -296,7 +296,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
 static void nk_thread_brain_wipe(nk_thread_t *t);
 
 
-
+#ifdef NAUT_CONFIG_HARDWARE_TLS
 static int hwtls_config_kernel_tls(nk_thread_t *t)
 {
 
@@ -353,6 +353,7 @@ static int hwtls_config_kernel_tls(nk_thread_t *t)
     return 0;
 
 }
+#endif
 
 
 
@@ -946,8 +947,11 @@ nk_set_thread_output (void * result)
 
 int nk_thread_change_hw_tls(nk_thread_id_t tid, void *hwtls)
 {
+// RISCV HACK
+#ifdef NAUT_CONFIG_ARCH_X86
     ((nk_thread_t*)tid)->hwtls = hwtls;
     msr_write(MSR_FS_BASE,(uint64_t)hwtls);
+#endif
     return 0;
 }
 

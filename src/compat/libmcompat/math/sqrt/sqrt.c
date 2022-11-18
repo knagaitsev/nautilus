@@ -11,6 +11,7 @@
 inline double sqrt(double x)
 {
     double ret;
+	#ifdef NAUT_CONFIG_ARCH_X86
     asm volatile(
 		 "movq %1, %%xmm0 \n"
 		 "sqrtsd %%xmm0, %%xmm1 \n"
@@ -19,6 +20,9 @@ inline double sqrt(double x)
 		 : "g"(x)
 		 : "xmm0", "xmm1", "memory"
 		 );
+	#else
+	ret = 0.0;
+	#endif
     return ret;
 }
 

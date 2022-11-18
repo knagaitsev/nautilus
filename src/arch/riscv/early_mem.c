@@ -26,7 +26,7 @@
 #include <nautilus/mb_utils.h>
 #include <nautilus/macros.h>
 #include <nautilus/multiboot2.h>
-#include <nautilus/devicetree.h>
+#include <nautilus/fdt.h>
 
 extern char * mem_region_types[6];
 
@@ -43,29 +43,19 @@ extern ulong_t kernel_end;
 off_t dtb_ram_start = 0;
 size_t dtb_ram_size = 0;
 
-bool_t dtb_node_get_rsv_ram (struct dtb_node *n) {
-    if(strstr(n->name, "mmode_resv")) {
-        addr_t start = n->reg.address;
-        ulong_t len = n->reg.length;
-        INFO_PRINT("Reseving %s region (%p, size %lu)\n", n->name, start, len);
-        mm_boot_reserve_mem(start, len);
-    }
-    return true;
-}
-
-bool_t dtb_node_get_ram (struct dtb_node * n) {
-    if(!strcmp(n->name, "memory")) {
-        dtb_ram_size = n->reg.length;
-        dtb_ram_start = n->reg.address;
-        return false;
-    }
-    return true;
-}
 
 void
-arch_reserve_boot_regions (unsigned long mbd)
+arch_reserve_boot_regions (unsigned long fdt)
 {
-    dtb_walk_devices(dtb_node_get_rsv_ram);
+    int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "mmode_resv", 10);
+
+    fdt_reg_t reg = { .address = 0, .size = 0 };
+    int getreg_result = fdt_getreg(fdt, offset, &reg);
+
+    if (getreg_result == 0) {
+        INFO_PRINT("Reseving region (%p, size %lu)\n", reg.address, reg.size);
+        mm_boot_reserve_mem(reg.address, reg.size);
+    }
 }
 
 void
@@ -73,7 +63,16 @@ arch_detect_mem_map (mmap_info_t * mm_info,
                      mem_map_entry_t * memory_map,
                      ulong_t fdt)
 {
-    dtb_walk_devices(dtb_node_get_ram);
+    int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "memory", 6);
+
+    fdt_reg_t reg = { .address = 0, .size = 0 };
+    int getreg_result = fdt_getreg(fdt, offset, &reg);
+    // printk("Res: %d, Reg: %x, %x\n\n", getreg_result, reg.address, reg.size);
+
+    if (getreg_result == 0) {
+        dtb_ram_start = reg.address;
+        dtb_ram_size = reg.size;
+    }
 
     if (dtb_ram_start == 0) {
       BMM_WARN("DTB did not contain memory segment. Assuming 128MB...\n");

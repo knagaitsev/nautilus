@@ -7,7 +7,7 @@
 #include <nautilus/percpu.h>
 #include <nautilus/numa.h>
 #include <nautilus/cpu.h>
-#include <nautilus/devicetree.h>
+#include <nautilus/fdt.h>
 
 #ifndef NAUT_CONFIG_DEBUG_SMP
 #undef DEBUG_PRINT
@@ -20,7 +20,16 @@
 static struct sys_info * sys;
 
 static int
-dtb_parse_cpu (struct dtb_node * n) {
+configure_cpu (unsigned long fdt, int offset) {
+    off_t reg_addr = fdt_getreg_address(fdt, offset);
+    int lenp = 0;
+    char *status = fdt_getprop(fdt, offset, "status", &lenp);
+    int enabled = 1;
+    // sifive disables 1 CPU and indicates it with this property
+    if (status && !strcmp(status, "disabled")) {
+        enabled = 0;
+    }
+
     struct cpu * new_cpu = NULL;
 
     if (sys->num_cpus == NAUT_CONFIG_MAX_CPUS) {
@@ -33,10 +42,10 @@ dtb_parse_cpu (struct dtb_node * n) {
 
     memset(new_cpu, 0, sizeof(struct cpu));
 
-    new_cpu->id         = n->reg.address;
+    new_cpu->id         = reg_addr;
     new_cpu->lapic_id   = 0;
 
-    new_cpu->enabled    = 1;
+    new_cpu->enabled    = enabled;
     new_cpu->is_bsp     = (new_cpu->id == sys->bsp_id ? 1 : 0);
     new_cpu->cpu_sig    = 0;
     new_cpu->feat_flags = 0;
@@ -55,48 +64,25 @@ dtb_parse_cpu (struct dtb_node * n) {
     return 0;
 }
 
-static int
-dtb_parse_plic (struct dtb_node * n) {
-    struct ioapic * ioa = NULL;
-
-    if (sys->num_ioapics == NAUT_CONFIG_MAX_IOAPICS) {
-        panic("IOAPIC count exceeded max (change it in .config)\n");
+int fdt_node_get_cpu(const void *fdt, int offset, int depth) {
+    int lenp = 0;
+    char *name = fdt_get_name(fdt, offset, &lenp);
+    // maybe not the ideal way to do this
+    if(name && !strncmp(name, "cpu@", 4)) {
+        // printk("Hit: %s\n", name);
+        configure_cpu(fdt, offset);
     }
 
-    if (!(ioa = mm_boot_alloc(sizeof(struct ioapic)))) {
-        panic("Couldn't allocate IOAPIC struct\n");
-    }
-    memset(ioa, 0, sizeof(struct ioapic));
-
-    ioa->id      = 0;
-    ioa->version = 0;
-    ioa->usable  = 1;
-    ioa->base    = (addr_t)n->reg.address;
-
-    SMP_DEBUG("IOAPIC entry:\n");
-    SMP_DEBUG("\tID=0x%x\n", ioa->id);
-    SMP_DEBUG("\tVersion=0x%x\n", ioa->version);
-    SMP_DEBUG("\tEnabled?=%01d\n", ioa->usable);
-    SMP_DEBUG("\tBase Addr=0x%lx\n", ioa->base);
-
-    sys->ioapics[sys->num_ioapics] = ioa;
-    sys->num_ioapics++;
-
-    return 0;
+    return 1;
 }
 
-bool_t dtb_node_get_cpu (struct dtb_node * n) {
-    if(!strcmp(n->name, "cpu")) {
-        dtb_parse_cpu(n);
-    } else if(!strcmp(n->name, "interrupt-controller") && strstr(n->compatible, "plic0")) {
-        dtb_parse_plic(n);
-    }
-    return true;
+void parse_cpus(unsigned long fdt) {
+    fdt_walk_devices(fdt, fdt_node_get_cpu);
 }
 
 static int __early_init_dtb(struct naut_info * naut) {
     sys = &(naut->sys);
-    dtb_walk_devices(dtb_node_get_cpu);
+    parse_cpus(naut->sys.dtb);
     return 0;
 }
 
@@ -119,16 +105,18 @@ out_ok:
     return 0;
 }
 
-/* Some fakery to get the scheduler working */
-uint8_t
-nk_topo_cpus_share_socket (struct cpu * a, struct cpu * b)
-{
-    return 1;
-    // return a->coord->pkg_id == b->coord->pkg_id;
-}
+// RISCV HACK
 
-uint8_t
-nk_topo_cpus_share_phys_core (struct cpu * a, struct cpu * b)
-{
-    return nk_topo_cpus_share_socket(a, b) && (a->coord->core_id == b->coord->core_id);
-}
+// /* Some fakery to get the scheduler working */
+// uint8_t
+// nk_topo_cpus_share_socket (struct cpu * a, struct cpu * b)
+// {
+//     return 1;
+//     // return a->coord->pkg_id == b->coord->pkg_id;
+// }
+
+// uint8_t
+// nk_topo_cpus_share_phys_core (struct cpu * a, struct cpu * b)
+// {
+//     return nk_topo_cpus_share_socket(a, b) && (a->coord->core_id == b->coord->core_id);
+// }

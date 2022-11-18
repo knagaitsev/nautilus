@@ -111,8 +111,8 @@ int my_strcmp (const char * s1, const char * s2)
     }
 }
 
-#define DB(x) serial_putchar(x)
-#define DHN(x) serial_putchar(((x & 0xF) >= 10) ? (((x & 0xF) - 10) + 'a') : ((x & 0xF) + '0'))
+#define DB(x) sifive_serial_putchar(x)
+#define DHN(x) sifive_serial_putchar(((x & 0xF) >= 10) ? (((x & 0xF) - 10) + 'a') : ((x & 0xF) + '0'))
 #define DHB(x) DHN(x >> 4) ; DHN(x);
 #define DHW(x) DHB(x >> 8) ; DHB(x);
 #define DHL(x) DHW(x >> 16) ; DHW(x);
@@ -122,10 +122,10 @@ int my_strcmp (const char * s1, const char * s2)
 static void print(char *b)
 {
     while (b && *b) {
-        serial_putchar(*b);
+        sifive_serial_putchar(*b);
         b++;
     }
-    serial_putchar('\n');
+    sifive_serial_putchar('\n');
 }
 
 // Keyboard stuff repeats here to be self-contained
@@ -164,7 +164,7 @@ static void wait_for_command(char *buf, int buffer_size)
 
 		// continue;
 
-    /* key = serial_getchar(); */
+    /* key = sifive_serial_getchar(); */
     /* printk("%c", key); */
     // key = ps2_wait_for_key();
     // uint16_t key_encoded = kbd_translate_monitor(key);
@@ -638,6 +638,50 @@ static int execute_test(char command[])
   return 0;
 }
 
+static int execute_plic_bench(char command[]) {
+  arch_disable_ints();
+
+  print("type on keyboard\n\r");
+
+  int c = 0;
+  while (true) {
+    // TODO: need to also measure this difference when it is a poll miss
+    unsigned long t1 = read_csr(cycle);
+    int irq = plic_claim();
+    unsigned long t2 = read_csr(cycle);
+    if (irq != 0) {
+      unsigned long diff = t2 - t1;
+      print(long_to_string(irq));
+      print(" (irq number) ");
+      print(long_to_string(diff));
+      print(" cycles\n");
+      // print("%d\n", irq);
+
+      // the incoming interrupt will be due to serial input, so we
+      // need to clear out the input or else the interrupt will be
+      // triggered again
+      sifive_serial_getchar();
+
+      plic_complete(irq);
+      c++;
+    }
+
+    if (c == 10) {
+      break;
+    }
+  }
+
+  arch_enable_ints();
+  return 0;
+}
+
+static int execute_time_test(char command[]) {
+  
+  sbi_set_timer(read_csr(time) + 10000000);
+
+  return 0;
+}
+
 extern int execute_threading(char command[]);
 
 static int execute_potential_command(char command[])
@@ -676,6 +720,14 @@ static int execute_potential_command(char command[])
   {
     quit = execute_threading(command);
   }
+  else if (my_strcmp(word, "plic-bench") == 0)
+  {
+    quit = execute_plic_bench(command);
+  }
+  else if (my_strcmp(word, "time-test") == 0)
+  {
+    quit = execute_time_test(command);
+  }
   else /* default: */
   {
     print("command not recognized");
@@ -695,7 +747,7 @@ static int nk_monitor_loop()
   while (!done) {
     DS("monitor> ");
     wait_for_command(buffer, buffer_size);
-    serial_putchar('\n');
+    sifive_serial_putchar('\n');
     done = execute_potential_command(buffer);
   };
   return 0;

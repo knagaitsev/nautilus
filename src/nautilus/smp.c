@@ -24,7 +24,6 @@
 #include <nautilus/smp.h>
 #include <nautilus/paging.h>
 #include <nautilus/irq.h>
-#include <nautilus/msr.h>
 #include <nautilus/mtrr.h>
 #include <nautilus/gdt.h>
 #include <nautilus/cpu.h>
@@ -37,8 +36,12 @@
 #include <nautilus/mm.h>
 #include <nautilus/fpu.h>
 #include <nautilus/percpu.h>
+
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <nautilus/msr.h>
 #include <dev/ioapic.h>
 #include <dev/apic.h>
+#endif
 
 #ifdef NAUT_CONFIG_ALLOCS
 #include <nautilus/alloc.h>

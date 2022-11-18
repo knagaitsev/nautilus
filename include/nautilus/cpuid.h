@@ -289,6 +289,7 @@ typedef struct cpuid_ret {
 static int
 cpuid (uint32_t func, cpuid_ret_t * ret)
 {
+    #ifdef NAUT_CONFIG_ARCH_X86
     asm volatile ("pushq %%rbx;"
             "movq %%rdi, %%rbx;"
             "cpuid ;"
@@ -296,6 +297,7 @@ cpuid (uint32_t func, cpuid_ret_t * ret)
             "popq %%rbx ;"
             : "=a"(ret->a), "=D"(ret->b), "=c"(ret->c), "=d"(ret->d)
             : "0"(func));
+    #endif
 
     return 0;
 }
@@ -304,6 +306,7 @@ cpuid (uint32_t func, cpuid_ret_t * ret)
 static int
 cpuid_sub (uint32_t func, uint32_t sub_func, cpuid_ret_t * ret)
 {
+    #ifdef NAUT_CONFIG_ARCH_X86
     asm volatile ("pushq %%rbx;"
             "movq %%rdi, %%rbx;"
             "cpuid ;"
@@ -311,6 +314,7 @@ cpuid_sub (uint32_t func, uint32_t sub_func, cpuid_ret_t * ret)
             "popq %%rbx ;"
             : "=a"(ret->a), "=D"(ret->b), "=c"(ret->c), "=d"(ret->d)
             : "0"(func), "2"(sub_func));
+    #endif
 
     return 0;
 }

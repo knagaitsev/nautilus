@@ -7,10 +7,8 @@ obj-y += \
 	queue.o \
 	irq.o \
 	naut_string.o \
-	msr.o \
 	cpuid.o \
 	crypto.o \
-	mtrr.o \
 	spinlock.o \
 	rwlock.o \
 	condvar.o \
@@ -32,11 +30,7 @@ obj-y += \
 	barrier.o \
 	backtrace.o \
 	cpu.o \
-	acpi.o \
-	numa.o \
 	env.o \
-	nemo.o \
-	pmc.o \
 	setjmp.o \
 	mm/ \
 	dev.o \
@@ -53,7 +47,9 @@ obj-y += \
 	prog.o \
 	getopt.o \
 	cmdline.o \
-	lru_cache.o
+	lru_cache.o \
+	fdt.o \
+	fdt_ro.o
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \
@@ -68,8 +64,6 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	nemo.o \
 	pmc.o \
 	setjmp.o \
-
-obj-$(NAUT_CONFIG_ARCH_RISCV) += devicetree.o
 
 obj-$(NAUT_CONFIG_PROFILE) += instrument.o
 obj-$(NAUT_CONFIG_XEON_PHI) += sfi.o

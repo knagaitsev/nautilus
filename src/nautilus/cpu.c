@@ -222,7 +222,10 @@ ulong_t
 nk_detect_cpu_freq (uint32_t cpu) 
 {
     uint8_t flags = irq_disable_save();
-    ulong_t khz = i8254_calib_tsc();
+    ulong_t khz = ULONG_MAX;
+    #ifdef NAUT_CONFIG_ARCH_X86
+    khz = i8254_calib_tsc();
+    #endif
     if (khz == ULONG_MAX) {
         ERROR_PRINT("Unable to detect CPU frequency\n");
         goto out_err;
@@ -240,7 +243,9 @@ out_err:
 static int
 handle_regs (char * buf, void * priv)
 {
+    #ifdef NAUT_CONFIG_ARCH_X86
     extern int nk_interrupt_like_trampoline(void (*)(struct nk_regs *));
+    #endif
     uint64_t tid;
 
     if (sscanf(buf,"regs %lu",&tid) == 1) { 
@@ -253,7 +258,9 @@ handle_regs (char * buf, void * priv)
         return 0;
     }
 
+    #ifdef NAUT_CONFIG_ARCH_X86
     nk_interrupt_like_trampoline(nk_print_regs);
+    #endif
 
     return 0;
 }

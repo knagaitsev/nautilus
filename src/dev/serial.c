@@ -498,7 +498,7 @@ static int drive_cmd_fsm(char c)
 		break;
 	    case 'p' :
 		DEBUG_PRINT("Manually invoking panic\n");
-		panic();
+		panic("Panic\n");
 		return 1;
 		break;
 	    case 's' :

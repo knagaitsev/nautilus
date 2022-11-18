@@ -262,7 +262,11 @@ cmd_link_o_target = $(if $(strip $(obj-y)),\
 		      $(LD) $(ld_flags) -r -o $@ $(filter $(obj-y), $^),\
 		      rm -f $@; $(AR) rcs $@)
 
-
+#
+# The builtin target depends on all targets obj-$(NAUT_CONFIG_...)
+# where the nautilus config var is set to "y", or the Makefile in the
+# target directly appends to obj-y
+#
 $(builtin-target): $(obj-y) FORCE
 	$(call if_changed,link_o_target)
 

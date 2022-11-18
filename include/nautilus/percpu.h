@@ -218,7 +218,7 @@ get_cpu (void)
 
 #endif /* !__PER_CPU_H__ */
 
-#endif
+#endif /* NAUT_CONFIG_ARCH_RISCV */
 
 #ifdef __cplusplus
 }

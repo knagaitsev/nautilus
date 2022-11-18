@@ -23,6 +23,8 @@
 #ifndef __NAUTILUS_H__
 #define __NAUTILUS_H__
 
+typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
+
 #include <nautilus/percpu.h>
 #include <nautilus/printk.h>
 #include <dev/serial.h>
@@ -139,10 +141,10 @@ do {									\
     }									\
 } while (0)
 
-
 void panic(const char *, ...) __attribute__((noreturn));
-    
+
 #define panic(fmt, args...)         panic("PANIC at %s(%d): " fmt, __FILE__, __LINE__, ##args)
+
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
 #undef DEBUG_PRINT
@@ -158,7 +160,6 @@ void panic(const char *, ...) __attribute__((noreturn));
 #include <nautilus/barrier.h>
 #include <nautilus/list.h>
 #include <nautilus/numa.h>
-#include <nautilus/devicetree.h>
 
 
 struct ioapic;

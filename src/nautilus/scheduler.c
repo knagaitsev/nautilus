@@ -63,8 +63,11 @@
 #include <nautilus/backtrace.h>
 #include <nautilus/shell.h>
 #include <nautilus/topo.h>
-#include <dev/apic.h>
 #include <dev/gpio.h>
+
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <dev/apic.h>
+#endif
 
 // enforce lower limits on period and slice / sporadic size
 #define ENFORCE_LOWER_LIMITS 1
@@ -657,6 +660,7 @@ static void pre_reap_thread(rt_thread *r, void *priv)
     }
 }
 
+#ifdef NAUT_CONFIG_ARCH_X86
 
 void nk_sched_dump_cores(int cpu_arg)
 {
@@ -772,6 +776,15 @@ void nk_sched_dump_threads(int cpu)
 
     GLOBAL_UNLOCK();
 }
+
+#else
+
+// RISCV HACK
+void nk_sched_dump_threads(int cpu) {}
+void nk_sched_dump_cores(int cpu) {}
+void nk_sched_dump_time(int cpu) {}
+
+#endif /* NAUT_CONFIG_ARCH_X86 */
 
 void nk_sched_map_threads(int cpu, void (func)(struct nk_thread *t, void *state), void *state)
 {
@@ -956,15 +969,17 @@ int nk_sched_stop_world()
     preempt_enable();  // interrupts are still off - scheduler is not going to preempt us
     
     // kick everyone else to get them to stop
-#if 0
-    for (i=0;i<num_cpus;i++) { 
-	if (i!=my_cpu_id) {
-	    nk_sched_kick_cpu(i);
-	}
-    }
-#else
-  apic_bcast_ipi (per_cpu_get(apic), APIC_NULL_KICK_VEC);
+    // for (i=0;i<num_cpus;i++) { 
+    //     if (i!=my_cpu_id) {
+    //         nk_sched_kick_cpu(i);
+    //     }
+    // }
+
+// RISCV HACK
+#ifdef NAUT_CONFIG_ARCH_X86
+    apic_bcast_ipi (per_cpu_get(apic), APIC_NULL_KICK_VEC);
 #endif
+
     // wait for them all to stop
     nk_counting_barrier(&stop_barrier);
 
@@ -2149,8 +2164,8 @@ static int pump_sized_tasks(rt_scheduler *scheduler, rt_thread *next)
     ERROR(" yielding = %d\n",yielding);			\
     ERROR(" idle = %d\n",idle);				\
     ERROR(" timed_out = %d\n",timed_out);		\
-    ERROR(" apic_timer = %d\n",apic_timer);		\
-    ERROR(" apic_kick = %d\n",apic_kick);					
+    ERROR(" in_timer_interrupt = %d\n",in_timer_interrupt);		\
+    ERROR(" in_kick_interrupt = %d\n",in_kick_interrupt);					
      
 //
 // Invoked in interrupt context by the timer interrupt or
@@ -2234,7 +2249,6 @@ INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched
 
     struct sys_info *sys = per_cpu_get(system);
     rt_scheduler *scheduler = sys->cpus[my_cpu_id()]->sched_state;
-    struct apic_dev *apic = sys->cpus[my_cpu_id()]->apic;
     struct nk_thread *c = get_cur_thread();
     rt_thread *rt_c = c->sched_state;
 
@@ -2259,8 +2273,8 @@ INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched
     int yielding = rt_c->status==YIELDING;
     int idle = rt_c->thread->is_idle;
     int timed_out = scheduler->tsc.set_time < now;  
-    int apic_timer = get_cpu()->in_timer_interrupt;
-    int apic_kick = get_cpu()->in_kick_interrupt;
+    int in_timer_interrupt = get_cpu()->in_timer_interrupt;
+    int in_kick_interrupt = get_cpu()->in_kick_interrupt;
 
     // "SPECIAL" means the current task is not to be enqueued
 #define CUR_IS_SPECIAL (going_to_sleep || going_to_exit || changing)
@@ -2276,7 +2290,7 @@ INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched
 
     rt_c->resched_count++;
 
-    if (!timed_out && !apic_timer && !apic_kick
+    if (!timed_out && !in_timer_interrupt && !in_kick_interrupt
 	&& CUR_IS_NOT_SPECIAL 
 	&& !yielding 
 	&& !idle) { 
@@ -3130,6 +3144,8 @@ int nk_sched_cpu_mug(int old_cpu, uint64_t maxcount, uint64_t *actualcount)
 
 void    nk_sched_kick_cpu(int cpu)
 {
+// RISCV HACK
+#ifdef NAUT_CONFIG_ARCH_X86
 #ifdef NAUT_CONFIG_KICK_SCHEDULE
     if (cpu != my_cpu_id()) {
         apic_ipi(per_cpu_get(apic),
@@ -3139,6 +3155,7 @@ void    nk_sched_kick_cpu(int cpu)
 	// we do not reschedule here since
 	// we do not know if it is safe to do so 
     }
+#endif
 #endif
 }
 
@@ -4636,19 +4653,16 @@ void nk_sched_start()
     uint64_t num_cpus = nk_get_num_cpus();
     struct cpu *my_cpu = get_cpu();
     struct sys_info *sys = per_cpu_get(system);
-    struct apic_dev *apic = sys->cpus[my_cpu_id()]->apic;
     uint64_t cur_cycles;
 
-    DEBUG("Scheduler startup - %s\n", my_cpu->is_bsp ? "bsp" : "ap");
+    DEBUG("Scheduler startup - %s, num cpus: %d\n", my_cpu->is_bsp ? "bsp" : "ap", num_cpus);
 
     // TODO: multicore scheduling for RISC-V port
-#ifndef NAUT_CONFIG_ARCH_RISCV
     // barrier for all the schedulers
     __sync_fetch_and_add(&sync_count,1);
     while (sync_count < num_cpus) {
 	// spin
     }
-#endif
     cur_cycles = arch_read_timestamp();
     if (my_cpu->is_bsp) { 
 	// everyone has started their local tsc at 0
