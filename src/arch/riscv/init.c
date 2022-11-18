@@ -134,15 +134,20 @@ void secondary_entry(int hartid) {
   // Write supervisor trap vector location
   trap_init();
 
+  nk_sched_init_ap(&sched_cfg);
+
   /* set the timer with sbi :) */
   // sbi_set_timer(rv::get_time() + TICK_INTERVAL);
 
   second_done = true;
 
+  naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+
+  nk_sched_start();
+
   sti();
 
-  while (1) {
-  }
+  idle(NULL, NULL);
 }
 
 int start_secondary(struct sys_info *sys) {
@@ -274,8 +279,6 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   /* mm_boot_kmem_cleanup(); */
 
-  nk_sched_start();
-
   arch_enable_ints();
 
   /* interrupts are now on */
@@ -301,6 +304,8 @@ void init(unsigned long hartid, unsigned long fdt) {
   /* my_monitor_entry(); */
 
   start_secondary(&(naut->sys));
+
+  nk_sched_start();
 
   // nk_launch_shell("root-shell",my_cpu_id(),0,0);
   execute_threading(NULL);

@@ -4655,16 +4655,14 @@ void nk_sched_start()
     struct sys_info *sys = per_cpu_get(system);
     uint64_t cur_cycles;
 
-    DEBUG("Scheduler startup - %s\n", my_cpu->is_bsp ? "bsp" : "ap");
+    DEBUG("Scheduler startup - %s, num cpus: %d\n", my_cpu->is_bsp ? "bsp" : "ap", num_cpus);
 
     // TODO: multicore scheduling for RISC-V port
-#ifndef NAUT_CONFIG_ARCH_RISCV
     // barrier for all the schedulers
     __sync_fetch_and_add(&sync_count,1);
     while (sync_count < num_cpus) {
 	// spin
     }
-#endif
     cur_cycles = arch_read_timestamp();
     if (my_cpu->is_bsp) { 
 	// everyone has started their local tsc at 0
