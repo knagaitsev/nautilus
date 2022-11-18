@@ -7,10 +7,8 @@ obj-y += \
 	queue.o \
 	irq.o \
 	naut_string.o \
-	msr.o \
 	cpuid.o \
 	crypto.o \
-	mtrr.o \
 	spinlock.o \
 	rwlock.o \
 	condvar.o \
@@ -33,7 +31,6 @@ obj-y += \
 	backtrace.o \
 	cpu.o \
 	env.o \
-	pmc.o \
 	setjmp.o \
 	mm/ \
 	dev.o \
