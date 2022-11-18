@@ -249,24 +249,16 @@ struct apic_dev {
 static inline void _apic_msr_write(uint32_t msr, 
 				   uint64_t data)
 {
-    // RISCV HACK
-    #ifdef NAUT_CONFIG_ARCH_X86
     uint32_t lo = data;
     uint32_t hi = data >> 32;
     __asm__ __volatile__ ("wrmsr" : : "c"(msr), "a"(lo), "d"(hi));
-    #endif
 }
 
 static inline uint64_t _apic_msr_read(uint32_t msr)
 {
-    // RISCV HACK
-    #ifdef NAUT_CONFIG_ARCH_X86
     uint32_t lo, hi;
     asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(msr));
     return ((uint64_t)hi << 32) | lo;
-    #else
-    return 0;
-    #endif
 }
 
 static inline void
@@ -384,7 +376,7 @@ void     apic_set_oneshot_timer(struct apic_dev *apic, uint32_t ticks);
 // only once in interrupt context
 // the intent is that it is once of the last things the scheduler
 // invokes on any reschedule path
-typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
+
 void     apic_update_oneshot_timer(struct apic_dev *apic,  uint32_t ticks, 
 				   nk_timer_condition_t cond);
 			       

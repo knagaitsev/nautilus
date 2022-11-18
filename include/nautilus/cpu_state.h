@@ -27,9 +27,9 @@
 #ifndef __CPU_STATE
 #define __CPU_STATE
 
-
+#ifdef NAUT_CONFIG_ARCH_X86
 #include <nautilus/msr.h>
-
+#endif
 
 //
 // This code assumes that %gs base (or tp) is pointing to

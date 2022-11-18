@@ -33,7 +33,6 @@ obj-y += \
 	backtrace.o \
 	cpu.o \
 	env.o \
-	nemo.o \
 	pmc.o \
 	setjmp.o \
 	mm/ \

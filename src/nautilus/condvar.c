@@ -30,8 +30,6 @@
 #include <nautilus/atomic.h>
 #include <nautilus/mm.h>
 
-#include <dev/apic.h>
-
 #ifndef NAUT_CONFIG_DEBUG_SYNCH
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)

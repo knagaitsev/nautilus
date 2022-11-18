@@ -29,7 +29,11 @@
 extern "C" {
 #endif
 
+#include <nautilus/naut_types.h>
+
+#ifdef NAUT_CONFIG_ARCH_X86
 #include <nautilus/msr.h>
+#endif
 
 /******* EXTERNAL INTERFACE *********/
 
@@ -39,8 +43,9 @@ uint8_t nk_get_cpu_by_lapicid (uint8_t lapicid);
 /******* !EXTERNAL INTERFACE! *********/
 
 
-
+#ifdef NAUT_CONFIG_ARCH_X86
 #include <dev/apic.h>
+#endif
 #include <nautilus/spinlock.h>
 #include <nautilus/mm.h>
 #include <nautilus/queue.h>

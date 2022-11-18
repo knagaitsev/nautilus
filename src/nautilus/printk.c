@@ -31,6 +31,7 @@
 
 #include <stddef.h>
 #include <stdarg.h>
+#include <nautilus/nautilus.h>
 #include <nautilus/naut_string.h>
 #include <nautilus/naut_types.h>
 #include <nautilus/doprnt.h>
