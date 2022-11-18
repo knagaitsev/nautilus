@@ -29,9 +29,9 @@
  * modified by Kyle Hale 2014 <kh@u.northwestern.edu>
  */
 
+#include <nautilus/nautilus.h>
 #include <stddef.h>
 #include <stdarg.h>
-#include <nautilus/nautilus.h>
 #include <nautilus/naut_string.h>
 #include <nautilus/naut_types.h>
 #include <nautilus/doprnt.h>
@@ -123,6 +123,8 @@ vprintk (const char * fmt, va_list args)
 	return 0;
 }
 
+// RISCV HACK: rooted in including nautilus.h
+#undef panic
 
  __attribute__((noreturn))
 void

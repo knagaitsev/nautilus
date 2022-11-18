@@ -23,7 +23,6 @@
 #ifndef __NAUTILUS_H__
 #define __NAUTILUS_H__
 
-// TODO: move this somewhere better
 typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
 
 #include <nautilus/percpu.h>
@@ -141,6 +140,10 @@ do {									\
 	preempt_enable();						\
     }									\
 } while (0)
+
+void panic(const char *, ...) __attribute__((noreturn));
+
+#define panic(fmt, args...)         panic("PANIC at %s(%d): " fmt, __FILE__, __LINE__, ##args)
 
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
