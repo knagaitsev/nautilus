@@ -43,21 +43,19 @@ extern ulong_t kernel_end;
 off_t dtb_ram_start = 0;
 size_t dtb_ram_size = 0;
 
-// bool_t dtb_node_get_rsv_ram (struct dtb_node *n) {
-//     if(strstr(n->name, "mmode_resv")) {
-//         addr_t start = n->reg.address;
-//         ulong_t len = n->reg.length;
-//         INFO_PRINT("Reseving %s region (%p, size %lu)\n", n->name, start, len);
-//         mm_boot_reserve_mem(start, len);
-//     }
-//     return true;
-// }
 
 void
-arch_reserve_boot_regions (unsigned long mbd)
+arch_reserve_boot_regions (unsigned long fdt)
 {
-    // TODO: we still need to reimplement this
-    // dtb_walk_devices(dtb_node_get_rsv_ram);
+    int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "mmode_resv", 10);
+
+    fdt_reg_t reg = { .address = 0, .size = 0 };
+    int getreg_result = fdt_getreg(fdt, offset, &reg);
+
+    if (getreg_result == 0) {
+        INFO_PRINT("Reseving region (%p, size %lu)\n", reg.address, reg.size);
+        mm_boot_reserve_mem(reg.address, reg.size);
+    }
 }
 
 void

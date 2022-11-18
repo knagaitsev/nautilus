@@ -64,45 +64,6 @@ configure_cpu (unsigned long fdt, int offset) {
     return 0;
 }
 
-// static int
-// dtb_parse_plic (struct dtb_node * n) {
-//     struct ioapic * ioa = NULL;
-
-//     if (sys->num_ioapics == NAUT_CONFIG_MAX_IOAPICS) {
-//         panic("IOAPIC count exceeded max (change it in .config)\n");
-//     }
-
-//     if (!(ioa = mm_boot_alloc(sizeof(struct ioapic)))) {
-//         panic("Couldn't allocate IOAPIC struct\n");
-//     }
-//     memset(ioa, 0, sizeof(struct ioapic));
-
-//     ioa->id      = 0;
-//     ioa->version = 0;
-//     ioa->usable  = 1;
-//     ioa->base    = (addr_t)n->reg.address;
-
-//     SMP_DEBUG("IOAPIC entry:\n");
-//     SMP_DEBUG("\tID=0x%x\n", ioa->id);
-//     SMP_DEBUG("\tVersion=0x%x\n", ioa->version);
-//     SMP_DEBUG("\tEnabled?=%01d\n", ioa->usable);
-//     SMP_DEBUG("\tBase Addr=0x%lx\n", ioa->base);
-
-//     sys->ioapics[sys->num_ioapics] = ioa;
-//     sys->num_ioapics++;
-
-//     return 0;
-// }
-
-// bool_t dtb_node_get_cpu (struct dtb_node * n) {
-//     if(!strcmp(n->name, "cpu")) {
-//         dtb_parse_cpu(n);
-//     } else if(!strcmp(n->name, "interrupt-controller") && strstr(n->compatible, "plic0")) {
-//         dtb_parse_plic(n);
-//     }
-//     return true;
-// }
-
 int fdt_node_get_cpu(const void *fdt, int offset, int depth) {
     int lenp = 0;
     char *name = fdt_get_name(fdt, offset, &lenp);
