@@ -1091,6 +1091,13 @@ void wait_for_any_interrupt(struct apic_dev * apic) {
     for (int i = 0; i < 8; i++) {
       uint32_t this_irr = apic_read(apic, APIC_GET_IRR(i));
       irr_set |= this_irr;
+      if (this_irr) {
+        nk_vc_printf("irr index: %d\n", i);
+        printf ("%08x\n", this_irr);
+        uint32_t this_irr_2 = apic_read(apic, APIC_GET_IRR(i));
+        printf ("%08x\n", this_irr_2);
+        break;
+      }
     }
   }
 }
@@ -1252,15 +1259,17 @@ int test_ier_index_computation() {
   // So we will put our special code in Mr. apic_timer_handler()
   wait_for_any_interrupt(apic);
 
-  // Show that the timer interrupt has fired (output should be 00010000)
-  uint32_t this_irr = apic_read(apic, APIC_GET_IRR(7));
-  nk_vc_printf("%08x\n", this_irr);
+  print_all_irr(apic);
 
-  uint8_t bit_pos = __builtin_ctz(this_irr);
-  uint8_t interrupt_vector_index = bit_pos + 32*7;
-  nk_vc_printf("bit_pos: %d\n", bit_pos);
-  nk_vc_printf("sizeof(this_irr)*7: %d\n", 32*7);
-  nk_vc_printf("interrupt_vector_index: %d\nIt should be 240\n", interrupt_vector_index);
+  // Show that the timer interrupt has fired (output should be 00010000)
+  // uint32_t this_irr = apic_read(apic, APIC_GET_IRR(7));
+  // nk_vc_printf("%08x\n", this_irr);
+
+  // uint8_t bit_pos = __builtin_ctz(this_irr);
+  // uint8_t interrupt_vector_index = bit_pos + 32*7;
+  // nk_vc_printf("bit_pos: %d\n", bit_pos);
+  // nk_vc_printf("sizeof(this_irr)*7: %d\n", 32*7);
+  // nk_vc_printf("interrupt_vector_index: %d\nIt should be 240\n", interrupt_vector_index);
 }
 
 /******************* Test Handlers *******************/
