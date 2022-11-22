@@ -345,9 +345,9 @@ COMPILER_PREFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_PREFIX))
 COMPILER_SUFFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_SUFFIX))
 
 # RISCV HACK - currently needed to build for riscv
-ifdef NAUT_CONFIG_ARCH_RISCV
-COMPILER_PREFIX := riscv64-linux-gnu-
-endif
+# ifdef NAUT_CONFIG_ARCH_RISCV
+# COMPILER_SUFFIX := --target=riscv64
+# endif
 
 #
 # Note we use the system linker in all cases
@@ -446,6 +446,11 @@ ifdef NAUT_CONFIG_USE_GCC
 CFLAGS += -std=gnu99 \
 		  -Wno-frame-address \
 		  $(call cc-option, -Wno-unused-but-set-variable,) 
+endif
+
+ifndef NAUT_CONFIG_USE_GCC
+CFLAGS += -Wno-int-conversion \
+          -Wno-deprecated-non-prototype
 endif
 
 ifeq ($(call cc-option-yn, -fgnu89-inline),y)
@@ -748,7 +753,7 @@ ifdef NAUT_CONFIG_GEM5
 LD_SCRIPT:=link/nautilus.ld.gem5
 else
 ifdef NAUT_CONFIG_ARCH_RISCV
-LD_SCRIPT:=link/nautilus.ld.riscv
+LD_SCRIPT:=link/nautilus.ld
 else
 LD_SCRIPT:=link/nautilus.ld
 endif

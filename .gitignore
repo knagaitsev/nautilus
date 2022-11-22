@@ -42,3 +42,5 @@ scripts/kconfig/conf
 scripts/kconfig/lxdialog/lxdialog
 scripts/kconfig/mconf
 scripts/kconfig/lkc_defs.h
+
+/dep

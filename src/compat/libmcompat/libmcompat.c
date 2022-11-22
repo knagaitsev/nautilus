@@ -162,6 +162,8 @@ double log10(double x)
     return x;
 }
 
+// RISCV HACK
+#if 0
 
 // Complex intrinsics in case the compiler uses them...
 // Weirdly, these sometimes need to exist even if you are not
@@ -205,5 +207,5 @@ complex float __divsc3(float a, float b, float c, float d)
     return (complex float)0;
 }
 
-
+#endif
 
