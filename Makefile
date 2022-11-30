@@ -300,6 +300,15 @@ else
 endif
 
 
+# RISCV HACK - use ld.lld from dep/local/bin after running
+# ./scripts/build_deps.sh
+ifdef NAUT_CONFIG_USE_CLANG
+LDCMD = ld.lld
+else
+LDCMD = $(LD)
+endif
+
+
 AR		=     $(CROSS_COMPILE)$(COMPILER_PREFIX)ar
 NM		=     $(CROSS_COMPILE)$(COMPILER_PREFIX)nm
 STRIP		=   $(CROSS_COMPILE)$(COMPILER_PREFIX)strip
@@ -489,7 +498,7 @@ export	VERSION PATCHLEVEL SUBLEVEL KERNELRELEASE KERNELVERSION \
 	ARCH CONFIG_SHELL HOSTCC HOSTCFLAGS CROSS_COMPILE AS LD CC CXX\
 	CPP AR NM STRIP OBJCOPY OBJDUMP MAKE AWK GENKSYMS PERL UTS_MACHINE \
 	HOSTCXX HOSTCXXFLAGS CHECK \
-export CPPFLAGS NOSTDINC_FLAGS NAUT_INCLUDE OBJCOPYFLAGS LDFLAGS \
+export CPPFLAGS NOSTDINC_FLAGS NAUT_INCLUDE OBJCOPYFLAGS LDCMD LDFLAGS \
 export CFLAGS CXXFLAGS CFLAGS_KERNEL \
 export AFLAGS AFLAGS_KERNEL \
 
@@ -785,8 +794,8 @@ quiet_cmd_transform_linkscript__ ?= CC      $@
 
 # Rule to link nautilus - also used during CONFIG_CONFIGKALLSYMS
 # May be overridden by /Makefile.$(ARCH)
-quiet_cmd_nautilus__ ?= LD      $@
-      cmd_nautilus__ ?= $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $@ \
+quiet_cmd_nautilus__ ?= $(LDCMD)      $@
+      cmd_nautilus__ ?= $(LDCMD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $@ \
       -T $(LD_SCRIPT) $(core-y)  \
       --start-group $(libs-y) --end-group
 
@@ -912,7 +921,7 @@ endif
 final: $(OPT_LL_NAME)
 	# Recompile (with full opt levels) new object files, binaries
 	clang $(CFLAGS) -c $(OPT_LL_NAME) -o .nautilus.o
-	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
+	$(LDCMD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
 	rm .nautilus.o
 
 strip: $(OPT_LL_NAME)
@@ -924,7 +933,7 @@ whole_opt: $(BIN_NAME) # FIX --- should be deprecated
 	extract-bc $(BIN_NAME) -o $(BC_NAME)
 	opt -strip-debug $(BC_NAME)
 	clang $(CFLAGS) -c $(BC_NAME) -o .nautilus.o
-	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
+	$(LDCMD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
 	rm .nautilus.o
 endif
 
