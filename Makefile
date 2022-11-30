@@ -460,8 +460,7 @@ CFLAGS += -std=gnu99 \
 endif
 
 ifndef NAUT_CONFIG_USE_GCC
-CFLAGS += -Wno-int-conversion \
-          -Wno-deprecated-non-prototype
+CFLAGS += -Wno-int-conversion
 endif
 
 ifeq ($(call cc-option-yn, -fgnu89-inline),y)
