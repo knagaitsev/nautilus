@@ -345,9 +345,11 @@ COMPILER_PREFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_PREFIX))
 COMPILER_SUFFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_SUFFIX))
 
 # RISCV HACK - currently needed to build for riscv
-# ifdef NAUT_CONFIG_ARCH_RISCV
-# COMPILER_SUFFIX := --target=riscv64
-# endif
+ifdef NAUT_CONFIG_ARCH_RISCV
+ifdef NAUT_CONFIG_USE_GCC
+COMPILER_PREFIX := riscv64-linux-gnu-
+endif
+endif
 
 #
 # Note we use the system linker in all cases
@@ -379,10 +381,19 @@ COMMON_FLAGS :=-fno-omit-frame-pointer \
 			   -ffreestanding \
 			   -fno-stack-protector \
 			   -fno-strict-aliasing \
-                           -fno-strict-overflow \
+         -fno-strict-overflow
 
 ifdef NAUT_CONFIG_ARCH_RISCV
-  COMMON_FLAGS += -mcmodel=medany -march=rv64gc -mabi=lp64d
+
+ifdef NAUT_CONFIG_USE_CLANG
+  COMMON_FLAGS += --target=riscv64 \
+                  -mno-relax
+endif
+
+  COMMON_FLAGS += -mcmodel=medany \
+  			          -march=rv64gc \
+				          -mabi=lp64d \
+				          -mcmodel=medany
 endif
 
 
@@ -463,7 +474,13 @@ endif
 # go off the rails for the Grub multiboot setup because the linker
 # does strange things...
 LDFLAGS         := -z max-page-size=0x1000
-AFLAGS		:= 
+AFLAGS		:= $(COMMON_FLAGS)
+ifdef NAUT_CONFIG_ARCH_RISCV
+ifdef NAUT_CONFIG_USE_CLANG
+AFLAGS += -mno-relax
+endif
+endif
+
 
 # Read KERNELRELEASE from .kernelrelease (if it exists)
 #KERNELRELEASE = $(shell cat .kernelrelease 2> /dev/null)
@@ -753,7 +770,7 @@ ifdef NAUT_CONFIG_GEM5
 LD_SCRIPT:=link/nautilus.ld.gem5
 else
 ifdef NAUT_CONFIG_ARCH_RISCV
-LD_SCRIPT:=link/nautilus.ld
+LD_SCRIPT:=link/nautilus.ld.riscv
 else
 LD_SCRIPT:=link/nautilus.ld
 endif

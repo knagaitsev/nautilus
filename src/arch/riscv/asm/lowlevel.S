@@ -48,15 +48,18 @@ GLOBAL(nautilus_entry)
     # OpenSBI passes us the hartid through a0.
 
     # starting stack at boot_stack_start
-    la      sp, boot_stack_start
+    la      sp, boot_stack_start_ptr
+    REG_L   sp, 0(sp)
     li      t0, 2 * 4096 # 2 page stack
     addi    t1, a0, 1 # t1 = mhartid + 1
     mul     t0, t0, t1 # t1 = SIZE * (mhartid + 1)
     add     sp, sp, t0 # sp = boot_stack_start + (SIZE * (mhartid + 1))
 
     # zero out bss
-    lla     t0, _bssStart
-    lla     t1, _bssEnd
+    la      t0, bss_start_ptr
+    REG_L   t0, 0(t0)
+    la      t1, bss_end_ptr
+    REG_L   t1, 0(t1)
     beq     t0, t1, 1f
 0:
     REG_S   zero, (t0)
@@ -82,9 +85,17 @@ GLOBAL(nautilus_entry)
 
     jr      t0
 
+.balign 8
+boot_stack_start_ptr: .quad boot_stack_start
 
 .balign 8
 main_ptr: .quad main
+
+.balign 8
+bss_start_ptr: .quad _bssStart
+
+.balign 8
+bss_end_ptr: .quad _bssEnd
 
 .global secondary_core_stack
 secondary_core_stack:
