@@ -125,12 +125,14 @@ SECTIONS
    _loadEnd = .;
    .tbss : AT(ADDR(.tdata)+SIZEOF(.tdata))
    {
+       _tbss_start = .;
        *(.tbss .tbss.*) *(.tcommon) ;
        . = ALIGN(0x1000);
        . += 0x1000;
        _tbss_end = .;
    }
   
+   _bssStart = .;
    .bss ALIGN(0x1000) : AT(ADDR(.tbss)+SIZEOF(.tbss))
     {
         *(COMMON)
@@ -148,5 +150,7 @@ SECTIONS
         *(.comment)
         *(.eh_frame)
     }
+
+    PROVIDE(kernel_end = .);
 }
 
