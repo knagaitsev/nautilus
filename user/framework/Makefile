@@ -98,7 +98,7 @@ framework: glue.o framework_low_level.o framework.o
 # 	$(FINALCC) $(CFLAGS) -c $(BLOB_OPT_LL) -o $(BLOB_KOBJ)
 
 # $(BLOB_OBJ) : $(TARGET:.exe=.o) framework.o glue.o
-# 	$(LDCMD) $^ -r -o $(BLOB_OBJ)
+# 	$(LD) $^ -r -o $(BLOB_OBJ)
 
 # $(TARGET:.exe=.unsigned) : $(BLOB_KOBJ) framework_low_level.o
 # 	$(NLD) $^ -o $(TARGET:.exe=.unsigned)
