@@ -349,6 +349,10 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 ifdef NAUT_CONFIG_USE_GCC
 COMPILER_PREFIX := riscv64-linux-gnu-
 endif
+
+# wllvm needs this to use the correct version of objcopy
+# (see https://github.com/travitch/whole-program-llvm)
+export BINUTILS_TARGET_PREFIX=riscv64-linux-gnu
 endif
 
 #
