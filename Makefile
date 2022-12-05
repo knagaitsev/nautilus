@@ -342,8 +342,8 @@ endif
 ifdef NAUT_CONFIG_USE_WLLVM
   AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
   LD		= $(CROSS_COMPILE)ld
-  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm$(COMPILER_SUFFIX)
-  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm++$(COMPILER_SUFFIX)
+  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang$(COMPILER_SUFFIX)
+  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
@@ -799,7 +799,7 @@ ifdef NAUT_CONFIG_USE_WLLVM
 
 bitcode: $(BIN_NAME)
 	# Set up whole kernel bitcode via WLLVM
-	extract-bc $(BIN_NAME) -o $(BC_NAME)
+	get-bc -o $(BC_NAME) $(BIN_NAME)
 	llvm-dis $(BC_NAME) -o $(LL_NAME)
 
 # Compiler-Timing
@@ -808,7 +808,7 @@ timing: ~/CAT/lib/CT.so $(LL_NAME) $(BIN_NAME)
 	# Run select loop simplification passes
 	opt -loop-simplify -lcssa -S $(LL_NAME) -o $(LOOP_LL_NAME)
 	# Run compiler-timing pass	
-	opt -load $< -ct -S $(LOOP_LL_NAME) -o $(OPT_LL_NAME) &> ct.out 
+	opt -load $< -ct -S $(LOOP_LL_NAME) -o $(OPT_LL_NAME) > ct.out 2>&1
 
 final: $(OPT_LL_NAME)
 	# Recompile (with full opt levels) new object files, binaries

@@ -1,13 +1,17 @@
 # Sources
 set(CATPassSrc 
   CatPass.cpp
+  src/LatencyDFA.cpp
+  src/LoopTransform.cpp
+  src/Utils.cpp
+  src/Configurations.cpp
 )
 
 # Compilation flags
 set_source_files_properties(${CATPassSrc} PROPERTIES COMPILE_FLAGS " -std=c++14 -fPIC")
 
 # Name of the LLVM pass
-set(CATPassName "CAT")
+set(CATPassName "CT")
 
 # configure LLVM 
 find_package(LLVM REQUIRED CONFIG)
