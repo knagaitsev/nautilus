@@ -385,7 +385,8 @@ COMMON_FLAGS :=-fno-omit-frame-pointer \
 
 ifdef NAUT_CONFIG_ARCH_RISCV
 
-ifdef NAUT_CONFIG_USE_CLANG
+# we want this for clang and wllvm
+ifndef NAUT_CONFIG_USE_GCC
   COMMON_FLAGS += --target=riscv64 \
                   -mno-relax
 endif
