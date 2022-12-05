@@ -204,7 +204,7 @@ idt_assign_entry_dp (ulong_t entry, ulong_t handler_addr, ulong_t state_addr, in
     idt_state_table[entry]   = state_addr;
 
     // Assign dp handler
-    dp_handler_table[entry] = dp_handler;
+    dp_handler_table[entry] = (ulong_t)dp_handler;
 
     // Disable the interrupt
     // DANGER DANGER RACE
@@ -224,7 +224,7 @@ inline ulong_t idt_get_dp_table_entry(ulong_t entry) {
 }
 
 inline void idt_set_entry_to_handler(ulong_t entry, ulong_t *handler_addr) {
-  idt_handler_table[entry] = handler_addr;
+  idt_handler_table[entry] = (ulong_t)handler_addr;
 }
 
 int

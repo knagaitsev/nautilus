@@ -280,7 +280,7 @@ __attribute__((annotate("nohook")))int nk_time_hook_start()
       ier = ier & ~(1 << APIC_VEC_TO_BIT(entry));
       apic_write(apic, APIC_VEC_TO_IER(entry), ier);
 
-      idt_set_entry_to_handler(entry, (ulong_t)dp_null_handler);
+      idt_set_entry_to_handler(entry, (ulong_t *)dp_null_handler);
     }
   }  
 
