@@ -7,6 +7,8 @@
 CFLAGS += $(call cc-option,-m64,) 
 AFLAGS += $(call cc-option,-m64,)
 ifndef NAUT_CONFIG_XEON_PHI
+ifdef NAUT_CONFIG_USE_GCC
 LDFLAGS += -melf_x86_64 -dp
+endif
 endif
 

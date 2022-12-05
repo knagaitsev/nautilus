@@ -300,15 +300,6 @@ else
 endif
 
 
-# RISCV HACK - use ld.lld from dep/local/bin after running
-# ./scripts/build_deps.sh
-ifdef NAUT_CONFIG_USE_CLANG
-LDCMD = ld.lld
-else
-LDCMD = $(LD)
-endif
-
-
 AR		=     $(CROSS_COMPILE)$(COMPILER_PREFIX)ar
 NM		=     $(CROSS_COMPILE)$(COMPILER_PREFIX)nm
 STRIP		=   $(CROSS_COMPILE)$(COMPILER_PREFIX)strip
@@ -358,6 +349,10 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 ifdef NAUT_CONFIG_USE_GCC
 COMPILER_PREFIX := riscv64-linux-gnu-
 endif
+
+# wllvm needs this to use the correct version of objcopy
+# (see https://github.com/travitch/whole-program-llvm)
+export BINUTILS_TARGET_PREFIX=riscv64-linux-gnu
 endif
 
 #
@@ -365,14 +360,14 @@ endif
 #
 ifdef NAUT_CONFIG_USE_CLANG
   AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
-  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld
+  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
   CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)clang$(COMPILER_SUFFIX)
   CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)clang++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_WLLVM
   AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
-  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld
+  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
   CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm$(COMPILER_SUFFIX)
   CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm++$(COMPILER_SUFFIX)
 endif
@@ -394,7 +389,8 @@ COMMON_FLAGS :=-fno-omit-frame-pointer \
 
 ifdef NAUT_CONFIG_ARCH_RISCV
 
-ifdef NAUT_CONFIG_USE_CLANG
+# we want this for clang and wllvm
+ifndef NAUT_CONFIG_USE_GCC
   COMMON_FLAGS += --target=riscv64 \
                   -mno-relax
 endif
@@ -794,8 +790,8 @@ quiet_cmd_transform_linkscript__ ?= CC      $@
 
 # Rule to link nautilus - also used during CONFIG_CONFIGKALLSYMS
 # May be overridden by /Makefile.$(ARCH)
-quiet_cmd_nautilus__ ?= $(LDCMD)      $@
-      cmd_nautilus__ ?= $(LDCMD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $@ \
+quiet_cmd_nautilus__ ?= $(LD)      $@
+      cmd_nautilus__ ?= $(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $@ \
       -T $(LD_SCRIPT) $(core-y)  \
       --start-group $(libs-y) --end-group
 
@@ -921,7 +917,7 @@ endif
 final: $(OPT_LL_NAME)
 	# Recompile (with full opt levels) new object files, binaries
 	clang $(CFLAGS) -c $(OPT_LL_NAME) -o .nautilus.o
-	$(LDCMD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
+	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
 	rm .nautilus.o
 
 strip: $(OPT_LL_NAME)
@@ -933,7 +929,7 @@ whole_opt: $(BIN_NAME) # FIX --- should be deprecated
 	extract-bc $(BIN_NAME) -o $(BC_NAME)
 	opt -strip-debug $(BC_NAME)
 	clang $(CFLAGS) -c $(BC_NAME) -o .nautilus.o
-	$(LDCMD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
+	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
 	rm .nautilus.o
 endif
 
