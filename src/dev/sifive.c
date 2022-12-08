@@ -53,8 +53,15 @@ static void sifive_init(addr_t addr, uint16_t irq) {
 
 int fdt_node_get_sifive(const void *fdt, int offset, int depth) {
     int lenp = 0;
-    char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
-    if (compat_prop && strstr(compat_prop, "sifive,uart0")) {
+    // char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+    // if (compat_prop && strstr(compat_prop, "sifive,uart0")) {
+        // off_t addr = fdt_getreg_address(fdt, offset);
+        // uint32_t irq = fdt_get_interrupt(fdt, offset);
+        // sifive_init(addr, (uint16_t)irq);
+        // return 0;
+    // }
+    char *name = fdt_get_name(fdt, offset, &lenp);
+    if (name && strncmp(name, "serial", 6) == 0) {
         off_t addr = fdt_getreg_address(fdt, offset);
         uint32_t irq = fdt_get_interrupt(fdt, offset);
         sifive_init(addr, (uint16_t)irq);

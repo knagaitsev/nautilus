@@ -44,3 +44,4 @@ scripts/kconfig/mconf
 scripts/kconfig/lkc_defs.h
 
 /dep
+uImage

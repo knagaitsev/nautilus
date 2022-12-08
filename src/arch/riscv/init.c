@@ -251,7 +251,7 @@ void init(unsigned long hartid, unsigned long fdt) {
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
-  // my_monitor_entry();
+  my_monitor_entry();
 
   sbi_init();
 
