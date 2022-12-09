@@ -876,7 +876,7 @@ define cmd_isoimage
 	mkdir -p .iso/boot/grub && \
 	cp configs/grub.cfg .iso/boot/grub && \
 	cp $(BIN_NAME) $(SYM_NAME) $(SEC_NAME) .iso/boot && \
-	$(GRUBMKRESCUE) -o $(ISO_NAME) .iso >/dev/null 2>&1 && \
+	$(GRUBMKRESCUE) -d /usr/lib/grub/i386-pc -o $(ISO_NAME) .iso >/dev/null 2>&1 && \
 	rm -rf .iso
 endef
 
@@ -1288,6 +1288,9 @@ user: FORCE
 
 PHONY += FORCE
 FORCE:
+
+foo:
+	@echo $(PHONY)
 
 
 # Declare the contents of the .PHONY variable as phony.  We keep that
