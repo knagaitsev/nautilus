@@ -66,7 +66,7 @@ class LoopTransform
 {
 public:
     LoopTransform(Loop *L, Function *F,  LoopInfo *LI, DominatorTree *DT,
-                  ScalarEvolution *SE, AssumptionCache *AC, 
+                  ScalarEvolution *SE, TargetTransformInfo *TTI, AssumptionCache *AC, 
                   OptimizationRemarkEmitter *ORE, uint64_t Gran, Loop *OutL);
 
     // ------- User transformation methods -------
@@ -94,6 +94,7 @@ private:
     ScalarEvolution *SE;
     AssumptionCache *AC;
     OptimizationRemarkEmitter *ORE;
+    TargetTransformInfo *TTI;
 
     // Initialization state
     bool CorrectForm=false;

@@ -370,8 +370,8 @@ endif
 ifdef NAUT_CONFIG_USE_WLLVM
   AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
   LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
-  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang$(COMPILER_SUFFIX)
-  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang++$(COMPILER_SUFFIX)
+  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm$(COMPILER_SUFFIX)
+  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
@@ -914,6 +914,7 @@ karat_noelle: ~/CAT/lib/KARAT.so noelle $(LL_NAME) $(BIN_NAME)
 	noelle-load -load $< -karat -fno-protections -fno-restrictions -S $(LL_SIMPLIFY_NAME) -o $(OPT_LL_NAME) > karat.out 2>&1 
 endif
 
+LOOP_LL_NAME=loop_$(LL_NAME)
 # Compiler-Timing
 # Build --- scripts/pass_build.sh compiler-timing CompilerTiming.cpp --- FIX
 timing: ~/CAT/lib/CT.so $(LL_NAME) $(BIN_NAME)
@@ -1022,7 +1023,7 @@ depend dep:
 # Directories & files removed with 'make clean'
 CLEAN_DIRS  += $(MODVERDIR)
 CLEAN_FILES +=	 nautilus.asm $(SYM_NAME) $(SEC_NAME) $(ISO_NAME) $(BIN_NAME) \
-                 .tmp_version .tmp_nautilus*
+                 .tmp_version .tmp_nautilus* *.ll
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config 

@@ -275,11 +275,11 @@ void Utils::InlineNKFunction(Function *F)
         DEBUG_INFO("Current CI: ");
         OBJ_INFO(CI);
 
-        auto Inlined = InlineFunction(CI, IFI);
-        if (!Inlined)
+        auto Inlined = InlineFunction(*CI, IFI);
+        if (!Inlined.isSuccess())
         {
             DEBUG_INFO("INLINE FAILED --- ");
-            DEBUG_INFO(Inlined.message);
+            DEBUG_INFO(Inlined.getFailureReason());
             DEBUG_INFO("\n");
             abort(); // Serious
         }
