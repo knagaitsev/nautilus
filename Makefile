@@ -1016,7 +1016,7 @@ depend dep:
 # Directories & files removed with 'make clean'
 CLEAN_DIRS  += $(MODVERDIR)
 CLEAN_FILES +=	 nautilus.asm $(SYM_NAME) $(SEC_NAME) $(ISO_NAME) $(BIN_NAME) \
-                 .tmp_version .tmp_nautilus*
+                 .tmp_version .tmp_nautilus* nautilus.ll nautilus.bc
 
 # Directories & files removed with 'make mrproper'
 MRPROPER_DIRS  += include/config 
