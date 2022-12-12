@@ -1,0 +1,1 @@
+qemu-system-x86_64 -m 2048 -cdrom nautilus.iso -smp 4 -display curses

@@ -1,0 +1,1 @@
+qemu-system-riscv64 -m 2048 -bios default -kernel nautilus.bin -machine virt -serial stdio -smp 4
