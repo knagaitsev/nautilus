@@ -258,7 +258,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
-  my_monitor_entry();
+  // my_monitor_entry();
 
   sbi_init();
 

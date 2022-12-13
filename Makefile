@@ -18,6 +18,8 @@ OPT_LL_NAME:=nautilus_opt.ll
 STRIP_LL_NAME:=nautilus_strip.ll
 LOOP_LL_NAME=loop_$(LL_NAME)
 
+export GLLVM_OBJCOPY := llvm-objcopy
+
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
 # More info can be located in ./README
@@ -371,8 +373,8 @@ endif
 ifdef NAUT_CONFIG_USE_WLLVM
   AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
   LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
-  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm$(COMPILER_SUFFIX)
-  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm++$(COMPILER_SUFFIX)
+  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang$(COMPILER_SUFFIX)
+  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
