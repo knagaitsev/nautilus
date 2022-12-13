@@ -80,7 +80,7 @@ struct CAT : public ModulePass
                 continue;
             
             AF->addFnAttr(Attribute::NoInline);
-            NoHookFunctionSignatures->push_back(AF->getName());
+            NoHookFunctionSignatures->push_back(AF->getName().str());
         }
 
         return false;
@@ -169,6 +169,7 @@ struct CAT : public ModulePass
             auto *AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(*Routine);
             auto *LI = &getAnalysis<LoopInfoWrapperPass>(*Routine).getLoopInfo();
             auto *SE = &getAnalysis<ScalarEvolutionWrapperPass>(*Routine).getSE();
+            auto *TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(*Routine);
             OptimizationRemarkEmitter ORE(Routine);
 
 
@@ -182,7 +183,7 @@ struct CAT : public ModulePass
             // locations generated
             for (auto L : Loops)
             {
-                auto LT = new LoopTransform(L, Routine, LI, DT, SE, AC, &ORE, GRAN, L);
+                auto LT = new LoopTransform(L, Routine, LI, DT, SE, TTI, AC, &ORE, GRAN, L);
                 LT->Transform();
 
                 for (auto I : *(LT->GetCallbackLocations()))
@@ -241,6 +242,7 @@ struct CAT : public ModulePass
         AU.addRequired<AssumptionCacheTracker>();
         AU.addRequired<DominatorTreeWrapperPass>();
         AU.addRequired<ScalarEvolutionWrapperPass>();
+        AU.addRequired<TargetTransformInfoWrapperPass>();
         return;
     }
 };

@@ -179,7 +179,14 @@ int start_secondary(struct sys_info *sys) {
 
 void my_monitor_entry(void);
 
-void init(unsigned long hartid, unsigned long fdt) {
+__attribute__((noinline)) int do_some_work(int x) {
+  for (int i = 0; i < 10000; i++) {
+    x = x % i;
+  }
+  return x;
+}
+
+__attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned long fdt) {
 
   if (!fdt) panic("Invalid FDT: %p\n", fdt);
 
@@ -305,12 +312,17 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   start_secondary(&(naut->sys));
 
-  nk_sched_start();
+  // nk_sched_start();
 
-  // nk_launch_shell("root-shell",my_cpu_id(),0,0);
-  execute_threading(NULL);
-
+  // // nk_launch_shell("root-shell",my_cpu_id(),0,0);
+  // execute_threading(NULL);
+  
   printk("Nautilus boot thread yielding (indefinitely)\n");
+
+  nk_time_hook_start();
+  int res = do_some_work(hartid);
+  nk_time_hook_stop();
+  printk("Res: %d\n", res);
 
   idle(NULL, NULL);
 }

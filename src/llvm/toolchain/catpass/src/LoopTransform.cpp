@@ -28,7 +28,7 @@
 #include "../include/LoopTransform.hpp"
 
 LoopTransform::LoopTransform(Loop *L, Function *F, LoopInfo *LI, DominatorTree *DT,
-                             ScalarEvolution *SE, AssumptionCache *AC, 
+                             ScalarEvolution *SE, TargetTransformInfo *TTI, AssumptionCache *AC, 
                              OptimizationRemarkEmitter *ORE,  uint64_t Gran, Loop *OutL)
 {
     // Will assume wrapper pass info is valid
@@ -86,7 +86,7 @@ void LoopTransform::_transformSubLoops()
     vector<Loop *> SubLoops = L->getSubLoopsVector();
     for (auto SL : SubLoops)
     {
-        auto SLT = new LoopTransform(SL, F, LI, DT, SE, AC, ORE, GRAN, OutL);
+        auto SLT = new LoopTransform(SL, F, LI, DT, SE, TTI, AC, ORE, GRAN, OutL);
         SLT->Transform();
 
         for (auto I : *(SLT->GetCallbackLocations()))
@@ -620,8 +620,8 @@ void LoopTransform::_buildBottomGuard(BasicBlock *Source, BasicBlock *Exit,
     Instruction *IteratorToCmp = nullptr;
     if (NeedToLoadCounter)
     {
-        LoadInst *LoadCounter = ChecksBuilder.CreateLoad(Iterator);
-        LoadCounter->setAlignment(4);
+        LoadInst *LoadCounter = ChecksBuilder.CreateLoad(Threshold->getType(), Iterator);
+        LoadCounter->setAlignment(Align(4));
         IteratorToCmp = LoadCounter;
     }
     else { IteratorToCmp = Iterator; }
@@ -691,16 +691,16 @@ void LoopTransform::BuildBiasedBranch(Instruction *InsertionPoint, uint64_t Exte
 
     // Build alloca, store initial value 
     AllocaInst *TheCounter = EntryBuilder.CreateAlloca(IntTy);
-    TheCounter->setAlignment(4);
+    TheCounter->setAlignment(Align(4));
     StoreInst *InitStore = EntryBuilder.CreateStore(StoreInitValue, TheCounter);
-    InitStore->setAlignment(4);
+    InitStore->setAlignment(Align(4));
 
     // Create manual increment --- load the value, increment
     Instruction *IncrementInsertionPoint = L->getHeader()->getFirstNonPHI();
     IRBuilder<> IncrementBuilder{IncrementInsertionPoint};
 
-    LoadInst *LoadCounter = IncrementBuilder.CreateLoad(TheCounter);
-    LoadCounter->setAlignment(4);
+    LoadInst *LoadCounter = IncrementBuilder.CreateLoad(TheCounter->getAllocatedType(), TheCounter);
+    LoadCounter->setAlignment(Align(4));
     Value *Iterator = IncrementBuilder.CreateAdd(LoadCounter, Increment);
     CmpInst *CI = static_cast<CmpInst *>(IncrementBuilder.CreateICmp(ICmpInst::ICMP_EQ, Iterator, ResetValue));
 
@@ -729,7 +729,7 @@ void LoopTransform::BuildBiasedBranch(Instruction *InsertionPoint, uint64_t Exte
 
     // Store value back to counter
     StoreInst *Restore = SecondaryPHIBuilder.CreateStore(SecondaryPHI, TheCounter); 
-    Restore->setAlignment(4);
+    Restore->setAlignment(Align(4));
 
     // Set counter
     Counter = TheCounter;
@@ -782,18 +782,18 @@ ExtendLoopResult LoopTransform::ExtendLoop(uint64_t ExtensionCount, Instruction 
     uint32_t MinTripMultiple = 1;
     UnrollLoopOptions *ULO = new UnrollLoopOptions();
     ULO->Count = ExtensionCount;
-    ULO->TripCount = SE->getSmallConstantTripCount(L);
+    // ULO->TripCount = SE->getSmallConstantTripCount(L);
     ULO->Force = true;
-    ULO->AllowRuntime = true;
+    ULO->Runtime = true;
     ULO->AllowExpensiveTripCount = true;
-    ULO->PreserveCondBr = true;
-    ULO->PreserveOnlyFirst = false;
-    ULO->TripMultiple = max(MinTripMultiple, SE->getSmallConstantTripMultiple(L));
-    ULO->PeelCount = 0;
+    // ULO->PreserveCondBr = true;
+    // ULO->PreserveOnlyFirst = false;
+    // ULO->TripMultiple = max(MinTripMultiple, SE->getSmallConstantTripMultiple(L));
+    // ULO->PeelCount = 0;
     ULO->UnrollRemainder = false;
     ULO->ForgetAllSCEV = false;
 
-    LoopUnrollResult Unrolled = UnrollLoop(L, *ULO, LI, SE, DT, AC, ORE, true);
+    LoopUnrollResult Unrolled = UnrollLoop(L, *ULO, LI, SE, DT, AC, TTI, ORE, true);
 
     if (!((Unrolled == LoopUnrollResult::FullyUnrolled)
         || (Unrolled == LoopUnrollResult::PartiallyUnrolled)))

@@ -36,11 +36,18 @@
 #include <nautilus/shell.h>
 #include <nautilus/backtrace.h>
 
+volatile int inited = 0;
+
 
 // At the point this can fire it's assumed that the apic is configured appropriately
 // The body of this should be small, it's all being inlined
 __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
 {
+  if (inited) {
+    inited = 0;
+    printk("hello!\n");
+    inited = 1;
+  }
   return;
 }
 
@@ -53,8 +60,15 @@ int nk_time_hook_init()
 
 // This is pretty much the last thing called during boot. Interrupts are on at this point
 // Maybe we can change this though...maybe interrupts that we don't want on should never turn on
-__attribute__((annotate("nohook")))int nk_time_hook_start()
+__attribute__((annotate("nohook"))) int nk_time_hook_start()
 {
+  inited = 1;
+  return 0;
+}
+
+__attribute__((annotate("nohook"))) int nk_time_hook_stop()
+{
+  inited = 0;
   return 0;
 }
 

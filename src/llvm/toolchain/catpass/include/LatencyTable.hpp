@@ -68,7 +68,7 @@ double getInstLatency(Instruction *I)
         if (auto *Call = dyn_cast<CallInst>(I)) // don't want to involve LLVM internals
         {
             // Handle InlineAsm (in the worst way possible)
-            if (auto *IA = dyn_cast<InlineAsm>(Call->getCalledValue()))
+            if (auto *IA = dyn_cast<InlineAsm>(Call->getCalledOperand()))
                 cost = getInlineAsmLatency(IA->getAsmString());
 
             // Handle real callees
