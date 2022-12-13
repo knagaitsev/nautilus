@@ -169,7 +169,7 @@ struct CAT : public ModulePass
             auto *AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(*Routine);
             auto *LI = &getAnalysis<LoopInfoWrapperPass>(*Routine).getLoopInfo();
             auto *SE = &getAnalysis<ScalarEvolutionWrapperPass>(*Routine).getSE();
-            auto *TTI = &getAnalysis<TargetTransformInfoWrapperPass>(*Routine).getTTI(*Routine);
+            auto *TTI = &getAnalysis<TargetTransformInfoWrapperPass>().getTTI(*Routine);
             OptimizationRemarkEmitter ORE(Routine);
 
 
