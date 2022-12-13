@@ -16,6 +16,7 @@ LL_NAME:=nautilus.ll
 LL_SIMPLIFY_NAME:=nautilus_simplify.ll
 OPT_LL_NAME:=nautilus_opt.ll
 STRIP_LL_NAME:=nautilus_strip.ll
+LOOP_LL_NAME=loop_$(LL_NAME)
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"
@@ -914,14 +915,13 @@ karat_noelle: ~/CAT/lib/KARAT.so noelle $(LL_NAME) $(BIN_NAME)
 	noelle-load -load $< -karat -fno-protections -fno-restrictions -S $(LL_SIMPLIFY_NAME) -o $(OPT_LL_NAME) > karat.out 2>&1 
 endif
 
-LOOP_LL_NAME=loop_$(LL_NAME)
 # Compiler-Timing
 # Build --- scripts/pass_build.sh compiler-timing CompilerTiming.cpp --- FIX
 timing: ~/CAT/lib/CT.so $(LL_NAME) $(BIN_NAME)
 	# Run select loop simplification passes
 	opt -loop-simplify -lcssa -S $(LL_NAME) -o $(LOOP_LL_NAME)
 	# Run compiler-timing pass	
-	opt -load $< -ct -S $(LOOP_LL_NAME) -o $(OPT_LL_NAME) > ct.out 2>&1
+	opt -load $< -ct -S -enable-new-pm=0 $(LOOP_LL_NAME) -o $(OPT_LL_NAME) > ct.out 2>&1
 
 final: $(OPT_LL_NAME)
 	# Recompile (with full opt levels) new object files, binaries

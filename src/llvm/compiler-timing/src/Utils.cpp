@@ -75,13 +75,12 @@ void Utils::GatherAnnotatedFunctions(GlobalVariable *GV,
 
     for (auto OP = AnnotatedArr->operands().begin(); OP != AnnotatedArr->operands().end(); OP++)
     {
-        // Each element in the annotations array is a ConstantStruct --- its
-        // fields can be accessed through the first operand (indirection). There are two
-        // fields --- Function *, GlobalVariable * (function ptr, annotation)
+        // Each element in the annotations array is a ConstantStruct
+        // There are two fields --- Function *, GlobalVariable * (function ptr, annotation)
 
         auto *AnnotatedStruct = cast<ConstantStruct>(OP);
-        auto *FunctionAsStructOp = AnnotatedStruct->getOperand(0)->getOperand(0);         // first field
-        auto *GlobalAnnotationAsStructOp = AnnotatedStruct->getOperand(1)->getOperand(0); // second field
+        auto *FunctionAsStructOp = AnnotatedStruct->getOperand(0);         // first field
+        auto *GlobalAnnotationAsStructOp = AnnotatedStruct->getOperand(1); // second field
 
         // Set the function and global, respectively. Both have to exist to
         // be considered.
