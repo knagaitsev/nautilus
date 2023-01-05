@@ -3,8 +3,10 @@
 #define _NAS_MATH_H_
 
 #include <nautilus/nautilus.h>
-#include "../common.h"
-
+#include "log/nas_log.h"
+#include "pow/nas_pow.h"
+#include "exp/nas_exp.h"
+#include "sincos/nas_sincos.h"
 //#define EXIT_FAILURE -1
 //#define EXIT_SUCCESS 0
 
