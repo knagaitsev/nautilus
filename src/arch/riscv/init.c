@@ -325,14 +325,21 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // nk_time_hook_stop();
   // printk("Res: %d\n", res);
 
-  // program_BT_profile();
-  // program_CG_profile();
+  program_BT_profile();
+  program_BT_profile();
+  program_BT_profile();
+  program_BT_profile();
+  program_BT_profile();
+
+  program_CG_profile();
   // program_EP_profile();
   // program_FT_profile();
-  program_IS_profile();
-  // program_LU_profile();
+
+  // weird negative clock numbers printing when timing IS
+  // program_IS_profile();
+  program_LU_profile();
   // program_MG_profile();
-  // program_SP_profile();
+  program_SP_profile();
 
   idle(NULL, NULL);
 }

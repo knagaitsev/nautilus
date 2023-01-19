@@ -29,62 +29,62 @@ void c_print_results( char   *name,
 {
     char *evalue="1000";
 
-    printf( "\n\n %s Benchmark Completed\n", name ); 
+    printk( "\n\n %s Benchmark Completed\n", name ); 
 
-    printf( " Class           =                        %c\n", class );
+    printk( " Class           =                        %c\n", class );
 
     if( n2 == 0 && n3 == 0 )
-        printf( " Size            =             %12d\n", n1 );   /* as in IS */
+        printk( " Size            =             %12d\n", n1 );   /* as in IS */
     else
-        printf( " Size            =              %3dx%3dx%3d\n", n1,n2,n3 );
+        printk( " Size            =              %3dx%3dx%3d\n", n1,n2,n3 );
 
-    printf( " Iterations      =             %12d\n", niter );
+    printk( " Iterations      =             %12d\n", niter );
     
-    printf( " Threads         =             %12d\n", nthreads );
+    printk( " Threads         =             %12d\n", nthreads );
  
-    printf( " Time in seconds =             %12.2f\n", t );
+    printk( " Time in seconds =             %12.2f\n", t );
 
-    printf( " Mop/s total     =             %12.2f\n", mops );
+    printk( " Mop/s total     =             %12.2f\n", mops );
 
-    printf( " Operation type  = %24s\n", optype);
+    printk( " Operation type  = %24s\n", optype);
 
     if( passed_verification )
-        printf( " Verification    =               SUCCESSFUL\n" );
+        printk( " Verification    =               SUCCESSFUL\n" );
     else
-        printf( " Verification    =             UNSUCCESSFUL\n" );
+        printk( " Verification    =             UNSUCCESSFUL\n" );
 
-    printf( " Version         =           %12s\n", npbversion );
+    printk( " Version         =           %12s\n", npbversion );
 
-    printf( " Compile date    =             %12s\n", compiletime );
+    printk( " Compile date    =             %12s\n", compiletime );
 
-    printf( "\n Compile options:\n" );
+    printk( "\n Compile options:\n" );
 
-    printf( "    CC           = %s\n", cc );
+    printk( "    CC           = %s\n", cc );
 
-    printf( "    CLINK        = %s\n", clink );
+    printk( "    CLINK        = %s\n", clink );
 
-    printf( "    C_LIB        = %s\n", c_lib );
+    printk( "    C_LIB        = %s\n", c_lib );
 
-    printf( "    C_INC        = %s\n", c_inc );
+    printk( "    C_INC        = %s\n", c_inc );
 
-    printf( "    CFLAGS       = %s\n", cflags );
+    printk( "    CFLAGS       = %s\n", cflags );
 
-    printf( "    CLINKFLAGS   = %s\n", clinkflags );
+    printk( "    CLINKFLAGS   = %s\n", clinkflags );
 
-    printf( "    RAND         = %s\n", rand );
+    printk( "    RAND         = %s\n", rand );
 #ifdef SMP
     evalue = getenv("MP_SET_NUMTHREADS");
-    printf( "   MULTICPUS = %s\n", evalue );
+    printk( "   MULTICPUS = %s\n", evalue );
 #endif
 
-/*    printf( "\n\n" );
-    printf( " Please send the results of this run to:\n\n" );
-    printf( " NPB Development Team\n" );
-    printf( " Internet: npb@nas.nasa.gov\n \n" );
-    printf( " If email is not available, send this to:\n\n" );
-    printf( " MS T27A-1\n" );
-    printf( " NASA Ames Research Center\n" );
-    printf( " Moffett Field, CA  94035-1000\n\n" );
-    printf( " Fax: 415-604-3957\n\n" );*/
+/*    printk( "\n\n" );
+    printk( " Please send the results of this run to:\n\n" );
+    printk( " NPB Development Team\n" );
+    printk( " Internet: npb@nas.nasa.gov\n \n" );
+    printk( " If email is not available, send this to:\n\n" );
+    printk( " MS T27A-1\n" );
+    printk( " NASA Ames Research Center\n" );
+    printk( " Moffett Field, CA  94035-1000\n\n" );
+    printk( " Fax: 415-604-3957\n\n" );*/
 }
  
