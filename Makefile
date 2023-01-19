@@ -358,6 +358,8 @@ OBJCOPY = $(CROSS_COMPILE)riscv64-linux-gnu-objcopy
 # wllvm needs this to use the correct version of objcopy
 # (see https://github.com/travitch/whole-program-llvm)
 export BINUTILS_TARGET_PREFIX=riscv64-linux-gnu
+
+export WLLVM_OUTPUT_LEVEL=ERROR
 endif
 
 #
