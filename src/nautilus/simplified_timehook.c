@@ -38,14 +38,14 @@
 
 volatile int inited = 0;
 
-
-// At the point this can fire it's assumed that the apic is configured appropriately
-// The body of this should be small, it's all being inlined
 __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
 {
   if (inited) {
     inited = 0;
-    printk("hello!\n");
+    int irq = plic_claim();
+    // printk("I'm a timehook whoopee!\n");
+    if (irq)
+      plic_complete(irq);
     inited = 1;
   }
   return;

@@ -54,7 +54,7 @@ void kernel_trap(struct nk_regs *regs) {
   int nr = regs->cause & ~(1llu << 63);
 
   if (interrupt) {
-      printk("int!, nr = %d, sie=%p, pending=%p\n", nr, read_csr(sie), plic_pending());
+      // printk("int!, nr = %d, sie=%p, pending=%p\n", nr, read_csr(sie), plic_pending());
     if (nr == 5) {
       // timer interrupt
       // on nautilus, we don't actaully want to set a new timer yet, we just

@@ -13,19 +13,19 @@
 #define exit(x) panic("exit from omptest\n");
 
 #include <rt/openmp/openmp.h>
-static inline double sqrt(double x)
-{
-    double ret;
-    asm volatile(
-		 "movq %1, %%xmm0 \n"
-		 "sqrtsd %%xmm0, %%xmm1 \n"
-		 "movq %%xmm1, %0 \n"
-		 : "=r"(ret)
-		 : "g"(x)
-		 : "xmm0", "xmm1", "memory"
-		 );
-    return ret;
-}
+// static inline double sqrt(double x)
+// {
+//     double ret;
+//     asm volatile(
+// 		 "movq %1, %%xmm0 \n"
+// 		 "sqrtsd %%xmm0, %%xmm1 \n"
+// 		 "movq %%xmm1, %0 \n"
+// 		 : "=r"(ret)
+// 		 : "g"(x)
+// 		 : "xmm0", "xmm1", "memory"
+// 		 );
+//     return ret;
+// }
 
 #define fabs(x) __builtin_fabs(x)
 

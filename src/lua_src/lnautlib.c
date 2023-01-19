@@ -639,7 +639,7 @@ extern void nk_sched_dump_time(int);
 extern double fabs(double);
 extern int nk_dev_unregister(struct nk_dev *);
 extern int getc(void *);
-extern double sqrt(double);
+// extern double sqrt(double);
 extern int towlower();
 extern long unsigned int mm_boot_last_pfn();
 extern void nk_sched_sleep();

@@ -283,7 +283,7 @@ double asin(double x);
 double acos(double x);
 double ceil(double x);
 double floor(double x);
-double sqrt(double x);
+// double sqrt(double x);
 double pow(double x, double y);
 double log(double x);
 double log10(double x);

@@ -10,22 +10,22 @@
 //#define EXIT_FAILURE -1
 //#define EXIT_SUCCESS 0
 
-static inline double sqrt(double x)
-{
-    return __builtin_sqrt(x);
-    /*
-    double ret;
-    asm volatile(
-		 "movsd %1, %%xmm0 \n"
-		 "sqrtsd %%xmm0, %%xmm1 \n"
-		 "movsd %%xmm1, %0 \n"
-		 : "=f"(ret)
-		 : "f"(x)
-		 : "xmm0", "xmm1", "memory"
-		 );
-    return ret;
-    */
-}
+// static inline double sqrt(double x)
+// {
+//     return __builtin_sqrt(x);
+//     /*
+//     double ret;
+//     asm volatile(
+// 		 "movsd %1, %%xmm0 \n"
+// 		 "sqrtsd %%xmm0, %%xmm1 \n"
+// 		 "movsd %%xmm1, %0 \n"
+// 		 : "=f"(ret)
+// 		 : "f"(x)
+// 		 : "xmm0", "xmm1", "memory"
+// 		 );
+//     return ret;
+//     */
+// }
 
 #define fabs(x) __builtin_fabs(x)
 //#define pow(a,b) ___powl(a,b)

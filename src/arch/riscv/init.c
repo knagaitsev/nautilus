@@ -320,9 +320,18 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   printk("Nautilus boot thread yielding (indefinitely)\n");
 
   nk_time_hook_start();
-  int res = do_some_work(hartid);
-  nk_time_hook_stop();
-  printk("Res: %d\n", res);
+  // int res = do_some_work(hartid);
+  // nk_time_hook_stop();
+  // printk("Res: %d\n", res);
+
+  // program_BT_profile();
+  // program_CG_profile();
+  // program_EP_profile();
+  // program_FT_profile();
+  program_IS_profile();
+  // program_LU_profile();
+  // program_MG_profile();
+  // program_SP_profile();
 
   idle(NULL, NULL);
 }
