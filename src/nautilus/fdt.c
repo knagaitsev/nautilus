@@ -50,6 +50,9 @@
  */
 #include <nautilus/fdt.h>
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
+
 int fdt_check_header(const void *fdt)
 {
 	if (fdt_magic(fdt) == FDT_MAGIC) {
@@ -380,3 +383,5 @@ void fdt_walk_devices(const void *fdt, int (*callback)(const void *fdt, int offs
 		offset = fdt_next_node(fdt, offset, &depth);
 	} while (offset > 0);
 }
+
+#pragma clang diagnostic pop

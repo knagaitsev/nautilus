@@ -489,6 +489,10 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 ifdef NAUT_CONFIG_USE_CLANG
 AFLAGS += -mno-relax
 endif
+
+CFLAGS += -Wno-deprecated-non-prototype \
+          -Wno-unused-but-set-variable \
+		  -Wno-frame-address
 endif
 
 

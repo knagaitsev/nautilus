@@ -18,4 +18,6 @@ void sifive_serial_write(const char *b);
 void sifive_serial_putchar(unsigned char ch);
 int  sifive_serial_getchar(void);
 
+int sifive_test(void);
+
 #endif

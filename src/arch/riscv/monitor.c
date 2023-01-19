@@ -24,6 +24,8 @@
 
 #include <arch/riscv/sbi.h>
 #include <dev/sifive.h>
+#include <arch/riscv/plic.h>
+#include <nautilus/nautilus.h>
 
 
 #define ITERATIONS 100
@@ -43,7 +45,7 @@
   })
 
 static inline uint64_t __attribute__((always_inline))
-rdtsc (void)
+monitor_rdtsc (void)
 {
     return read_csr(time);
 }
@@ -63,12 +65,12 @@ static char * long_to_string(long x)
   return buf;
 }
 
-static void outb (unsigned char val, uint64_t addr)
+static void monitor_outb (unsigned char val, uint64_t addr)
 {
     asm volatile ("sb  %[_v], 0(%[_a])":: [_a] "r" (addr), [_v] "r" (val));
 }
 
-static uint8_t inb (uint64_t addr)
+static uint8_t monitor_inb (uint64_t addr)
 {
     uint8_t ret;
     asm volatile ("lb  %[_r], 0(%[_a])": [_r] "=r" (ret): [_a] "r" (addr));
@@ -419,7 +421,7 @@ static int execute_help(char command[])
 }
 
 static inline void
-tlb_flush (void)
+monitor_tlb_flush (void)
 {
     asm volatile("sfence.vma zero, zero");
 }
@@ -428,13 +430,13 @@ extern uint64_t nk_paging_default_satp();
 static void paging_on(void)
 {
   write_csr(satp, nk_paging_default_satp());
-  tlb_flush();
+  monitor_tlb_flush();
 }
 
 static void paging_off(void)
 {
   write_csr(satp, 0);
-  tlb_flush();
+  monitor_tlb_flush();
 }
 
 static int execute_paging(char command[])
@@ -473,7 +475,7 @@ static long low_locality()   // 128 accesses, all from different pages
 {
   // flush TLB
 
-  tlb_flush();
+  monitor_tlb_flush();
 
   unsigned int *x = (unsigned int *)0xC0000000U;
   unsigned long sum = 0;
@@ -489,7 +491,7 @@ static long low_locality()   // 128 accesses, all from different pages
 static long medium_locality()   // 128 accesses, 8 from same page
 {
   // flush TLB
- tlb_flush();
+ monitor_tlb_flush();
 
   unsigned int *x = (unsigned int *)0xC0000000U;
   unsigned long sum = 0;
@@ -506,7 +508,7 @@ static long high_locality()   // 128 accesses, all from same page
 {
   // flush TLB
 
-  tlb_flush();
+  monitor_tlb_flush();
 
   unsigned int *x = (unsigned int *)0xC0000000U;
   unsigned long sum = 0;
@@ -529,9 +531,9 @@ static int execute_test(char command[])
   paging_off();
   for (int i=0; i<NUM_READINGS; i++)
   {
-    unsigned long t1 = rdtsc();
+    unsigned long t1 = monitor_rdtsc();
     unsigned long temp = high_locality();
-    unsigned long t2 = rdtsc();
+    unsigned long t2 = monitor_rdtsc();
     avg_cycles += (t2-t1);
     avg_sum += temp;
   }
@@ -547,9 +549,9 @@ static int execute_test(char command[])
   avg_sum = 0;
   for (int i=0; i<NUM_READINGS; i++)
   {
-    unsigned long t1 = rdtsc();
+    unsigned long t1 = monitor_rdtsc();
     unsigned long temp = medium_locality();
-    unsigned long t2 = rdtsc();
+    unsigned long t2 = monitor_rdtsc();
     avg_cycles += (t2-t1);
     avg_sum += temp;
   }
@@ -565,9 +567,9 @@ static int execute_test(char command[])
   avg_sum = 0;
   for (int i=0; i<NUM_READINGS; i++)
   {
-    unsigned long t1 = rdtsc();
+    unsigned long t1 = monitor_rdtsc();
     unsigned long temp = low_locality();
-    unsigned long t2 = rdtsc();
+    unsigned long t2 = monitor_rdtsc();
     avg_cycles += (t2-t1);
     avg_sum += temp;
   }
@@ -586,9 +588,9 @@ static int execute_test(char command[])
   avg_sum = 0;
   for (int i=0; i<NUM_READINGS; i++)
   {
-    unsigned long t1 = rdtsc();
+    unsigned long t1 = monitor_rdtsc();
     unsigned long temp = high_locality();
-    unsigned long t2 = rdtsc();
+    unsigned long t2 = monitor_rdtsc();
     avg_cycles += (t2-t1);
     avg_sum += temp;
   }
@@ -604,9 +606,9 @@ static int execute_test(char command[])
   avg_sum = 0;
   for (int i=0; i<NUM_READINGS; i++)
   {
-    unsigned long t1 = rdtsc();
+    unsigned long t1 = monitor_rdtsc();
     unsigned long temp = medium_locality();
-    unsigned long t2 = rdtsc();
+    unsigned long t2 = monitor_rdtsc();
     avg_cycles += (t2-t1);
     avg_sum += temp;
   }
@@ -622,9 +624,9 @@ static int execute_test(char command[])
   avg_sum = 0;
   for (int i=0; i<NUM_READINGS; i++)
   {
-    unsigned long t1 = rdtsc();
+    unsigned long t1 = monitor_rdtsc();
     unsigned long temp = low_locality();
-    unsigned long t2 = rdtsc();
+    unsigned long t2 = monitor_rdtsc();
     avg_cycles += (t2-t1);
     avg_sum += temp;
   }

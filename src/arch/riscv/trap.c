@@ -1,6 +1,7 @@
 #include <nautilus/arch.h>
 #include <nautilus/printk.h>
 #include <arch/riscv/plic.h>
+#include <arch/riscv/trap.h>
 
 void kernel_vec();
 

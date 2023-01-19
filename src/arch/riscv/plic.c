@@ -48,7 +48,7 @@ void plic_init(unsigned long fdt) {
     PLIC = addr;
 
     int lenp = 0;
-    void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
+    const void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
     if (ints_extended_prop != NULL) {
         uint32_t *vals = (uint32_t *)ints_extended_prop;
         int context_count = lenp / 8;
