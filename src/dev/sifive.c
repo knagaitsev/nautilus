@@ -2,6 +2,8 @@
 #include <nautilus/irq.h>
 #include <arch/riscv/sbi.h>
 #include <dev/sifive.h>
+#include <nautilus/fdt.h>
+#include <arch/riscv/plic.h>
 
 #define UART_TXFIFO_FULL  0x80000000
 #define UART_RXFIFO_EMPTY 0x80000000
@@ -60,7 +62,7 @@ int fdt_node_get_sifive(const void *fdt, int offset, int depth) {
         // sifive_init(addr, (uint16_t)irq);
         // return 0;
     // }
-    char *name = fdt_get_name(fdt, offset, &lenp);
+    const char *name = fdt_get_name(fdt, offset, &lenp);
     if (name && strncmp(name, "serial", 6) == 0) {
         off_t addr = fdt_getreg_address(fdt, offset);
         uint32_t irq = fdt_get_interrupt(fdt, offset);

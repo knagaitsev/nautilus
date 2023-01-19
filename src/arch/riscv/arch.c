@@ -1,4 +1,5 @@
 #include <nautilus/arch.h>
+#include <nautilus/irq.h>
 
 void arch_enable_ints(void)  { set_csr(sstatus, SSTATUS_SIE); }
 void arch_disable_ints(void) { clear_csr(sstatus, SSTATUS_SIE); }
@@ -12,7 +13,7 @@ void arch_irq_disable(int irq) {
     plic_disable(irq); }
 void arch_irq_install(int irq, int (*handler)(excp_entry_t *, excp_vec_t, void *)) {
     printk("registering int handler! irq=%d, handler=%p\n", irq, handler);
-    register_int_handler(irq, handler);
+    register_int_handler(irq, handler, (void *)0);
     arch_irq_enable(irq);
 }
 void arch_irq_uninstall(int irq) { /* TODO */ }
