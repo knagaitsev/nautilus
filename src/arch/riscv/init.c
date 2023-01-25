@@ -66,6 +66,7 @@
 #include <arch/riscv/plic.h>
 #include <arch/riscv/sbi.h>
 #include <arch/riscv/trap.h>
+#include <arch/riscv/riscv_idt.h>
 
 #include <dev/sifive.h>
 
@@ -286,6 +287,8 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
 
   /* mm_boot_kmem_cleanup(); */
+
+  riscv_setup_idt();
 
   arch_enable_ints();
 

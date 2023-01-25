@@ -2,6 +2,7 @@
 #include <nautilus/printk.h>
 #include <arch/riscv/plic.h>
 #include <arch/riscv/trap.h>
+#include <arch/riscv/riscv_idt.h>
 
 void kernel_vec();
 
@@ -67,7 +68,12 @@ void kernel_trap(struct nk_regs *regs) {
       int irq = plic_claim();
 
       // do something with the IRQ
-      panic("received irq: %d\n", irq);
+      // panic("received irq: %d\n", irq);
+      if (irq) {
+        long long* irq_handler = 0;
+        riscv_idt_get_entry(irq, irq_handler);
+        ((int (*)())irq_handler)(irq);
+      }
 
       // the PLIC allows each device to raise at most one
       // interrupt at a time; tell the PLIC the device is
