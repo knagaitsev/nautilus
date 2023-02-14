@@ -70,8 +70,8 @@ void kernel_trap(struct nk_regs *regs) {
       // do something with the IRQ
       // panic("received irq: %d\n", irq);
       if (irq) {
-        long long* irq_handler = 0;
-        riscv_idt_get_entry(irq, irq_handler);
+        ulong_t irq_handler = 0;
+        riscv_idt_get_entry(irq, &irq_handler);
         ((int (*)())irq_handler)(irq);
       }
 
