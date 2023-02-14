@@ -69,6 +69,7 @@
 #include <arch/riscv/riscv_idt.h>
 
 #include <dev/sifive.h>
+#include <dev/sifive_gpio.h>
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
 
@@ -260,6 +261,8 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
+  sifive_gpio_init(fdt);
+
   // my_monitor_entry();
 
   sbi_init();
@@ -320,6 +323,8 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   // // nk_launch_shell("root-shell",my_cpu_id(),0,0);
   // execute_threading(NULL);
+
+  // printk("%d\n", 5.0 / 0);
   
   printk("Nautilus boot thread yielding (indefinitely)\n");
 
@@ -328,21 +333,21 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // nk_time_hook_stop();
   // printk("Res: %d\n", res);
 
-  program_BT_profile();
-  program_BT_profile();
-  program_BT_profile();
-  program_BT_profile();
-  program_BT_profile();
+  // program_BT_profile();
+  // program_BT_profile();
+  // program_BT_profile();
+  // program_BT_profile();
+  // program_BT_profile();
 
-  program_CG_profile();
-  // program_EP_profile();
-  // program_FT_profile();
+  // program_CG_profile();
+  // // program_EP_profile();
+  // // program_FT_profile();
 
-  // weird negative clock numbers printing when timing IS
-  // program_IS_profile();
-  program_LU_profile();
-  // program_MG_profile();
-  program_SP_profile();
+  // // weird negative clock numbers printing when timing IS
+  // // program_IS_profile();
+  // program_LU_profile();
+  // // program_MG_profile();
+  // program_SP_profile();
 
   idle(NULL, NULL);
 }

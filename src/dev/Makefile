@@ -9,7 +9,8 @@ ifndef NAUT_CONFIG_XEON_PHI
 obj-y += serial.o
 endif
 
-obj-$(NAUT_CONFIG_ARCH_RISCV) += sifive.o
+obj-$(NAUT_CONFIG_ARCH_RISCV) += sifive.o \
+                                 sifive_gpio.o
 
 obj-$(NAUT_CONFIG_HPET) += hpet.o
 
