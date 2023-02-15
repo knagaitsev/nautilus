@@ -258,6 +258,8 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   /* from this point on, we can use percpu macros (even if the APs aren't up) */
   plic_init_hart(hartid);
 
+  riscv_setup_idt();
+
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
@@ -290,8 +292,6 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
 
   /* mm_boot_kmem_cleanup(); */
-
-  riscv_setup_idt();
 
   arch_enable_ints();
 

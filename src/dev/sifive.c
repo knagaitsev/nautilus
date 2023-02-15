@@ -1,5 +1,6 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/irq.h>
+#include <arch/riscv/riscv_idt.h>
 #include <arch/riscv/sbi.h>
 #include <dev/sifive.h>
 #include <nautilus/fdt.h>
@@ -28,6 +29,10 @@ int sifive_handler (excp_entry_t * excp, excp_vec_t vector, void *state) {
     }
 }
 
+int simple_sifive_handler(ulong_t irq) {
+    panic("sifive handler: %d\n", irq);
+}
+
 int sifive_test(void) {
     arch_enable_ints();
     while(1) {
@@ -50,7 +55,8 @@ static void sifive_init(addr_t addr, uint16_t irq) {
 
     inited = true;
 
-    arch_irq_install(irq, sifive_handler);
+    // arch_irq_install(irq, sifive_handler);
+    int res = riscv_irq_install(irq, (ulong_t)simple_sifive_handler);
 }
 
 int fdt_node_get_sifive(const void *fdt, int offset, int depth) {

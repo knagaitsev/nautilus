@@ -21,6 +21,7 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <arch/riscv/riscv_idt.h>
+#include <nautilus/irq.h>
 
 ulong_t riscv_idt_handler_table[NUM_IDT_ENTRIES];
 
@@ -31,6 +32,13 @@ riscv_null_irq_handler (ulong_t irq)
     panic("received irq: %d\n", irq);
     
     return 0;
+}
+
+int
+riscv_irq_install(ulong_t irq, int (*handler_addr)(ulong_t))
+{
+    arch_irq_enable((int)irq);
+    return riscv_idt_assign_entry(irq, (ulong_t)handler_addr);
 }
 
 int

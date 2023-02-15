@@ -7,6 +7,7 @@
 
 int riscv_setup_idt(void);
 
+int riscv_irq_install(ulong_t irq, int (*handler_addr)(ulong_t));
 int riscv_idt_assign_entry(ulong_t entry, ulong_t handler_addr);
 int riscv_idt_get_entry(ulong_t entry, ulong_t *handler_addr);
 
