@@ -293,7 +293,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   /* mm_boot_kmem_cleanup(); */
 
-  // arch_enable_ints();
+  arch_enable_ints();
 
   /* interrupts are now on */
 

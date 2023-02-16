@@ -46,7 +46,7 @@ __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
     int irq = plic_claim();
     // printk("I'm a timehook whoopee!\n");
     if (irq) {
-      printk("got irq: %d\n", irq);
+      // printk("got irq: %d\n", irq);
       riscv_handle_irq(irq);
       plic_complete(irq);
     }
