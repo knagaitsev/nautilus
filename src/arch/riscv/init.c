@@ -265,6 +265,12 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   sifive_gpio_init(fdt);
 
+  arch_enable_ints();
+
+  while (1) {
+    continue;
+  }
+
   // my_monitor_entry();
 
   sbi_init();
