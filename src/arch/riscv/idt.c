@@ -89,3 +89,14 @@ riscv_setup_idt (void)
     return 0;
 }
 
+int riscv_handle_irq(ulong_t irq)
+{
+    if (irq) {
+        ulong_t irq_handler = 0;
+        riscv_idt_get_entry(irq, &irq_handler);
+        ((int (*)())irq_handler)(irq);
+    }
+
+    return 0;
+}
+

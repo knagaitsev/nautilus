@@ -35,6 +35,7 @@
 #include <nautilus/spinlock.h>
 #include <nautilus/shell.h>
 #include <nautilus/backtrace.h>
+#include <arch/riscv/riscv_idt.h>
 
 volatile int inited = 0;
 
@@ -44,8 +45,11 @@ __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
     inited = 0;
     int irq = plic_claim();
     // printk("I'm a timehook whoopee!\n");
-    if (irq)
+    if (irq) {
+      printk("got irq: %d\n", irq);
+      riscv_handle_irq(irq);
       plic_complete(irq);
+    }
     inited = 1;
   }
   return;

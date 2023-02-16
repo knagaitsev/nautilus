@@ -69,11 +69,7 @@ void kernel_trap(struct nk_regs *regs) {
 
       // do something with the IRQ
       // panic("received irq: %d\n", irq);
-      if (irq) {
-        ulong_t irq_handler = 0;
-        riscv_idt_get_entry(irq, &irq_handler);
-        ((int (*)())irq_handler)(irq);
-      }
+      riscv_handle_irq(irq);
 
       // the PLIC allows each device to raise at most one
       // interrupt at a time; tell the PLIC the device is

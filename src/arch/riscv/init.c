@@ -265,12 +265,6 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   sifive_gpio_init(fdt);
 
-  arch_enable_ints();
-
-  while (1) {
-    continue;
-  }
-
   // my_monitor_entry();
 
   sbi_init();
@@ -299,31 +293,31 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   /* mm_boot_kmem_cleanup(); */
 
-  arch_enable_ints();
+  // arch_enable_ints();
 
   /* interrupts are now on */
 
-  nk_vc_init();
+  // nk_vc_init();
 
-  nk_fs_init();
+  // nk_fs_init();
 
-  // nk_linker_init(naut);
-  // nk_prog_init(naut);
+  // // nk_linker_init(naut);
+  // // nk_prog_init(naut);
 
-  // nk_loader_init();
+  // // nk_loader_init();
 
-  // nk_pmc_init();
+  // // nk_pmc_init();
 
-  nk_cmdline_init(naut);
-  // nk_test_init(naut);
+  // nk_cmdline_init(naut);
+  // // nk_test_init(naut);
 
-  // kick off the timer subsystem by setting a timer sometime in the future
-  sbi_set_timer(read_csr(time) + TICK_INTERVAL);
+  // // kick off the timer subsystem by setting a timer sometime in the future
+  // sbi_set_timer(read_csr(time) + TICK_INTERVAL);
 
-  // sifive_test();
-  /* my_monitor_entry(); */
+  // // sifive_test();
+  // /* my_monitor_entry(); */
 
-  start_secondary(&(naut->sys));
+  // start_secondary(&(naut->sys));
 
   // nk_sched_start();
 
@@ -335,15 +329,16 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   printk("Nautilus boot thread yielding (indefinitely)\n");
 
   nk_time_hook_start();
+
   // int res = do_some_work(hartid);
   // nk_time_hook_stop();
   // printk("Res: %d\n", res);
 
-  // program_BT_profile();
-  // program_BT_profile();
-  // program_BT_profile();
-  // program_BT_profile();
-  // program_BT_profile();
+  program_BT_profile();
+  program_BT_profile();
+  program_BT_profile();
+  program_BT_profile();
+  program_BT_profile();
 
   // program_CG_profile();
   // // program_EP_profile();

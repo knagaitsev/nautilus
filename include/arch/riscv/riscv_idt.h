@@ -12,6 +12,7 @@ int riscv_idt_assign_entry(ulong_t entry, ulong_t handler_addr);
 int riscv_idt_get_entry(ulong_t entry, ulong_t *handler_addr);
 
 int riscv_null_irq_handler(ulong_t irq);
+int riscv_handle_irq(ulong_t irq);
 
 
 #endif
