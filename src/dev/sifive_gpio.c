@@ -26,12 +26,22 @@ static addr_t base_addr = 0;
 #define MREG(x) *((volatile uint32_t *)(base_addr + (x)))
 
 int gpio_int_handler(ulong_t irq) {
-    uint32_t val = MREG(SIFIVE_GPIO_HIGH_IP);
-    printk("gpio interrupt: %d, val: %x\n", irq, val);
+    // if (irq == 27) {
+    //     return 0;
+    // }
+
+    uint32_t high_val = MREG(SIFIVE_GPIO_HIGH_IP);
+    uint32_t low_val = MREG(SIFIVE_GPIO_LOW_IP);
+    uint32_t rise_val = MREG(SIFIVE_GPIO_RISE_IP);
+    uint32_t fall_val = MREG(SIFIVE_GPIO_FALL_IP);
 
     uint32_t mask = 0x00000010;
-    uint32_t full_val = 0xFFFFF0FF;
-    // mask = full_val;
+
+    printk("got interrupt: %d, high: %x, low: %x, rise: %x, fall: %x\n", irq, high_val, low_val, rise_val, fall_val);
+    // printk("gpio interrupt: %d, val: %x\n", irq, val);
+
+    // uint32_t full_val = 0xFFFFF0FF;
+    // // mask = full_val;
 
     MREG(SIFIVE_GPIO_RISE_IP) = mask;
     MREG(SIFIVE_GPIO_FALL_IP) = mask;
@@ -63,6 +73,10 @@ static void sifive_init(const void *fdt, addr_t addr, int offset) {
         riscv_irq_install((ulong_t)irq, gpio_int_handler);
 	}
 
+    // for (int i = 0; i < 256; i++) {
+    //     riscv_irq_install((ulong_t)i, gpio_int_handler);
+    // }
+
     uint32_t mask = 0x00000010;
     uint32_t full_val = 0xFFFFF0FF;
     // mask = full_val;
@@ -81,20 +95,23 @@ static void sifive_init(const void *fdt, addr_t addr, int offset) {
     MREG(SIFIVE_GPIO_PUE) = mask;
 
     MREG(SIFIVE_GPIO_HIGH_IE) = mask;
+    MREG(SIFIVE_GPIO_LOW_IE) = mask;
+    MREG(SIFIVE_GPIO_RISE_IE) = mask;
+    MREG(SIFIVE_GPIO_FALL_IE) = mask;
 
-    uint32_t prev_val = 0;
-    while (1) {
-        uint32_t val = MREG(SIFIVE_GPIO_HIGH_IP);
-        if (val != prev_val) {
-            printk("Val: %x\n", val);
-            MREG(SIFIVE_GPIO_RISE_IP) = mask;
-            MREG(SIFIVE_GPIO_FALL_IP) = mask;
-            MREG(SIFIVE_GPIO_HIGH_IP) = mask;
-            MREG(SIFIVE_GPIO_LOW_IP) = mask;
+    // uint32_t prev_val = 0;
+    // while (1) {
+    //     uint32_t val = MREG(SIFIVE_GPIO_HIGH_IP);
+    //     if (val != prev_val) {
+    //         printk("Val: %x\n", val);
+    //         MREG(SIFIVE_GPIO_RISE_IP) = mask;
+    //         MREG(SIFIVE_GPIO_FALL_IP) = mask;
+    //         MREG(SIFIVE_GPIO_HIGH_IP) = mask;
+    //         MREG(SIFIVE_GPIO_LOW_IP) = mask;
 
-            prev_val = val;
-        }
-    }
+    //         prev_val = val;
+    //     }
+    // }
 
     // MREG(SIFIVE_GPIO_OUTPUT_VAL) = full_val;
 
