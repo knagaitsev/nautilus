@@ -25,37 +25,42 @@
 static addr_t base_addr = 0;
 #define MREG(x) *((volatile uint32_t *)(base_addr + (x)))
 
-static int curr_out_state = 0;
+static volatile int curr_out_state = 0;
 
 int gpio_int_handler(ulong_t irq) {
     // if (irq == 27) {
     //     return 0;
     // }
 
-    uint32_t rise_val = MREG(SIFIVE_GPIO_RISE_IP);
-    uint32_t fall_val = MREG(SIFIVE_GPIO_FALL_IP);
-    uint32_t high_val = MREG(SIFIVE_GPIO_HIGH_IP);
-    uint32_t low_val = MREG(SIFIVE_GPIO_LOW_IP);
-
     uint32_t mask10 = 0x00000400;
     uint32_t mask4 = 0x00000010;
 
-    // printk("got interrupt: %d, high: %x, low: %x, rise: %x, fall: %x\n", irq, high_val, low_val, rise_val, fall_val);
-
-    // uint32_t full_val = 0xFFFFF0FF;
-    // // mask4 = full_val;
-
+    // this needs to go before reading of the below IP registers
     curr_out_state = !curr_out_state;
+    printk("state: %d\n", curr_out_state);
     if (curr_out_state) {
         MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
     } else {
         MREG(SIFIVE_GPIO_OUTPUT_VAL) = 0x0;
     }
 
-    MREG(SIFIVE_GPIO_RISE_IP) = mask4 | mask10;
-    MREG(SIFIVE_GPIO_FALL_IP) = mask4 | mask10;
-    MREG(SIFIVE_GPIO_HIGH_IP) = mask4 | mask10;
-    MREG(SIFIVE_GPIO_LOW_IP) = mask4 | mask10;
+    uint32_t rise_val = MREG(SIFIVE_GPIO_RISE_IP);
+    uint32_t fall_val = MREG(SIFIVE_GPIO_FALL_IP);
+    uint32_t high_val = MREG(SIFIVE_GPIO_HIGH_IP);
+    uint32_t low_val = MREG(SIFIVE_GPIO_LOW_IP);
+
+    printk("got interrupt: %d, high: %x, low: %x, rise: %x, fall: %x\n", irq, high_val, low_val, rise_val, fall_val);
+
+    // uint32_t full_val = 0xFFFFF0FF;
+    // // mask4 = full_val;
+
+    MREG(SIFIVE_GPIO_RISE_IP) = mask4;
+    MREG(SIFIVE_GPIO_FALL_IP) = mask4;
+    MREG(SIFIVE_GPIO_HIGH_IP) = mask4;
+    MREG(SIFIVE_GPIO_LOW_IP) = mask4;
+
+    // uint32_t out_val = MREG(SIFIVE_GPIO_OUTPUT_VAL);
+    // printk("out val: %x\n", out_val);
 
     return 0;
 }
@@ -71,18 +76,15 @@ static void sifive_init(const void *fdt, addr_t addr, int offset) {
     // mask4 = full_val;
 
     // clean up bits
-    MREG(SIFIVE_GPIO_RISE_IP) = mask4 | mask10;
-    MREG(SIFIVE_GPIO_FALL_IP) = mask4 | mask10;
-    MREG(SIFIVE_GPIO_HIGH_IP) = mask4 | mask10;
-    MREG(SIFIVE_GPIO_LOW_IP) = mask4 | mask10;
+    MREG(SIFIVE_GPIO_RISE_IP) = mask4;
+    MREG(SIFIVE_GPIO_FALL_IP) = mask4;
+    MREG(SIFIVE_GPIO_HIGH_IP) = mask4;
+    MREG(SIFIVE_GPIO_LOW_IP) = mask4;
 
     MREG(SIFIVE_GPIO_INPUT_EN) = mask4;
 
-    MREG(SIFIVE_GPIO_OUTPUT_EN) = mask10;
-
-    MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
-
-    MREG(SIFIVE_GPIO_PUE) = mask4;
+    // MREG(SIFIVE_GPIO_PUE) = mask4;
+    // MREG(SIFIVE_GPIO_PUE) = mask10;
 
     // volatile uint32_t *output_val_addr = (volatile uint32_t *)(addr + SIFIVE_GPIO_OUTPUT_VAL);
 
@@ -110,6 +112,9 @@ static void sifive_init(const void *fdt, addr_t addr, int offset) {
     // MREG(SIFIVE_GPIO_LOW_IE) = mask4;
     MREG(SIFIVE_GPIO_RISE_IE) = mask4;
     // MREG(SIFIVE_GPIO_FALL_IE) = mask4;
+
+    MREG(SIFIVE_GPIO_OUTPUT_EN) = mask10;
+    // MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
 }
 
 int fdt_node_get_sifive_gpio(const void *fdt, int offset, int depth) {
