@@ -45,3 +45,5 @@ scripts/kconfig/lkc_defs.h
 
 /dep
 uImage
+
+src/test/NPB-NAS/*/npbparams.h
