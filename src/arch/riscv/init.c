@@ -67,6 +67,7 @@
 #include <arch/riscv/sbi.h>
 #include <arch/riscv/trap.h>
 #include <arch/riscv/riscv_idt.h>
+#include <arch/riscv/npb.h>
 
 #include <dev/sifive.h>
 #include <dev/sifive_gpio.h>
@@ -334,11 +335,11 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // nk_time_hook_stop();
   // printk("Res: %d\n", res);
 
-  program_BT_profile();
-  program_BT_profile();
-  program_BT_profile();
-  program_BT_profile();
-  program_BT_profile();
+  program_BT_profile(NULL, NULL);
+  program_BT_profile(NULL, NULL);
+  program_BT_profile(NULL, NULL);
+  program_BT_profile(NULL, NULL);
+  program_BT_profile(NULL, NULL);
 
   // program_CG_profile();
   // // program_EP_profile();

@@ -96,7 +96,7 @@ static void sifive_init(const void *fdt, addr_t addr, int offset) {
     // }
 
     int lenp = 0;
-    void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
+    const void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
 	uint32_t *vals = (uint32_t *)ints;
 
     int num_irqs = lenp / 4;

@@ -36,6 +36,7 @@
 #include <nautilus/shell.h>
 #include <nautilus/backtrace.h>
 #include <arch/riscv/riscv_idt.h>
+#include <arch/riscv/plic.h>
 
 volatile int inited = 0;
 
