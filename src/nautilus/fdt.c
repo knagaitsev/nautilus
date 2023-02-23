@@ -325,6 +325,20 @@ uint32_t *fdt_get_interrupt(const void *fdt, int offset) {
 int print_device(const void *fdt, int offset, int depth) {
 	int lenp = 0;
 	char *name = fdt_get_name(fdt, offset, &lenp);
+
+	void *clock_freq_prop = fdt_getprop(fdt, offset, "clock-frequency", &lenp);
+	uint32_t *clock_freqs = (uint32_t *)clock_freq_prop;
+
+	void *timebase_freq_prop = fdt_getprop(fdt, offset, "timebase-frequency", &lenp);
+	uint32_t *timebase_freqs = (uint32_t *)timebase_freq_prop;
+
+	if (clock_freq_prop) {
+		printk("%s clock freq: %d\n", name, bswap_32(clock_freqs[0]));
+	}
+	if (timebase_freq_prop) {
+		printk("%s timebase freq: %d\n", name, bswap_32(timebase_freqs[0]));
+	}
+
 	char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
 	char *status = fdt_getprop(fdt, offset, "status", &lenp);
 	// show tree depth with spaces

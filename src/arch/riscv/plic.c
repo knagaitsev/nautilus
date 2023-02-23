@@ -16,8 +16,8 @@ static plic_context_t *contexts = NULL;
 // static plic_context_t contexts[100];
 
 #define PLIC plic_addr
-#define MREG(x) *((uint32_t *)(PLIC + (x)))
-#define READ_REG(x) *((uint32_t *)((x)))
+#define MREG(x) *((volatile uint32_t *)(PLIC + (x)))
+#define READ_REG(x) *((volatile uint32_t *)((x)))
 
 #define PLIC_PRIORITY_BASE 0x000000U
 

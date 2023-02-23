@@ -25,15 +25,16 @@
 static addr_t base_addr = 0;
 #define MREG(x) *((volatile uint32_t *)(base_addr + (x)))
 
+static uint32_t mask10 = 0x00000400;
+
+static uint32_t mask4 = 0x00000010;
+
 static volatile int curr_out_state = 0;
 
 int gpio_int_handler(ulong_t irq) {
     // if (irq == 27) {
     //     return 0;
     // }
-
-    uint32_t mask10 = 0x00000400;
-    uint32_t mask4 = 0x00000010;
 
     // this needs to go before reading of the below IP registers
     curr_out_state = !curr_out_state;
@@ -69,9 +70,6 @@ static void sifive_init(const void *fdt, addr_t addr, int offset) {
     base_addr = addr;
     printk("GPIO @ %p\n", addr);
 
-    uint32_t mask10 = 0x00000400;
-
-    uint32_t mask4 = 0x00000010;
     uint32_t full_val = 0xFFFFF0FF;
     // mask4 = full_val;
 
@@ -114,7 +112,6 @@ static void sifive_init(const void *fdt, addr_t addr, int offset) {
     // MREG(SIFIVE_GPIO_FALL_IE) = mask4;
 
     MREG(SIFIVE_GPIO_OUTPUT_EN) = mask10;
-    // MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
 }
 
 int fdt_node_get_sifive_gpio(const void *fdt, int offset, int depth) {
@@ -132,4 +129,14 @@ int fdt_node_get_sifive_gpio(const void *fdt, int offset, int depth) {
 
 void sifive_gpio_init(unsigned long fdt) {
     fdt_walk_devices(fdt, fdt_node_get_sifive_gpio);
+}
+
+int sifive_gpio_set_pin(int is_high) {
+    if (is_high) {
+        MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
+    } else {
+        MREG(SIFIVE_GPIO_OUTPUT_VAL) = 0;
+    }
+
+    return 0;
 }
