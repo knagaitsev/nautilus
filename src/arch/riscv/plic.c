@@ -107,11 +107,11 @@ void plic_disable(int hwirq)
 {
     plic_toggle(my_cpu_id(), hwirq, 0, false);
 }
-int plic_claim(void)
+inline int plic_claim(void)
 {
     return MREG(PLIC_CLAIM(my_cpu_id()));
 }
-void plic_complete(int irq)
+inline void plic_complete(int irq)
 {
     MREG(PLIC_CLAIM(my_cpu_id())) = irq;
 }

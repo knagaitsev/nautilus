@@ -264,7 +264,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
-  sifive_gpio_init(fdt);
+  // sifive_gpio_init(fdt);
 
   // my_monitor_entry();
 
@@ -335,31 +335,38 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // nk_time_hook_stop();
   // printk("Res: %d\n", res);
 
-  sifive_gpio_set_pin(1);
+  // sifive_gpio_set_pin(1);
 
-  int x = 0;
-  for (int i = 0; i < 100000; i++) {
-    x += 1;
+  // int x = 0;
+  // for (int i = 0; i < 100000; i++) {
+  //   x += 1;
+  // }
+
+  // printk("Val: %d\n", x);
+
+  // sifive_gpio_set_pin(0);
+
+  // program_BT_profile(NULL, NULL);
+  // program_BT_profile(NULL, NULL);
+  // program_BT_profile(NULL, NULL);
+  // program_BT_profile(NULL, NULL);
+  // program_BT_profile(NULL, NULL);
+
+  uint64_t t1 = read_csr(cycle);
+
+  for (int i = 0; i < 1000; i++) {
+    int irq = plic_claim();
   }
 
-  printk("Val: %d\n", x);
-
-  sifive_gpio_set_pin(0);
-
-  uint64_t t1 = arch_read_timestamp();
-
-  program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-
-  uint64_t t2 = arch_read_timestamp();
-
-  sifive_gpio_set_pin(1);
+  uint64_t t2 = read_csr(cycle);
 
   uint64_t diff = t2 - t1;
-  printk("\n\nTotal Time: %ld\n\n\n", diff);
+  printk("%ld\n", diff);
+
+  // sifive_gpio_set_pin(1);
+
+  // uint64_t diff = t2 - t1;
+  // printk("\n\nTotal Time: %ld\n\n\n", diff);
 
   // program_CG_profile();
   // // program_EP_profile();
