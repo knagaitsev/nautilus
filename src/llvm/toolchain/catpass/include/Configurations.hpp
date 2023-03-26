@@ -96,7 +96,7 @@ using namespace std;
 #define IDLE_FIBER_ROUTINE 3
 
 // Policies
-#define GRAN 16000
+#define GRAN 5000
 #define LOOP_GUARD 1
 
 #define MAXIMUM 0

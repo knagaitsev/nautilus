@@ -346,22 +346,25 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   // sifive_gpio_set_pin(0);
 
-  // program_BT_profile(NULL, NULL);
+  program_BT_profile(NULL, NULL);
   // program_BT_profile(NULL, NULL);
   // program_BT_profile(NULL, NULL);
   // program_BT_profile(NULL, NULL);
   // program_BT_profile(NULL, NULL);
 
-  uint64_t t1 = read_csr(cycle);
+  // uint64_t t1 = read_csr(cycle);
 
-  for (int i = 0; i < 1000; i++) {
-    int irq = plic_claim();
-  }
+  // for (int i = 0; i < 1000; i++) {
+  //   int irq = plic_claim();
+  // }
 
-  uint64_t t2 = read_csr(cycle);
+  // uint64_t t2 = read_csr(cycle);
 
-  uint64_t diff = t2 - t1;
-  printk("%ld\n", diff);
+  // uint64_t diff = t2 - t1;
+  // printk("%ld\n", diff);
+
+
+
 
   // sifive_gpio_set_pin(1);
 

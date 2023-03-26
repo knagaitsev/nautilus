@@ -38,21 +38,54 @@
 #include <arch/riscv/riscv_idt.h>
 #include <arch/riscv/plic.h>
 
+#define TIMES_COUNT 10000
+
 volatile int inited = 0;
+
+volatile int init_counter = 0;
+
+static uint64_t times[TIMES_COUNT];
+static uint64_t counter = 0;
 
 __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
 {
   if (inited) {
     inited = 0;
-    int irq = plic_claim();
-    // printk("I'm a timehook whoopee!\n");
-    while (irq) {
-      // printk("got irq: %d\n", irq);
-      riscv_handle_irq(irq);
-      plic_complete(irq);
 
-      irq = plic_claim();
+
+    init_counter++;
+
+    if (init_counter > 100000) {
+      uint64_t t = read_csr(cycle);
+
+      if (counter < TIMES_COUNT) {
+        times[counter] = t;
+      } else if (counter == TIMES_COUNT) {
+        uint64_t total = 0;
+        for (int i = 0; i < TIMES_COUNT; i++) {
+          if (i != 0) {
+            uint64_t diff = times[i] - times[i - 1];
+            total += diff;
+            // printk("%ld\n", diff);
+          }
+        }
+
+        uint64_t avg = total / (TIMES_COUNT - 1);
+        printk("Avg: %d\n", avg);
+      }
+
+      counter++;
     }
+
+    // int irq = plic_claim();
+    // // printk("I'm a timehook whoopee!\n");
+    // while (irq) {
+    //   // printk("got irq: %d\n", irq);
+    //   riscv_handle_irq(irq);
+    //   plic_complete(irq);
+
+    //   irq = plic_claim();
+    // }
     inited = 1;
   }
   return;

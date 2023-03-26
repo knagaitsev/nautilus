@@ -1,3 +1,4 @@
+./scripts/pass_build.sh compiler-timing CompilerTiming.cpp
 cd src/test/NPB-NAS
 ./genparams.sh W
 cd ../../..
