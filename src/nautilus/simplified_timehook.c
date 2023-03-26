@@ -53,39 +53,41 @@ __attribute__((noinline, annotate("nohook"))) void nk_time_hook_fire()
     inited = 0;
 
 
-    init_counter++;
+    // init_counter++;
 
-    if (init_counter > 100000) {
-      uint64_t t = read_csr(cycle);
+    // if (init_counter > 100000) {
+    //   uint64_t t = read_csr(cycle);
 
-      if (counter < TIMES_COUNT) {
-        times[counter] = t;
-      } else if (counter == TIMES_COUNT) {
-        uint64_t total = 0;
-        for (int i = 0; i < TIMES_COUNT; i++) {
-          if (i != 0) {
-            uint64_t diff = times[i] - times[i - 1];
-            total += diff;
-            // printk("%ld\n", diff);
-          }
-        }
+    //   if (counter < TIMES_COUNT) {
+    //     times[counter] = t;
+    //   } else if (counter == TIMES_COUNT) {
+    //     uint64_t total = 0;
+    //     for (int i = 0; i < TIMES_COUNT; i++) {
+    //       if (i != 0) {
+    //         uint64_t diff = times[i] - times[i - 1];
+    //         total += diff;
+    //         // printk("%ld\n", diff);
+    //       }
+    //     }
 
-        uint64_t avg = total / (TIMES_COUNT - 1);
-        printk("Avg: %d\n", avg);
-      }
+    //     uint64_t avg = total / (TIMES_COUNT - 1);
+    //     printk("Avg: %d\n", avg);
+    //   }
 
-      counter++;
+    //   counter++;
+    // }
+
+    int irq = plic_claim();
+    // printk("I'm a timehook whoopee!\n");
+    while (irq) {
+      // printk("got irq: %d\n", irq);
+      riscv_handle_irq(irq);
+      plic_complete(irq);
+
+      irq = plic_claim();
     }
 
-    // int irq = plic_claim();
-    // // printk("I'm a timehook whoopee!\n");
-    // while (irq) {
-    //   // printk("got irq: %d\n", irq);
-    //   riscv_handle_irq(irq);
-    //   plic_complete(irq);
 
-    //   irq = plic_claim();
-    // }
     inited = 1;
   }
   return;
