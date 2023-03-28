@@ -3,6 +3,30 @@
 #include <arch/riscv/plic.h>
 #include <arch/riscv/trap.h>
 #include <arch/riscv/riscv_idt.h>
+#include <nautilus/timehook.h>
+
+static time_data_t *plic_claim_times = NULL;
+static time_data_t *call_handler_times = NULL;
+static time_data_t *plic_complete_times = NULL;
+
+void trap_init_times() {
+  plic_claim_times = malloc(sizeof(time_data_t));
+  plic_claim_times->count = 0;
+
+  call_handler_times = malloc(sizeof(time_data_t));
+  call_handler_times->count = 0;
+
+  plic_complete_times = malloc(sizeof(time_data_t));
+  plic_complete_times->count = 0;
+}
+
+void trap_times_dump() {
+  uint64_t m1 = get_mean(plic_claim_times);
+  uint64_t m2 = get_mean(call_handler_times);
+  uint64_t m3 = get_mean(plic_complete_times);
+
+  printk("Trap Means - plic claim: %ld, handler: %ld, plic complete: %ld\n", m1, m2, m3);
+}
 
 void kernel_vec();
 
@@ -65,16 +89,25 @@ void kernel_trap(struct nk_regs *regs) {
     } else if (nr == 9) {
       // supervisor external interrupt
       // first, we claim the irq from the PLIC
+      uint64_t t1 = read_csr(cycle);
       int irq = plic_claim();
+      uint64_t t2 = read_csr(cycle);
+      add_time(plic_claim_times, t2 - t1);
 
       // do something with the IRQ
       // panic("received irq: %d\n", irq);
+      t1 = read_csr(cycle);
       riscv_handle_irq(irq);
+      t2 = read_csr(cycle);
+      add_time(call_handler_times, t2 - t1);
 
       // the PLIC allows each device to raise at most one
       // interrupt at a time; tell the PLIC the device is
       // now allowed to interrupt again.
+      t1 = read_csr(cycle);
       if (irq) plic_complete(irq);
+      t2 = read_csr(cycle);
+      add_time(plic_complete_times, t2 - t1);
     }
   } else {
     // it's a fault/trap (like illegal instruction)

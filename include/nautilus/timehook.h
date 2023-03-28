@@ -63,6 +63,16 @@ struct nk_time_hook *nk_time_hook_register(int (*hook)(void *state),
 #define NK_TIME_HOOK_ALL_CPUS_EXCEPT_BSP -3
 #define NK_TIME_HOOK_CPU_MASK -4
 
+#define TIMES_MAX 10000
+
+typedef struct time_data {
+	uint64_t times[TIMES_MAX];
+	uint64_t count;
+} time_data_t;
+
+void add_time(time_data_t *times, uint64_t new_time);
+uint64_t get_mean(time_data_t *times);
+
 // unregister an existing callback
 int nk_time_hook_unregister(struct nk_time_hook *hook);
 

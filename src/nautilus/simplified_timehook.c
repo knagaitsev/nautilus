@@ -39,17 +39,10 @@
 #include <arch/riscv/plic.h>
 #include <dev/sifive_gpio.h>
 
-#define TIMES_MAX 10000
-
 static int inited = 0;
 
 static uint64_t hit_count = 0;
 static uint64_t miss_count = 0;
-
-typedef struct time_data {
-	uint64_t times[TIMES_MAX];
-	uint64_t count;
-} time_data_t;
 
 static time_data_t *plic_claim_no_int_times = NULL;
 static time_data_t *plic_claim_int_times = NULL;
@@ -192,13 +185,13 @@ __attribute__((annotate("nohook"))) int nk_time_hook_stop()
 void nk_time_hook_dump() {
   // get the means of the collected times, and print the counts of those times too
 
-  printk("Hit count: %ld, Miss count: %ld\n", hit_count, miss_count);
+  printk("Timehook Hit count: %ld, Miss count: %ld\n", hit_count, miss_count);
 
   uint64_t m1 = get_mean(plic_claim_no_int_times);
   uint64_t m2 = get_mean(plic_claim_int_times);
   uint64_t m3 = get_mean(call_handler_times);
   uint64_t m4 = get_mean(plic_complete_times);
 
-  printk("Means - plic claim no ints: %ld, plic claim ints: %ld, handler: %ld, plic complete: %ld\n", m1, m2, m3, m4);
+  printk("Timehook Means - plic claim no ints: %ld, plic claim ints: %ld, handler: %ld, plic complete: %ld\n", m1, m2, m3, m4);
 }
 
