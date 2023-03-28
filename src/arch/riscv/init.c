@@ -264,7 +264,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
-  sifive_gpio_init(fdt);
+  // sifive_gpio_init(fdt);
 
   // my_monitor_entry();
 
@@ -297,7 +297,6 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 #ifdef NAUT_ENABLE_INTS
   arch_enable_ints();
 #endif
-
   /* interrupts are now on */
 
   // nk_vc_init();
@@ -350,6 +349,8 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
+
+  nk_time_hook_dump();
 
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();

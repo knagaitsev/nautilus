@@ -39,23 +39,71 @@
 #include <arch/riscv/plic.h>
 #include <dev/sifive_gpio.h>
 
-#define TIMES_COUNT 10000
+#define TIMES_MAX 10000
 
 static int inited = 0;
 
-volatile int init_counter = 0;
+static uint64_t hit_count = 0;
+static uint64_t miss_count = 0;
 
-static uint64_t times[TIMES_COUNT];
-static uint64_t counter = 0;
+typedef struct time_data {
+	uint64_t times[TIMES_MAX];
+	uint64_t count;
+} time_data_t;
+
+static time_data_t *plic_claim_no_int_times = NULL;
+static time_data_t *plic_claim_int_times = NULL;
+static time_data_t *call_handler_times = NULL;
+static time_data_t *plic_complete_times = NULL;
+
+void add_time(time_data_t *times, uint64_t new_time) {
+  if (times->count < TIMES_MAX) {
+    times->times[times->count] = new_time;
+    times->count++;
+  }
+}
+
+uint64_t get_mean(time_data_t *times) {
+  uint64_t total = 0;
+  for (uint64_t i = 0; i < times->count; i++) {
+    total += times->times[i];
+  }
+
+  if (times->count == 0) {
+    return 0;
+  }
+  return total / times->count;
+}
 
 __attribute__((annotate("nohook"))) void nk_time_hook_fire()
 {
+  if (!inited) {
+    return;
+  }
+
+  uint64_t t1 = read_csr(cycle);
   int irq = plic_claim();
+  uint64_t t2 = read_csr(cycle);
+  uint64_t plic_claim_diff = t2 - t1;
+
   if (irq) {
+    hit_count++;
+    add_time(plic_claim_int_times, plic_claim_diff);
+
+    t1 = read_csr(cycle);
     ulong_t irq_handler = 0;
     riscv_idt_get_entry(irq, &irq_handler);
     ((int (*)())irq_handler)(irq);
+    t2 = read_csr(cycle);
+    add_time(call_handler_times, t2 - t1);
+
+    t1 = read_csr(cycle);
     plic_complete(irq);
+    t2 = read_csr(cycle);
+    add_time(plic_complete_times, t2 - t1);
+  } else {
+    miss_count++;
+    add_time(plic_claim_no_int_times, plic_claim_diff);
   }
   // printk("I'm a timehook whoopee!\n");
   // while (irq) {
@@ -119,6 +167,18 @@ int nk_time_hook_init()
 // Maybe we can change this though...maybe interrupts that we don't want on should never turn on
 __attribute__((annotate("nohook"))) int nk_time_hook_start()
 {
+  plic_claim_no_int_times = malloc(sizeof(time_data_t));
+  plic_claim_no_int_times->count = 0;
+
+  plic_claim_int_times = malloc(sizeof(time_data_t));
+  plic_claim_int_times->count = 0;
+
+  call_handler_times = malloc(sizeof(time_data_t));
+  call_handler_times->count = 0;
+
+  plic_complete_times = malloc(sizeof(time_data_t));
+  plic_complete_times->count = 0;
+
   inited = 1;
   return 0;
 }
@@ -127,5 +187,18 @@ __attribute__((annotate("nohook"))) int nk_time_hook_stop()
 {
   inited = 0;
   return 0;
+}
+
+void nk_time_hook_dump() {
+  // get the means of the collected times, and print the counts of those times too
+
+  printk("Hit count: %ld, Miss count: %ld\n", hit_count, miss_count);
+
+  uint64_t m1 = get_mean(plic_claim_no_int_times);
+  uint64_t m2 = get_mean(plic_claim_int_times);
+  uint64_t m3 = get_mean(call_handler_times);
+  uint64_t m4 = get_mean(plic_complete_times);
+
+  printk("Means - plic claim no ints: %ld, plic claim ints: %ld, handler: %ld, plic complete: %ld\n", m1, m2, m3, m4);
 }
 
