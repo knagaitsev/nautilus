@@ -931,6 +931,12 @@ timing: ~/CAT/lib/CT.so $(LL_NAME) $(BIN_NAME)
 	# Run compiler-timing pass	
 	opt -load $< -ct -S -enable-new-pm=0 $(LOOP_LL_NAME) -o $(OPT_LL_NAME) > ct.out 2>&1
 
+final_no_timing: $(LL_NAME)
+	# Recompile (with full opt levels) new object files, binaries
+	clang $(CFLAGS) -c $(LL_NAME) -o .nautilus.o
+	$(LD) $(LDFLAGS) $(LDFLAGS_vmlinux) -o $(BIN_NAME) -T $(LD_SCRIPT) .nautilus.o `scripts/findasm.pl`
+	rm .nautilus.o
+
 final: $(OPT_LL_NAME)
 	# Recompile (with full opt levels) new object files, binaries
 	clang $(CFLAGS) -c $(OPT_LL_NAME) -o .nautilus.o

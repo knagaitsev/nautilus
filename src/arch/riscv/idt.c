@@ -25,11 +25,11 @@
 
 ulong_t riscv_idt_handler_table[NUM_IDT_ENTRIES];
 
-int
+__attribute__((annotate("nohook"))) int
 riscv_null_irq_handler (ulong_t irq)
 {
     
-    panic("received irq: %d\n", irq);
+    // panic("received irq: %d\n", irq);
     
     return 0;
 }
@@ -60,14 +60,14 @@ riscv_idt_assign_entry (ulong_t entry, ulong_t handler_addr)
     return 0;
 }
 
-int
+__attribute__((annotate("nohook"))) inline int
 riscv_idt_get_entry (ulong_t entry, ulong_t *handler_addr)
 {
 
-    if (entry >= NUM_IDT_ENTRIES) {
-        ERROR_PRINT("Getting invalid IDT entry\n");
-        return -1;
-    }
+    // if (entry >= NUM_IDT_ENTRIES) {
+    //     ERROR_PRINT("Getting invalid IDT entry\n");
+    //     return -1;
+    // }
 
     *handler_addr = riscv_idt_handler_table[entry];
 
@@ -89,13 +89,16 @@ riscv_setup_idt (void)
     return 0;
 }
 
-int riscv_handle_irq(ulong_t irq)
+__attribute__((annotate("nohook"))) int riscv_handle_irq(ulong_t irq)
 {
     if (irq) {
         ulong_t irq_handler = 0;
         riscv_idt_get_entry(irq, &irq_handler);
         ((int (*)())irq_handler)(irq);
     }
+    // ulong_t irq_handler = 0;
+    // riscv_idt_get_entry(irq, &irq_handler);
+    // ((int (*)())irq_handler)(irq);
 
     return 0;
 }

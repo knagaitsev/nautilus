@@ -1,7 +1,11 @@
 #include <nautilus/arch.h>
 #include <nautilus/irq.h>
 
-void arch_enable_ints(void)  { set_csr(sstatus, SSTATUS_SIE); }
+void arch_enable_ints(void)  {
+    printk("ENABLED INTS\n");
+
+    set_csr(sstatus, SSTATUS_SIE);
+}
 void arch_disable_ints(void) { clear_csr(sstatus, SSTATUS_SIE); }
 int  arch_ints_enabled(void) { return read_csr(sstatus) & SSTATUS_SIE; };
 

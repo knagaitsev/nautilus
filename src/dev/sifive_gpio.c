@@ -33,7 +33,7 @@ static volatile int curr_out_state = 0;
 
 static int ints_received = 0;
 
-int gpio_int_handler(ulong_t irq) {
+__attribute__((annotate("nohook"))) int gpio_int_handler(ulong_t irq) {
     // if (irq == 27) {
     //     return 0;
     // }

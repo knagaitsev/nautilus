@@ -107,11 +107,11 @@ void plic_disable(int hwirq)
 {
     plic_toggle(my_cpu_id(), hwirq, 0, false);
 }
-inline int plic_claim(void)
+__attribute__((annotate("nohook"))) inline int plic_claim(void)
 {
     return MREG(PLIC_CLAIM(my_cpu_id()));
 }
-inline void plic_complete(int irq)
+__attribute__((annotate("nohook"))) inline void plic_complete(int irq)
 {
     MREG(PLIC_CLAIM(my_cpu_id())) = irq;
 }
