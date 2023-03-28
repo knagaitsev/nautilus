@@ -478,6 +478,9 @@ ifeq ($(call cc-option-yn, -fgnu89-inline),y)
 CFLAGS		+= -fgnu89-inline
 endif
 
+ifdef NAUT_ENABLE_INTS
+CFLAGS += -D"NAUT_ENABLE_INTS=1"
+endif
 
 
 # NOTE: We MUST have max-page-size set to this here. Otherwise things

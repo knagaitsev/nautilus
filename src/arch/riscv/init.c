@@ -294,7 +294,9 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   /* mm_boot_kmem_cleanup(); */
 
-  // arch_enable_ints();
+#ifdef NAUT_ENABLE_INTS
+  arch_enable_ints();
+#endif
 
   /* interrupts are now on */
 
