@@ -38,7 +38,7 @@ static plic_context_t *contexts = NULL;
 #define PLIC_THRESHOLD(h) (contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
 #define PLIC_CLAIM(h) (contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
 
-void plic_init(unsigned long fdt) {
+__attribute__((annotate("nohook"))) void plic_init(unsigned long fdt, struct naut_info *naut) {
     int offset = fdt_node_offset_by_compatible(fdt, -1, "sifive,plic-1.0.0");
     if (offset < 0) {
         // something is bad, no plic found
@@ -70,9 +70,14 @@ void plic_init(unsigned long fdt) {
             // printk("\tcpu num: %d\n", hartid);
             contexts[hartid].enable_offset = PLIC_ENABLE_BASE + context * PLIC_ENABLE_STRIDE;
             contexts[hartid].context_offset = PLIC_CONTEXT_BASE + context * PLIC_CONTEXT_STRIDE;
-            // printk("%d, %x, %x\n", hartid, contexts[hartid].enable_offset, &MREG(PLIC_ENABLE(0, hartid)));
+
+            naut->sys.cpus[hartid]->plic_claim_register = PLIC + contexts[hartid].context_offset + PLIC_CONTEXT_CLAIM;
+            printk("PLIC info: %d, %x, %x, %x\n", hartid, contexts[hartid].enable_offset, &MREG(PLIC_CLAIM(hartid)), naut->sys.cpus[hartid]->plic_claim_register);
         }
     }
+
+    int reg_offset = offsetof(struct cpu, plic_claim_register);
+    printk("PLIC claim register offset: %d\n", reg_offset);
 }
 
 static void plic_toggle(int hart, int hwirq, int priority, bool_t enable) {
@@ -109,6 +114,11 @@ void plic_disable(int hwirq)
 }
 __attribute__((annotate("nohook"))) inline int plic_claim(void)
 {
+
+    // return *((volatile uint32_t *)());
+    // uint64_t ctx_claim_addr = PLIC_CLAIM(my_cpu_id());
+    // uint64_t plic_addr = PLIC;
+    // printk("Goal addr: %lx\n", plic_addr + ctx_claim_addr);
     return MREG(PLIC_CLAIM(my_cpu_id()));
 }
 __attribute__((annotate("nohook"))) inline void plic_complete(int irq)

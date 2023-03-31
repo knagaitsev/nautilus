@@ -46,7 +46,8 @@ namespace Utils
 
     // Basic function tracking/identification/analysis
     set<Function *> *IdentifyFiberRoutines();
-    void IdentifyAllNKFunctions(Module &M, set<Function *> &Routines);
+    void IdentifyCalledHookFunctions(Module &M, set<Function *> &HookFunctions);
+    void IdentifyAllNKFunctions(set<Function *> &HookFunctions, set<Function *> &Routines);
     bool DoesNotDirectlyRecurse(Function *F);
 
     // Basic transformations

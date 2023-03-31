@@ -4,6 +4,8 @@
 #include <arch/riscv/trap.h>
 #include <arch/riscv/riscv_idt.h>
 
+// static volatile int x = 0;
+
 void kernel_vec();
 
 // set up to take exceptions and traps while in the kernel.
@@ -66,6 +68,10 @@ void kernel_trap(struct nk_regs *regs) {
       // supervisor external interrupt
       // first, we claim the irq from the PLIC
       int irq = plic_claim();
+
+      // for (volatile int i = 0; i < 1000; i++) {
+      //   x += i;
+      // }
 
       // do something with the IRQ
       // panic("received irq: %d\n", irq);

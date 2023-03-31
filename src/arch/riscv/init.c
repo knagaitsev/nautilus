@@ -206,7 +206,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   write_csr(sscratch, r_tp());
 
   // Zero out tp for now until cls is set up
-  w_tp(0);
+  // w_tp(0);
 
   struct naut_info *naut = &nautilus_info;
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
@@ -254,7 +254,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   mm_boot_kmem_init();
 
   // Initialize platform level interrupt controller for this HART
-  plic_init(fdt);
+  plic_init(fdt, naut);
 
   /* from this point on, we can use percpu macros (even if the APs aren't up) */
   plic_init_hart(hartid);
@@ -348,6 +348,10 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   // sifive_gpio_set_pin(0);
 
+  // plic_claim();
+
+  printk("Current CPU: %d\n", my_cpu_id());
+
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
@@ -431,7 +435,7 @@ void init_simple(unsigned long hartid, unsigned long fdt) {
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
 
   // Initialize platform level interrupt controller for this HART
-  plic_init(fdt);
+  plic_init(fdt, NULL);
 
   plic_init_hart(hartid);
 

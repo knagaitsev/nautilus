@@ -135,8 +135,11 @@ extern const vector<string> NKNames;
 // No hook function names functionality --- (non-injectable)
 extern const string ANNOTATION;
 extern const string NOHOOK;
+extern const string ADDHOOK;
 
 // Globals
 extern unordered_map<uint32_t, Function *> *SpecialRoutines;
 extern vector<string> *NoHookFunctionSignatures;
 extern vector<Function *> *NoHookFunctions;
+extern vector<string> *AddHookFunctionSignatures;
+extern vector<Function *> *AddHookFunctions;

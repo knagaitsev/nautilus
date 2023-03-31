@@ -80,7 +80,8 @@ struct CAT : public ModulePass
                 continue;
             
             AF->addFnAttr(Attribute::NoInline);
-            NoHookFunctionSignatures->push_back(AF->getName().str());
+            // NoHookFunctionSignatures->push_back(AF->getName().str());
+            AddHookFunctionSignatures->push_back(AF->getName().str());
         }
 
         return false;
@@ -119,8 +120,15 @@ struct CAT : public ModulePass
             NoHookFunctions->push_back(F);
         }
 
+        for (auto Name : *AddHookFunctionSignatures)
+        {
+            auto F = M.getFunction(Name);
+            if (F == nullptr)
+                continue;
 
-#if INJECT
+            AddHookFunctions->push_back(F);
+        }
+
 
         /*
          * TOP LEVEL --- 
@@ -137,21 +145,20 @@ struct CAT : public ModulePass
         // Utils::InlineNKFunction((*SpecialRoutines)[FIBER_START]);
         // set<Function *> Routines = *(Utils::IdentifyFiberRoutines());
 
-#if WHOLE
-
         /*
          * If whole kernel injection/optimization is turned on, we want to inject 
          * callbacks to nk_time_hook_fire across the entire kernel module. In order
          * to do so, we want to identify all valid functions in the bitcode and mark
          * them (add them in the Routines set) 
          */ 
+
+        set<Function *> HookFunctions = *(new set<Function *>());
+
+        Utils::IdentifyCalledHookFunctions(M, HookFunctions);
+        
         set<Function *> Routines = *(new set<Function *>());
 
-        Utils::IdentifyAllNKFunctions(M, Routines);
-
-#endif
-
-#endif
+        Utils::IdentifyAllNKFunctions(HookFunctions, Routines);
         /*
          * Iterate through all the routines collected in the kernel, and perform all 
          * DFA, interval analysis, loop and function transformations, etc. --- calls

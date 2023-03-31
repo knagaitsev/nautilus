@@ -66,6 +66,8 @@ struct nk_time_hook *nk_time_hook_register(int (*hook)(void *state),
 // unregister an existing callback
 int nk_time_hook_unregister(struct nk_time_hook *hook);
 
+void poll_handle_irq(int irq);
+
 // called by the injected code
 // user should not call this
 void nk_time_hook_fire();

@@ -48,15 +48,29 @@ volatile int init_counter = 0;
 static uint64_t times[TIMES_COUNT];
 static uint64_t counter = 0;
 
+extern void poll_irq();
+
+__attribute__((annotate("nohook"))) void poll_handle_irq(int irq)
+{
+  ulong_t irq_handler = 0;
+  riscv_idt_get_entry(irq, &irq_handler);
+  ((int (*)())irq_handler)(irq);
+  plic_complete(irq);
+}
+
 __attribute__((annotate("nohook"))) void nk_time_hook_fire()
 {
-  int irq = plic_claim();
-  if (irq) {
-    ulong_t irq_handler = 0;
-    riscv_idt_get_entry(irq, &irq_handler);
-    ((int (*)())irq_handler)(irq);
-    plic_complete(irq);
-  }
+  poll_irq();
+
+  // int irq = plic_claim();
+  // if (irq) {
+  //   ulong_t irq_handler = 0;
+  //   riscv_idt_get_entry(irq, &irq_handler);
+  //   ((int (*)())irq_handler)(irq);
+  //   plic_complete(irq);
+  // }
+
+
   // printk("I'm a timehook whoopee!\n");
   // while (irq) {
   //   // printk("got irq: %d\n", irq);

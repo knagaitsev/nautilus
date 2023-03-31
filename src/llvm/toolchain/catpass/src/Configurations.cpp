@@ -48,9 +48,11 @@ const vector<string> NKNames = {"nk_time_hook_fire"};
 
 // No hook function names functionality --- (non-injectable)
 const string ANNOTATION = "llvm.global.annotations",
-             NOHOOK = "nohook";
+             NOHOOK = "nohook", ADDHOOK = "addhook";
 
 // Globals
 unordered_map<uint32_t, Function *> *SpecialRoutines = new unordered_map<uint32_t, Function *>();
 vector<string> *NoHookFunctionSignatures = new vector<string>();
 vector<Function *> *NoHookFunctions = new vector<Function *>();
+vector<string> *AddHookFunctionSignatures = new vector<string>();
+vector<Function *> *AddHookFunctions = new vector<Function *>();

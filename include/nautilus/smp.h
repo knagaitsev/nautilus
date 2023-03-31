@@ -111,11 +111,18 @@ struct cpu {
     uint64_t watchdog_count; /* Number of times the watchdog timer has been triggered */
     #endif
 
+// need to populate plic_claim_register with the value we want in initialization
+
     cpu_id_t id;
     uint32_t lapic_id;   
 #ifdef NAUT_CONFIG_ARCH_RISCV
     uint32_t enabled;
     uint32_t is_bsp;
+    uint32_t *plic_claim_register;
+    // tp == this core's cpu structure.
+    // mov    a0, X(tp)
+    // mov    a0, 0(a0)
+    // if (a0 != 0) run_irq(a0)
 #else
     uint8_t enabled;
     uint8_t is_bsp;

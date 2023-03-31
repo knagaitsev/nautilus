@@ -1,8 +1,10 @@
 #ifndef __PLIC_H__
 #define __PLIC_H__
 
+#include <nautilus/nautilus.h>
+
 void plic_init_hart(int hart);
-void plic_init(unsigned long fdt);
+void plic_init(unsigned long fdt, struct naut_info *naut);
 inline int  plic_claim(void);
 int plic_pending(void);
 inline void plic_complete(int irq);

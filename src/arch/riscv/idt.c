@@ -29,7 +29,7 @@ __attribute__((annotate("nohook"))) int
 riscv_null_irq_handler (ulong_t irq)
 {
     
-    // panic("received irq: %d\n", irq);
+    panic("received irq: %d\n", irq);
     
     return 0;
 }

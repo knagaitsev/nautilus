@@ -52,6 +52,9 @@ configure_cpu (unsigned long fdt, int offset) {
     new_cpu->system     = sys;
     new_cpu->cpu_khz    = 0;
 
+    // TODO: HACKY
+    new_cpu->plic_claim_register = 0xc202004;
+
     SMP_DEBUG("CPU %u\n", new_cpu->id);
     SMP_DEBUG("\tEnabled?=%01d\n", new_cpu->enabled);
     SMP_DEBUG("\tBSP?=%01d\n", new_cpu->is_bsp);

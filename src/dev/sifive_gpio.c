@@ -37,18 +37,16 @@ __attribute__((annotate("nohook"))) int gpio_int_handler(ulong_t irq) {
     // if (irq == 27) {
     //     return 0;
     // }
-
     // this needs to go before reading of the below IP registers
-    curr_out_state = !curr_out_state;
-    // printk("state: %d\n", curr_out_state);
-
-    ints_received++;
+    // curr_out_state = !curr_out_state;
 
     // if (curr_out_state) {
     //     MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
     // } else {
     //     MREG(SIFIVE_GPIO_OUTPUT_VAL) = 0x0;
     // }
+
+    ints_received++;
 
     uint32_t rise_val = MREG(SIFIVE_GPIO_RISE_IP);
     uint32_t fall_val = MREG(SIFIVE_GPIO_FALL_IP);

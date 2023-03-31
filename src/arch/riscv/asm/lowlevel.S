@@ -55,6 +55,13 @@ GLOBAL(nautilus_entry)
     mul     t0, t0, t1 # t1 = SIZE * (mhartid + 1)
     add     sp, sp, t0 # sp = boot_stack_start + (SIZE * (mhartid + 1))
 
+    # set tp to what we want, use t2 as well if needed
+
+    # TODO: HACKY
+    li tp, 0xF0000000
+    li t2, 0xc202004
+    REG_S t2, 56(tp)
+
     # zero out bss
     la      t0, bss_start_ptr
     REG_L   t0, 0(t0)

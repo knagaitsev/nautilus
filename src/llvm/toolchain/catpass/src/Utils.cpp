@@ -96,8 +96,11 @@ void Utils::GatherAnnotatedFunctions(GlobalVariable *GV,
         if (ConstStrArr == nullptr)
             continue;
 
-        if (ConstStrArr->getAsCString() != NOHOOK)
+
+        if (ConstStrArr->getAsCString() != ADDHOOK)
             continue;
+        // if (ConstStrArr->getAsCString() != NOHOOK)
+        //     continue;
 
         AF.push_back(AnnotatedF);
     }
@@ -145,6 +148,42 @@ set<Function *> *Utils::IdentifyFiberRoutines()
 }
 
 
+void Utils::IdentifyCalledHookFunctions(Module &M, set<Function *> &HookFunctions)
+{
+    set<Function *> FunctionsToProcess = *(new set<Function *>());
+
+    for (auto &F : M) {
+        // first collect the top-level AddHook functions, and push them to both
+        // HookFunctions and FunctionsToProcess
+        if (find(AddHookFunctions->begin(), AddHookFunctions->end(), &F) != AddHookFunctions->end()) {
+            HookFunctions.insert(&F);
+            FunctionsToProcess.insert(&F);
+        }
+    }
+
+    while (FunctionsToProcess.size() > 0) {
+        auto &F = *FunctionsToProcess.begin();
+        FunctionsToProcess.erase(FunctionsToProcess.begin());
+
+        for (auto &BB : *F) {
+            for (auto &Inst : BB) {
+                if (llvm::CallInst *callInst = llvm::dyn_cast<llvm::CallInst>(&Inst)) {
+                    // if it is a call inst and is not in the hook functions yet, add it to
+                    // the hook functions and add it for processing
+                    auto calledFunc = callInst->getCalledFunction();
+                    if (find(HookFunctions.begin(), HookFunctions.end(), calledFunc) == HookFunctions.end()) {
+                        if (calledFunc != nullptr) {
+                            HookFunctions.insert(calledFunc);
+                            FunctionsToProcess.insert(calledFunc);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 /*
  * IdentifyAllNKFunctions
  * 
@@ -157,26 +196,26 @@ set<Function *> *Utils::IdentifyFiberRoutines()
  * 
  */
 
-void Utils::IdentifyAllNKFunctions(Module &M, set<Function *> &Routines)
+void Utils::IdentifyAllNKFunctions(set<Function *> &HookFunctions, set<Function *> &Routines)
 {
     // Iterate through all functions in the kernel
-    for (auto &F : M)
+    for (auto &F : HookFunctions)
     {
         // Check function for conditions
-        if ((&F == nullptr)
-            || (F.isIntrinsic())
-            || (&F == SpecialRoutines->at(HOOK_FIRE))
-            || (find(NoHookFunctions->begin(), NoHookFunctions->end(), &F) != NoHookFunctions->end())
-            || (!(F.getInstructionCount() > 0)))
+        if ((F == nullptr)
+            || (F->isIntrinsic())
+            || (F == SpecialRoutines->at(HOOK_FIRE))
+            || (find(NoHookFunctions->begin(), NoHookFunctions->end(), F) != NoHookFunctions->end())
+            || (!(F->getInstructionCount() > 0)))
             continue;
 
-        DEBUG_INFO(F.getName() + 
-                   ": InstructionCount --- " + to_string(F.getInstructionCount()) + 
+        DEBUG_INFO(F->getName() + 
+                   ": InstructionCount --- " + to_string(F->getInstructionCount()) + 
                    "; ReturnType --- ");
-        OBJ_INFO((F.getReturnType()));
+        OBJ_INFO((F->getReturnType()));
 
         // Add pointer to set if all conditions check out
-        Routines.insert(&F);
+        Routines.insert(F);
     }
 
     return;
