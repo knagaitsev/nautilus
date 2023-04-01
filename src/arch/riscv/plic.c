@@ -38,6 +38,8 @@ static plic_context_t *contexts = NULL;
 #define PLIC_THRESHOLD(h) (contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
 #define PLIC_CLAIM(h) (contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
 
+extern uint64_t plic_claim_register;
+
 __attribute__((annotate("nohook"))) void plic_init(unsigned long fdt, struct naut_info *naut) {
     int offset = fdt_node_offset_by_compatible(fdt, -1, "sifive,plic-1.0.0");
     if (offset < 0) {
@@ -71,6 +73,7 @@ __attribute__((annotate("nohook"))) void plic_init(unsigned long fdt, struct nau
             contexts[hartid].enable_offset = PLIC_ENABLE_BASE + context * PLIC_ENABLE_STRIDE;
             contexts[hartid].context_offset = PLIC_CONTEXT_BASE + context * PLIC_CONTEXT_STRIDE;
 
+            plic_claim_register = PLIC + contexts[hartid].context_offset + PLIC_CONTEXT_CLAIM;
             naut->sys.cpus[hartid]->plic_claim_register = PLIC + contexts[hartid].context_offset + PLIC_CONTEXT_CLAIM;
             printk("PLIC info: %d, %x, %x, %x\n", hartid, contexts[hartid].enable_offset, &MREG(PLIC_CLAIM(hartid)), naut->sys.cpus[hartid]->plic_claim_register);
         }
