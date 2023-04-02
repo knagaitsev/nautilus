@@ -99,7 +99,7 @@ static struct shell_cmd_impl nas_lu_impl = {
 };
 nk_register_shell_cmd(nas_lu_impl);
 
-int program_LU_profile(char *_, void *__){
+__attribute__((annotate("addhook"))) int program_LU_profile(char *_, void *__){
    
 #ifdef NAUT_CONFIG_PROFILE
       nk_instrument_clear();

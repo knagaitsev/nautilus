@@ -76,7 +76,7 @@ static struct shell_cmd_impl nas_sp_impl = {
 nk_register_shell_cmd(nas_sp_impl);
 
 
-int program_SP_profile(char *_, void *__){
+__attribute__((annotate("addhook"))) int program_SP_profile(char *_, void *__){
    
 #ifdef NAUT_CONFIG_PROFILE
       nk_instrument_clear();

@@ -1,6 +1,7 @@
 #include "wtime.h"
 //#include <stdlib.h>
 #include <nautilus/nautilus.h>
+#include <dev/sifive_gpio.h>
 /*  Prototype  */
 void wtime( double * );
 
@@ -35,6 +36,8 @@ void timer_clear( int n )
 /*****************************************************************/
 void timer_start( int n )
 {
+    sifive_gpio_enable_count();
+
     start[n] = elapsed_time();
     start_cycles[n] = nk_sched_get_realtime();
 }
@@ -54,6 +57,7 @@ void timer_stop( int n )
     t = now - start[n];
     elapsed[n] += t;
 
+    sifive_gpio_enable_count();
 }
 
 

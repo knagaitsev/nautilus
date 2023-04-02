@@ -31,6 +31,8 @@ static uint32_t mask4 = 0x00000010;
 
 static volatile int curr_out_state = 0;
 
+static int ints_count_enabled = 0;
+
 static int ints_received = 0;
 
 __attribute__((annotate("nohook"))) int gpio_int_handler(ulong_t irq) {
@@ -46,7 +48,9 @@ __attribute__((annotate("nohook"))) int gpio_int_handler(ulong_t irq) {
     //     MREG(SIFIVE_GPIO_OUTPUT_VAL) = 0x0;
     // }
 
-    ints_received++;
+    if (ints_count_enabled) {
+        ints_received++;
+    }
 
     uint32_t rise_val = MREG(SIFIVE_GPIO_RISE_IP);
     uint32_t fall_val = MREG(SIFIVE_GPIO_FALL_IP);
@@ -147,4 +151,12 @@ int sifive_gpio_set_pin(int is_high) {
 void sifive_gpio_print_ints_received_and_reset() {
     printk("RECEIVED INTS: %d\n", ints_received);
     ints_received = 0;
+}
+
+void sifive_gpio_disable_count() {
+    ints_count_enabled = 0;
+}
+
+void sifive_gpio_enable_count() {
+    ints_count_enabled = 1;
 }

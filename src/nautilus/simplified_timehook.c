@@ -60,6 +60,8 @@ __attribute__((annotate("nohook"))) void poll_handle_irq(int irq)
 
 __attribute__((annotate("nohook"))) void nk_time_hook_fire()
 {
+  // __asm__ __volatile__("nop");
+
   poll_irq();
 
   // int irq = plic_claim();

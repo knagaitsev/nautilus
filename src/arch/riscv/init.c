@@ -264,7 +264,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
-  sifive_gpio_init(fdt);
+  // sifive_gpio_init(fdt);
 
   // my_monitor_entry();
 
@@ -294,9 +294,11 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   /* mm_boot_kmem_cleanup(); */
 
-#ifdef NAUT_ENABLE_INTS
-  arch_enable_ints();
-#endif
+// #ifdef NAUT_ENABLE_INTS
+//   arch_enable_ints();
+// #endif
+
+  // arch_enable_ints();
 
   /* interrupts are now on */
 
@@ -352,8 +354,12 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   printk("Current CPU: %d\n", my_cpu_id());
 
-  program_BT_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+  // do work: BT
+  // works, issue after running it the first time, sometimes load fault: MG
+  // works but verification fails: LU
+  // options that don't work: CG, EP, IS
+  // might work: SP
+  // FT uses program_FT
 
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
@@ -381,6 +387,11 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
+
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+
+
 
   // program_BT_profile(NULL, NULL);
   // program_BT_profile(NULL, NULL);
