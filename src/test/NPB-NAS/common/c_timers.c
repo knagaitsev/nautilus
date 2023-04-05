@@ -35,6 +35,7 @@ void timer_clear( int n )
 /*****************************************************************/
 void timer_start( int n )
 {
+    nk_time_hook_start();
     start[n] = elapsed_time();
     start_cycles[n] = nk_sched_get_realtime();
 }
@@ -68,6 +69,7 @@ uint64_t timer_read_cycles( int n )
 
 double timer_read( int n )
 {
+    nk_time_hook_dump();
     printk("\n\n\n\nTIMER READ: %d\n\n\n\n", timer_read_cycles(n));
     return( elapsed[n] );
 }

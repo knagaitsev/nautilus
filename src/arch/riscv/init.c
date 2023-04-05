@@ -352,12 +352,8 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   printk("Current CPU: %d\n", my_cpu_id());
 
-  nk_time_hook_start();
-
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
-
-  nk_time_hook_dump();
 
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();

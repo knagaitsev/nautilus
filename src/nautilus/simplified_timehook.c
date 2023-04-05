@@ -143,5 +143,7 @@ __attribute__((annotate("nohook"))) int nk_time_hook_stop()
 
 __attribute__((annotate("nohook"))) void nk_time_hook_dump()
 {
-  printk("Hit count/total: %d, %d\n", hit_count, total_count);
+  printk("Hit count/total:\n");
+  printk("%d\n", hit_count);
+  printk("%d\n", total_count);
 }
