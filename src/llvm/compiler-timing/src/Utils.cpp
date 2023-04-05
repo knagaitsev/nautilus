@@ -97,10 +97,8 @@ void Utils::GatherAnnotatedFunctions(GlobalVariable *GV,
             continue;
 
 
-        if (ConstStrArr->getAsCString() != ADDHOOK)
+        if (ConstStrArr->getAsCString() != NOHOOK)
             continue;
-        // if (ConstStrArr->getAsCString() != NOHOOK)
-        //     continue;
 
         AF.push_back(AnnotatedF);
     }
@@ -153,13 +151,15 @@ void Utils::IdentifyCalledHookFunctions(Module &M, set<Function *> &HookFunction
     set<Function *> FunctionsToProcess = *(new set<Function *>());
 
     for (auto &F : M) {
-        // first collect the top-level AddHook functions, and push them to both
-        // HookFunctions and FunctionsToProcess
-        if (find(AddHookFunctions->begin(), AddHookFunctions->end(), &F) != AddHookFunctions->end()) {
-            HookFunctions.insert(&F);
-            FunctionsToProcess.insert(&F);
-        }
+        HookFunctions.insert(&F);
+        // // first collect the top-level AddHook functions, and push them to both
+        // // HookFunctions and FunctionsToProcess
+        // if (find(AddHookFunctions->begin(), AddHookFunctions->end(), &F) != AddHookFunctions->end()) {
+        //     HookFunctions.insert(&F);
+        //     FunctionsToProcess.insert(&F);
+        // }
     }
+    return;
 
     while (FunctionsToProcess.size() > 0) {
         auto &F = *FunctionsToProcess.begin();
