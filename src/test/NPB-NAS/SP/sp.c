@@ -66,7 +66,7 @@ static void z_solve(void);
        program SP
 c-------------------------------------------------------------------*/
 static int program_SP(char *_buf, void* _priv);
-int program_SP_profile(char *_, void *__);
+__attribute__((annotate("addhook"))) int program_SP_profile(char *_, void *__);
 
 static struct shell_cmd_impl nas_sp_impl = {
     .cmd      = "nas-sp",

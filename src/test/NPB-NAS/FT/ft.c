@@ -84,7 +84,7 @@ static struct shell_cmd_impl nas_ft_impl = {
 };
 nk_register_shell_cmd(nas_ft_impl);
 
-int program_FT(char * _buf, void *_priv) {
+__attribute__((annotate("addhook"))) int program_FT(char * _buf, void *_priv) {
 
 /*c-------------------------------------------------------------------
 c-------------------------------------------------------------------*/

@@ -119,7 +119,7 @@ nk_register_shell_cmd(nas_cg_impl);
       program CG
 c-------------------------------------------------------------------*/
 
-int program_CG_profile(char *_, void *__){
+__attribute__((annotate("addhook"))) int program_CG_profile(char *_, void *__){
    
 #ifdef NAUT_CONFIG_PROFILE
       nk_instrument_clear();
