@@ -390,60 +390,18 @@ static const uint16_t __rsqrt_tab[128] = {
 };
 
 static double sqrt(double x) {
-  uint64_t ix, top, m;
+  double guess = x / 2.0;
+  double prev_guess = 0.0;
+  int iter = 0;
+  const int max_iter = 100;
 
-	/* special case handling.  */
-	ix = (uint64_t)x;
-	top = ix >> 52;
-	if (unlikely(top - 0x001 >= 0x7ff - 0x001)) {
-		/* x < 0x1p-1022 or inf or nan.  */
-		if (ix * 2 == 0) return x;
-		if (ix == 0x7ff0000000000000) return x;
-		if (ix > 0x7ff0000000000000) return __math_invalid(x);
-		/* x is subnormal, normalize it.  */
-		ix = (uint64_t)(x * 0x1p52);
-		top = ix >> 52;
-		top -= 52;
-	}
-	int even = top & 1;
-	m = (ix << 11) | 0x8000000000000000;
-	if (even) m >>= 1;
-	top = (top + 0x3ff) >> 1;
-	static const uint64_t three = 0xc0000000;
-	uint64_t r, s, d, u, i;
+  while (guess != prev_guess && iter < max_iter) {
+    prev_guess = guess;
+    guess = (guess + x / guess) / 2.0;
+    iter++;
+  }
 
-	i = (ix >> 46) % 128;
-	r = (uint32_t)__rsqrt_tab[i] << 16;
-	/* |r sqrt(m) - 1| < 0x1.fdp-9 */
-	s = mul32(m >> 32, r);
-	/* |s/sqrt(m) - 1| < 0x1.fdp-9 */
-	d = mul32(s, r);
-	u = three - d;
-	r = mul32(r, u) << 1;
-	/* |r sqrt(m) - 1| < 0x1.7bp-16 */
-	s = mul32(s, u) << 1;
-	/* |s/sqrt(m) - 1| < 0x1.7bp-16 */
-	d = mul32(s, r);
-	u = three - d;
-	r = mul32(r, u) << 1;
-	/* |r sqrt(m) - 1| < 0x1.3704p-29 (measured worst-case) */
-	r = r << 32;
-	s = mul64(m, r);
-	d = mul64(s, r);
-	u = (three << 32) - d;
-	s = mul64(s, u); /* repr: 3.61 */
-	/* -0x1p-57 < s - sqrt(m) < 0x1.8001p-61 */
-	s = (s - 2) >> 9; /* repr: 12.52 */
-	uint64_t d0, d1, d2;
-	double y, t;
-	d0 = (m << 42) - s * s;
-	d1 = s - d0;
-	d2 = d1 + s + 1;
-	s += d1 >> 63;
-	s &= 0x000fffffffffffff;
-	s |= top << 52;
-	y = (double)(s);
-  	return y;
+  return guess;
 }
 
 
