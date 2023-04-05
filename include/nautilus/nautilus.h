@@ -38,108 +38,108 @@ typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
 extern "C" {
 #endif
 
-#define DEBUG_PRINT(fmt, args...)					\
-do {									\
-    if (__cpu_state_get_cpu()) {					\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
-	struct nk_thread *_t = get_cur_thread();				\
- 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): DEBUG: " fmt,		\
-		       my_cpu_id(),					\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-		       _t ? _t->tid : 0,				\
-		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-		       ##args);						\
-	preempt_enable();						\
-    } else {								\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
- 	nk_vc_log_wrap("CPU ? (%s%s): DEBUG: " fmt,			\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-		       ##args);						\
-	preempt_enable();						\
-    }									\
-} while (0)
+// #define DEBUG_PRINT(fmt, args...)					\
+// do {									\
+//     if (__cpu_state_get_cpu()) {					\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+// 	struct nk_thread *_t = get_cur_thread();				\
+//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): DEBUG: " fmt,		\
+// 		       my_cpu_id(),					\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+// 		       _t ? _t->tid : 0,				\
+// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     } else {								\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+//  	nk_vc_log_wrap("CPU ? (%s%s): DEBUG: " fmt,			\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     }									\
+// } while (0)
 
-#define ERROR_PRINT(fmt, args...)					\
-do {									\
-    if (__cpu_state_get_cpu()) {					\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
-	struct nk_thread *_t = get_cur_thread();				\
- 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): ERROR at %s(%lu): " fmt,		\
-		       my_cpu_id(),					\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-		       _t ? _t->tid : 0,					\
-		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-	               __FILE__,__LINE__,                               \
-		       ##args);						\
-	preempt_enable();						\
-    } else {								\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
- 	nk_vc_log_wrap("CPU ? (%s%s): ERROR at %s(%lu): " fmt,			\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-                       __FILE__,__LINE__,                               \
-		       ##args);						\
-	preempt_enable();						\
-    }									\
-} while (0)
+// #define ERROR_PRINT(fmt, args...)					\
+// do {									\
+//     if (__cpu_state_get_cpu()) {					\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+// 	struct nk_thread *_t = get_cur_thread();				\
+//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): ERROR at %s(%lu): " fmt,		\
+// 		       my_cpu_id(),					\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+// 		       _t ? _t->tid : 0,					\
+// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+// 	               __FILE__,__LINE__,                               \
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     } else {								\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+//  	nk_vc_log_wrap("CPU ? (%s%s): ERROR at %s(%lu): " fmt,			\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+//                        __FILE__,__LINE__,                               \
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     }									\
+// } while (0)
 
 
-#define WARN_PRINT(fmt, args...)					\
-do {									\
-    if (__cpu_state_get_cpu()) {					\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
-	struct nk_thread *_t = get_cur_thread();				\
- 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): WARNING : " fmt,	        \
-		       my_cpu_id(),					\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-		       _t ? _t->tid : 0,					\
-		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-		       ##args);						\
-	preempt_enable();						\
-    } else {								\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
- 	nk_vc_log_wrap("CPU ? (%s%s): WARNING: " fmt,			\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-		       ##args);						\
-	preempt_enable();						\
-    }									\
-} while (0)
+// #define WARN_PRINT(fmt, args...)					\
+// do {									\
+//     if (__cpu_state_get_cpu()) {					\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+// 	struct nk_thread *_t = get_cur_thread();				\
+//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): WARNING : " fmt,	        \
+// 		       my_cpu_id(),					\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+// 		       _t ? _t->tid : 0,					\
+// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     } else {								\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+//  	nk_vc_log_wrap("CPU ? (%s%s): WARNING: " fmt,			\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     }									\
+// } while (0)
 
-#define INFO_PRINT(fmt, args...)					\
-do {									\
-    if (__cpu_state_get_cpu()) {					\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
-	struct nk_thread *_t = get_cur_thread();				\
- 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): " fmt,	        \
-		       my_cpu_id(),					\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-		       _t ? _t->tid : 0,					\
-		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-		       ##args);						\
-	preempt_enable();						\
-    } else {								\
-	int _p=preempt_is_disabled();					\
-	preempt_disable();						\
- 	nk_vc_log_wrap("CPU ? (%s%s): " fmt,       			\
-		       in_interrupt_context() ? "I" :"",		\
-		       _p ? "" : "P",					\
-		       ##args);						\
-	preempt_enable();						\
-    }									\
-} while (0)
+// #define INFO_PRINT(fmt, args...)					\
+// do {									\
+//     if (__cpu_state_get_cpu()) {					\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+// 	struct nk_thread *_t = get_cur_thread();				\
+//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): " fmt,	        \
+// 		       my_cpu_id(),					\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+// 		       _t ? _t->tid : 0,					\
+// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     } else {								\
+// 	int _p=preempt_is_disabled();					\
+// 	preempt_disable();						\
+//  	nk_vc_log_wrap("CPU ? (%s%s): " fmt,       			\
+// 		       in_interrupt_context() ? "I" :"",		\
+// 		       _p ? "" : "P",					\
+// 		       ##args);						\
+// 	preempt_enable();						\
+//     }									\
+// } while (0)
 
 #define DEBUG_PRINT(fmt, args...)
 #define ERROR_PRINT(fmt, args...)
@@ -397,14 +397,28 @@ static const uint16_t __rsqrt_tab[128] = {
 static double sqrt(double x) {
   double guess = x / 2.0;
   double prev_guess = 0.0;
+  int iter = 0;
+  const int max_iter = 100;
 
-  while (guess != prev_guess) {
+  while (guess != prev_guess && iter < max_iter) {
     prev_guess = guess;
     guess = (guess + x / guess) / 2.0;
+    iter++;
   }
 
   return guess;
 }
+// static double sqrt(double x) {
+//   double guess = x / 2.0;
+//   double prev_guess = 0.0;
+
+//   while (guess != prev_guess) {
+//     prev_guess = guess;
+//     guess = (guess + x / guess) / 2.0;
+//   }
+
+//   return guess;
+// }
 
 
 
