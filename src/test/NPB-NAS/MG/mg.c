@@ -130,9 +130,9 @@ c------------------------------------------------------------------------*/
     // FILE *fp;
 
     timer_clear(T_BENCH);
-    timer_clear(T_INIT);
+    // timer_clear(T_INIT);
 
-    timer_start(T_INIT);
+    // timer_start(T_INIT);
 
 /*----------------------------------------------------------------------
 c Read in and broadcast input data
@@ -282,7 +282,7 @@ c---------------------------------------------------------------------*/
     zran3(v,n1,n2,n3,nx[lt],ny[lt],lt);
     
 
-    timer_stop(T_INIT);
+    // timer_stop(T_INIT);
     timer_start(T_BENCH);
 
     resid(u[lt],v,r[lt],n1,n2,n3,a,lt);
@@ -304,12 +304,12 @@ c---------------------------------------------------------------------*/
 
     timer_stop(T_BENCH);
     t = timer_read(T_BENCH);
-    tinit = timer_read(T_INIT);
+    // tinit = timer_read(T_INIT);
 
     verified = FALSE;
     verify_value = 0.0;
 
-    printf(" Initialization time: %15.3f seconds\n", tinit);
+    // printf(" Initialization time: %15.3f seconds\n", tinit);
     printf(" Benchmark completed\n");
 
     if (Class != 'U') {
