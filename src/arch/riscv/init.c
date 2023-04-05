@@ -352,40 +352,40 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   printk("Current CPU: %d\n", my_cpu_id());
 
-  program_BT_profile(NULL, NULL);
+  program_EP_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_EP_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_EP_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_EP_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_EP_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  // program_BT_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
   // sifive_gpio_print_ints_received_and_reset();
 
-  // program_BT_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
   // sifive_gpio_print_ints_received_and_reset();
 
-  // program_BT_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
   // sifive_gpio_print_ints_received_and_reset();
 
-  // program_BT_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
   // sifive_gpio_print_ints_received_and_reset();
 
-  // program_BT_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
   // sifive_gpio_print_ints_received_and_reset();
 
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
+  // program_EP_profile(NULL, NULL);
 
   // uint64_t t1 = read_csr(cycle);
 
