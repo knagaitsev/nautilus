@@ -653,6 +653,9 @@ void LoopTransform::_buildBottomGuard(BasicBlock *Source, BasicBlock *Exit,
 
 void LoopTransform::BuildBiasedBranch(Instruction *InsertionPoint, uint64_t ExtensionCount, Instruction *&Counter)
 {
+    // CallbackLocations.insert(InsertionPoint);
+    // return;
+
     // Nothing to do if ExtensionCount is 0
     if (!ExtensionCount)
         return;

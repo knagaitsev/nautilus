@@ -367,20 +367,20 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   program_BT_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+  // program_BT_profile(NULL, NULL);
+  // sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+  // program_BT_profile(NULL, NULL);
+  // sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+  // program_BT_profile(NULL, NULL);
+  // sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+  // program_BT_profile(NULL, NULL);
+  // sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+  // program_BT_profile(NULL, NULL);
+  // sifive_gpio_print_ints_received_and_reset();
 
   // program_BT_profile(NULL, NULL);
   // program_BT_profile(NULL, NULL);
