@@ -39,13 +39,15 @@
 #include <arch/riscv/plic.h>
 #include <dev/sifive_gpio.h>
 
-#define TIMES_COUNT 10000
+#define TIMES_COUNT 100000
 
 static int inited = 0;
 
 volatile int init_counter = 0;
 
 static uint64_t times[TIMES_COUNT];
+static uint64_t hit_count = 0;
+static uint64_t total_count = 0;
 static uint64_t counter = 0;
 
 extern void poll_irq();
@@ -60,8 +62,6 @@ __attribute__((annotate("nohook"))) void poll_handle_irq(int irq)
 
 __attribute__((annotate("nohook"))) void nk_time_hook_fire()
 {
-  poll_irq();
-
   // int irq = plic_claim();
   // if (irq) {
   //   ulong_t irq_handler = 0;
@@ -79,46 +79,44 @@ __attribute__((annotate("nohook"))) void nk_time_hook_fire()
 
   //   irq = plic_claim();
   // }
-  // if (inited) {
-  //   inited = 0;
+  if (inited) {
+    inited = 0;
 
-  //   // init_counter++;
+    // init_counter++;
+    // if (init_counter > 100000) {
+    //   uint64_t t = read_csr(cycle);
 
-  //   // if (init_counter > 100000) {
-  //   //   uint64_t t = read_csr(cycle);
+    //   if (counter < TIMES_COUNT) {
+    //     times[counter] = t;
+    //     counter++;
+    //   } else {
+    //     uint64_t total = 0;
+    //     for (int i = 0; i < counter; i++) {
+    //       if (i != 0) {
+    //         uint64_t diff = times[i] - times[i - 1];
+    //         total += diff;
+    //         // printk("%ld\n", diff);
+    //       }
+    //     }
 
-  //   //   if (counter < TIMES_COUNT) {
-  //   //     times[counter] = t;
-  //   //   } else if (counter == TIMES_COUNT) {
-  //   //     uint64_t total = 0;
-  //   //     for (int i = 0; i < TIMES_COUNT; i++) {
-  //   //       if (i != 0) {
-  //   //         uint64_t diff = times[i] - times[i - 1];
-  //   //         total += diff;
-  //   //         // printk("%ld\n", diff);
-  //   //       }
-  //   //     }
+    //     uint64_t avg = total / (TIMES_COUNT - 1);
+    //     printk("Avg poll interval: %d, count: %d\n", avg, counter);
+    //     panic("done\n");
+    //   }
+    // }
 
-  //   //     uint64_t avg = total / (TIMES_COUNT - 1);
-  //   //     printk("Avg: %d\n", avg);
-  //   //   }
-
-  //   //   counter++;
-  //   // }
-
-  //   int irq = plic_claim();
-  //   // printk("I'm a timehook whoopee!\n");
-  //   while (irq) {
-  //     // printk("got irq: %d\n", irq);
-  //     riscv_handle_irq(irq);
-  //     plic_complete(irq);
-
-  //     irq = plic_claim();
-  //   }
+    total_count++;
+    int irq = plic_claim();
+    // printk("I'm a timehook whoopee!\n");
+    if (irq) {
+      hit_count++;
+      riscv_handle_irq(irq);
+      plic_complete(irq);
+    }
 
 
-  //   inited = 1;
-  // }
+    inited = 1;
+  }
   return;
 }
 
@@ -143,3 +141,7 @@ __attribute__((annotate("nohook"))) int nk_time_hook_stop()
   return 0;
 }
 
+__attribute__((annotate("nohook"))) void nk_time_hook_dump()
+{
+  printk("Hit count/total: %d, %d\n", hit_count, total_count);
+}
