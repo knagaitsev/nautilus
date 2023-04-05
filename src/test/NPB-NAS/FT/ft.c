@@ -75,7 +75,7 @@ static void verify (int d1, int d2, int d3, int nt,
 c FT benchmark
 c-------------------------------------------------------------------*/
 
-static int program_FT(char *_buf, void* _priv);
+int program_FT(char *_buf, void* _priv);
 
 static struct shell_cmd_impl nas_ft_impl = {
     .cmd      = "nas-ft",
