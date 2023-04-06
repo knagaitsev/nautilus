@@ -359,44 +359,44 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // works but verification fails: LU
   // options that don't work: CG, EP, IS
   // might work: SP
-  // FT uses program_FT
+  // FT uses program_LU_profile
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_BT_profile(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
 
 
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
-  // program_BT_profile(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
 
   // uint64_t t1 = read_csr(cycle);
 
@@ -419,7 +419,7 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   // program_CG_profile();
   // // program_EP_profile();
-  // // program_FT_profile();
+  // // program_LU_profile_profile();
 
   // // weird negative clock numbers printing when timing IS
   // // program_IS_profile();
