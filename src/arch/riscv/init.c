@@ -352,40 +352,40 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   printk("Current CPU: %d\n", my_cpu_id());
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  program_FT(NULL, NULL);
+  program_LU_profile(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
 
-  // program_FT(NULL, NULL);
-  // program_FT(NULL, NULL);
-  // program_FT(NULL, NULL);
-  // program_FT(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
+  // program_LU_profile(NULL, NULL);
 
   // uint64_t t1 = read_csr(cycle);
 
@@ -407,13 +407,13 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // printk("\n\nTotal Time: %ld\n\n\n", diff);
 
   // program_CG_profile();
-  // // program_FT();
-  // // program_FT();
+  // // program_LU_profile();
+  // // program_LU_profile();
 
   // // weird negative clock numbers printing when timing IS
   // // program_IS_profile();
   // program_LU_profile();
-  // // program_FT();
+  // // program_LU_profile();
   // program_SP_profile();
 
   idle(NULL, NULL);
