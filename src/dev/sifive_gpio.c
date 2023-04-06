@@ -4,6 +4,7 @@
 #include <dev/sifive_gpio.h>
 #include <nautilus/fdt.h>
 #include <arch/riscv/plic.h>
+#include <arch/riscv/trap.h>
 
 #define SIFIVE_GPIO_INPUT_VAL	0x00
 #define SIFIVE_GPIO_INPUT_EN	0x04
@@ -40,11 +41,13 @@ __attribute__((annotate("nohook"))) int gpio_int_handler(ulong_t irq) {
     // this needs to go before reading of the below IP registers
     // curr_out_state = !curr_out_state;
 
-    // if (curr_out_state) {
-    //     MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
-    // } else {
-    //     MREG(SIFIVE_GPIO_OUTPUT_VAL) = 0x0;
-    // }
+    if (curr_out_state) {
+        MREG(SIFIVE_GPIO_OUTPUT_VAL) = mask10;
+    } else {
+        MREG(SIFIVE_GPIO_OUTPUT_VAL) = 0x0;
+    }
+
+    write_t2();
 
     ints_received++;
 

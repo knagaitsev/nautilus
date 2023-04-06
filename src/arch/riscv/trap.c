@@ -4,7 +4,9 @@
 #include <arch/riscv/trap.h>
 #include <arch/riscv/riscv_idt.h>
 
-// static volatile int x = 0;
+static int count = 0;
+static uint64_t t1;
+static uint64_t t2;
 
 void kernel_vec();
 
@@ -44,8 +46,20 @@ static void kernel_unhandled_trap(struct nk_regs *regs, const char *type) {
   panic("Halting hart!\n");
 }
 
+void write_t2() {
+  t2 = read_csr(cycle);
+  uint64_t diff = t2 - t1;
+  printk("%ld\n", diff);
+  count++;
+  if (count == 10) {
+    panic("DONE\n");
+  }
+}
+
 /* Supervisor Trap Function */
 void kernel_trap(struct nk_regs *regs) {
+  t1 = read_csr(cycle);
+
   regs->sepc = read_csr(sepc);
   regs->status = read_csr(sstatus);
   regs->tval = read_csr(stval);

@@ -2,5 +2,6 @@
 #define __TRAP_H__
 
 void trap_init(void);
+void write_t2();
 
 #endif
