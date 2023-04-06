@@ -119,11 +119,14 @@ __attribute__((annotate("nohook"))) inline int plic_claim(void)
     // uint64_t ctx_claim_addr = PLIC_CLAIM(my_cpu_id());
     // uint64_t plic_addr = PLIC;
     // printk("Goal addr: %lx\n", plic_addr + ctx_claim_addr);
-    return MREG(PLIC_CLAIM(my_cpu_id()));
+    struct cpu *cpu_data = (struct cpu *)r_tp();
+    return *(cpu_data->plic_claim_register);
 }
 __attribute__((annotate("nohook"))) inline void plic_complete(int irq)
 {
-    MREG(PLIC_CLAIM(my_cpu_id())) = irq;
+    struct cpu *cpu_data = (struct cpu *)r_tp();
+    *(cpu_data->plic_claim_register) = irq;
+    // MREG(PLIC_CLAIM(my_cpu_id())) = irq;
 }
 int plic_pending(void)
 {
