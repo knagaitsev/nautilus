@@ -482,6 +482,24 @@ ifdef NAUT_ENABLE_INTS
 CFLAGS += -D"NAUT_ENABLE_INTS=1"
 endif
 
+ifdef NAUT_BENCHMARK
+	ifeq ("$(NAUT_BENCHMARK)", "FT")
+		CFLAGS += -D"NAUT_BENCHMARK_FT=1"
+	else ifeq ("$(NAUT_BENCHMARK)", "EP")
+		CFLAGS += -D"NAUT_BENCHMARK_EP=1"
+	else ifeq ("$(NAUT_BENCHMARK)", "BT")
+		CFLAGS += -D"NAUT_BENCHMARK_BT=1"
+	else ifeq ("$(NAUT_BENCHMARK)", "MG")
+		CFLAGS += -D"NAUT_BENCHMARK_MG=1"
+	else ifeq ("$(NAUT_BENCHMARK)", "LU")
+		CFLAGS += -D"NAUT_BENCHMARK_LU=1"
+	else
+		INVALID_BENCHMARK=1
+	endif
+else
+	CFLAGS += -D"NAUT_BENCHMARK_BT=1"
+endif
+
 
 # NOTE: We MUST have max-page-size set to this here. Otherwise things
 # go off the rails for the Grub multiboot setup because the linker
@@ -852,6 +870,9 @@ $(SEC_NAME): $(BIN_NAME)
 	@scripts/gen_sec_file.sh $(BIN_NAME) tmp.sec
 
 nautilus: $(BIN_NAME) $(SYM_NAME) $(SEC_NAME)
+ifdef INVALID_BENCHMARK
+	$(error Invalid Benchmark choice. Valid options are: FT, EP, BT, MG, LU))
+endif
 
 
 uImage: $(BIN_NAME)
