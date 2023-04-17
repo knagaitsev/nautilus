@@ -6,14 +6,27 @@ BEANDIP is a prototype system to demonstrate and evalaute *Dispersed Interrupt P
 
 In addition to the prerequisites of Nautilus listed below, here is some guidance on how to obtain the correct dependencies:
 
-- Use the tools script to install LLVM 15 and gclang
+Use the tools script to install LLVM 15 and gclang like so:
 
+```
+./scripts/build_deps.sh
+```
+
+Then you need to put the following on your path:
+
+```
+<path-to-nautilus>/dep/local/bin
+```
+
+Install the correct QEMU like this (or alternatively, you could build QEMU from source)
 
 ```
 sudo apt install qemu-system-riscv64
 ```
 
-## How to run benchmarks
+## Benchmarks
+
+We evaluate BEANDIP with some NAS benchmarks, `CLASS=W`. 
 
 ### Main overhead result
 
@@ -33,14 +46,71 @@ NAUT_BENCHMARK=<benchmark> ./scripts/build_polling.sh
 
 Valid options for the benchmark are: FT, EP, BT, MG, LU
 
-If you want to try quickly testing 
+If you want to try quickly testing a build with QEMU, run the following:
 
-### 
+```
+./scripts/run_riscv_sifive.sh
+```
+
+Note that this likely will not work out of the box, since the codebase is currently designed to target a physical RISC-V SiFive machine, using the GPIO pins of this physical machine. A quick fix to see things running on QEMU is usually to turn off RISC-V GPIO by doing the following:
+
+```
+make menuconfig
+```
+
+Then navigate to `Devices -> Enable RISC-V GPIO` and disable the option.
+
+### Compiler overhead result
+
+This result can be collected on a different branch, but uses similar scripts. Do the following:
+
+```
+git checkout paper_compiler_overhead
+NAUT_BENCHMARK=<benchmark> ./scripts/build_polling.sh
+```
+
+Note that you can adjust the target cycle polling interval by setting `#define GRAN <target-in-cycles>` in `src/llvm/compiler-timing/include/Configurations.hpp`. This is also applicable for the polling measurements
+
+### Hit rate and polling accuracy
+
+These results are also on a different branch. To collect the hit rate for a particular benchmark, do this:
+
+```
+git checkout paper_poll_measurements
+NAUT_BENCHMARK=<benchmark> ./scripts/build_polling.sh
+```
+
+To collect polling accuracy data for a benchmark, you can turn on a flag to collect this accuracy data like this:
+
+```
+NAUT_BENCHMARK=<benchmark> NAUT_MEASURE_POLL_INTERVAL=1 ./scripts/build_polling.sh
+```
 
 ## Paper testbed
 
+It is important to note that we do not collect paper results on QEMU, we collect our results on a RISC-V SiFive FU740. The SiFive machine boots the latest image by fetching it over the network. We serve the files for net booting with TFTP. We run the following script after building to make the image available: `./scripts/update_sifive_img.sh`
 
+If you want to reproduce this on a physical machine, you need a way to boot the file `uImage` on your target machine.
 
+We use `picocom` to collect the results from the machine, then parse the output with a script to get the numbers we desire:
+
+```
+sudo picocom /dev/ttyUSB1 -b 115200 --imap lfcrlf
+```
+
+## GPIO driving with microcontroller
+
+We drive interrupts on the SiFive using a GPIO input pin connected to a microcontroller. A desired interrupt frequency can easily be chosen by flipping the output of a microcontroller pin at a set frequency, as we do here: https://github.com/knagaitsev/beandip-arduino
+
+### Oscilloscope measurement
+
+We make use of an oscilloscope connected to the SiFive and our microcontroller to verify that the driving voltages and rates are what we desire. We also use this for some fine-grained timing measurements.
+
+## Results plotting
+
+You can find our code for plotting results here: https://github.com/knagaitsev/beandip-results
+
+The workflow, as we explained before, is that we build an image with our choice of hardware interrupts or polling and our chosen benchmark. We reset the SiFive machine so that it fetches the latest image. We have our microcontroller driving interrupts at a particular rate. We read the serial output of the machine to collect the numbers we are interested in. We take the mean of our collected numbers for a particular test, then plot the results.
 
 ![Nautilus Logo](https://lh5.googleusercontent.com/8BkFSH-06MvfV9hqSk3D5VJQWPabgfMrlkZOcd6unP2AWYZi9ZOc5sgFtXMhyAHRPHJoMtv87jxwE9214Hx2YqmcFppPnYgpTvyau1wwwhHUee5YEn5Sl0to4LNFMg9D-Q=w1280 "Nautilus Logo")
 [![Build Status](https://travis-ci.com/HExSA-Lab/nautilus.svg?branch=master)](https://travis-ci.com/HExSA-Lab/nautilus)

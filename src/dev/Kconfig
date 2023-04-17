@@ -42,6 +42,12 @@ config SERIAL_DEBUGGER_PORT
       
 endmenu      
 
+config RISCV_GPIO_ENABLE
+    bool "Enable RISC-V GPIO"
+    default y
+    help
+       Enable RISC-V GPIO
+
 config APIC_FORCE_XAPIC_MODE
     bool "Force APIC to use XAPIC mode"
     default n
