@@ -1,3 +1,46 @@
+# BEANDIP
+
+BEANDIP is a prototype system to demonstrate and evalaute *Dispersed Interrupt Polling* (DIP). It is built on top of the Nautilus kernel, and compiled using LLVM and gclang. 
+
+## Prerequisites
+
+In addition to the prerequisites of Nautilus listed below, here is some guidance on how to obtain the correct dependencies:
+
+- Use the tools script to install LLVM 15 and gclang
+
+
+```
+sudo apt install qemu-system-riscv64
+```
+
+## How to run benchmarks
+
+### Main overhead result
+
+The numbers for the main overhead result of BEANDIP relative to hardware interrupts can be measured on this branch.
+
+To build the kernel with hardware interrupts enabled and using a particular NAS benchmark, do the following:
+
+```
+NAUT_BENCHMARK=<benchmark> ./scripts/build_hardware_ints.sh
+```
+
+To build with polling enabled and hardware interrupts disabled, do the following:
+
+```
+NAUT_BENCHMARK=<benchmark> ./scripts/build_polling.sh
+```
+
+Valid options for the benchmark are: FT, EP, BT, MG, LU
+
+If you want to try quickly testing 
+
+### 
+
+## Paper testbed
+
+
+
 
 ![Nautilus Logo](https://lh5.googleusercontent.com/8BkFSH-06MvfV9hqSk3D5VJQWPabgfMrlkZOcd6unP2AWYZi9ZOc5sgFtXMhyAHRPHJoMtv87jxwE9214Hx2YqmcFppPnYgpTvyau1wwwhHUee5YEn5Sl0to4LNFMg9D-Q=w1280 "Nautilus Logo")
 [![Build Status](https://travis-ci.com/HExSA-Lab/nautilus.svg?branch=master)](https://travis-ci.com/HExSA-Lab/nautilus)
