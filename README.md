@@ -60,6 +60,10 @@ make menuconfig
 
 Then navigate to `Devices -> Enable RISC-V GPIO` and disable the option.
 
+The particularly important numbers that are printed out after each benchmark completes are the following: `TIMER READ: ...` and `RECEIVED INTS: ...`. The timer read indicates how long the benchmark took in nanoseconds. The received interrupts indicates how many interrupts were handled during the course of the benchmark.
+
+Most of the results collected in this work depend on using physical hardware, rather than emulating with QEMU. The first reason for this is that many measurements can be very inaccurate, particularly when it comes to the latency of interacting with the PLIC, as emulating this is completely different from making it happen on a phyical machine. The other reason is that we did not design a way to drive interrupts with QEMU, we only designed a way to drive interrupts on a physical machine via GPIO input.
+
 ### Compiler overhead result
 
 This result can be collected on a different branch, but uses similar scripts. Do the following:
@@ -88,9 +92,9 @@ NAUT_BENCHMARK=<benchmark> NAUT_MEASURE_POLL_INTERVAL=1 ./scripts/build_polling.
 
 ## Paper testbed
 
-It is important to note that we do not collect paper results on QEMU, we collect our results on a RISC-V SiFive FU740. The SiFive machine boots the latest image by fetching it over the network. We serve the files for net booting with TFTP. We run the following script after building to make the image available: `./scripts/update_sifive_img.sh`
+It is important to note that we do not collect paper results on QEMU, we collect our results on a RISC-V SiFive FU740. The SiFive machine boots the latest image by fetching it over the network. We serve the files for net booting with TFTP. We run the following script after building to make the image available: `./scripts/update_sifive_img.sh`. Note that we needed to do a U-Boot minor version upgrade to fix DHCP issues, on the micro SD card we use for the SiFive board.
 
-If you want to reproduce this on a physical machine, you need a way to boot the file `uImage` on your target machine.
+If you want to reproduce this on a physical machine, you need a way to boot the file `uImage` on your target machine, such as what we described with boot over network.
 
 We use `picocom` to collect the results from the machine, then parse the output with a script to get the numbers we desire:
 
@@ -111,6 +115,8 @@ We make use of an oscilloscope connected to the SiFive and our microcontroller t
 You can find our code for plotting results here: https://github.com/knagaitsev/beandip-results
 
 The workflow, as we explained before, is that we build an image with our choice of hardware interrupts or polling and our chosen benchmark. We reset the SiFive machine so that it fetches the latest image. We have our microcontroller driving interrupts at a particular rate. We read the serial output of the machine to collect the numbers we are interested in. We take the mean of our collected numbers for a particular test, then plot the results.
+
+# Original Nautilus README below
 
 ![Nautilus Logo](https://lh5.googleusercontent.com/8BkFSH-06MvfV9hqSk3D5VJQWPabgfMrlkZOcd6unP2AWYZi9ZOc5sgFtXMhyAHRPHJoMtv87jxwE9214Hx2YqmcFppPnYgpTvyau1wwwhHUee5YEn5Sl0to4LNFMg9D-Q=w1280 "Nautilus Logo")
 [![Build Status](https://travis-ci.com/HExSA-Lab/nautilus.svg?branch=master)](https://travis-ci.com/HExSA-Lab/nautilus)
