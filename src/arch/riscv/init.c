@@ -352,40 +352,175 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   printk("Current CPU: %d\n", my_cpu_id());
 
-  program_LU_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+  // do work: BT
+  // works, issue after running it the first time, sometimes load fault: MG
+  // works but verification fails: LU
+  // options that don't work: CG, EP, IS
+  // might work: SP
 
-  program_LU_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+#ifdef NAUT_BENCHMARK_FT
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  program_LU_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  program_LU_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  program_LU_profile(NULL, NULL);
-  sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  // program_LU_profile(NULL, NULL);
-  // sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  // program_LU_profile(NULL, NULL);
-  // sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  // program_LU_profile(NULL, NULL);
-  // sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  // program_LU_profile(NULL, NULL);
-  // sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  // program_LU_profile(NULL, NULL);
-  // sifive_gpio_print_ints_received_and_reset();
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
 
-  // program_LU_profile(NULL, NULL);
-  // program_LU_profile(NULL, NULL);
-  // program_LU_profile(NULL, NULL);
-  // program_LU_profile(NULL, NULL);
+program_FT(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+
+#elif defined NAUT_BENCHMARK_EP
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_EP_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+
+
+#elif defined NAUT_BENCHMARK_MG
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_MG_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+
+
+#elif defined NAUT_BENCHMARK_LU
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_LU_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+
+#else
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+
+program_BT_profile(NULL, NULL);
+sifive_gpio_print_ints_received_and_reset();
+#endif
+
+
 
   // uint64_t t1 = read_csr(cycle);
 

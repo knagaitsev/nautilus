@@ -82,28 +82,30 @@ __attribute__((annotate("nohook"))) void nk_time_hook_fire()
   if (inited) {
     inited = 0;
 
-    // init_counter++;
-    // if (init_counter > 100000) {
-    //   uint64_t t = read_csr(cycle);
+#ifdef NAUT_MEASURE_POLL_INTERVAL
+    init_counter++;
+    if (init_counter > 100000) {
+      uint64_t t = read_csr(cycle);
 
-    //   if (counter < TIMES_COUNT) {
-    //     times[counter] = t;
-    //     counter++;
-    //   } else {
-    //     uint64_t total = 0;
-    //     for (int i = 0; i < counter; i++) {
-    //       if (i != 0) {
-    //         uint64_t diff = times[i] - times[i - 1];
-    //         total += diff;
-    //         // printk("%ld\n", diff);
-    //       }
-    //     }
+      if (counter < TIMES_COUNT) {
+        times[counter] = t;
+        counter++;
+      } else {
+        uint64_t total = 0;
+        for (int i = 0; i < counter; i++) {
+          if (i != 0) {
+            uint64_t diff = times[i] - times[i - 1];
+            total += diff;
+            // printk("%ld\n", diff);
+          }
+        }
 
-    //     uint64_t avg = total / (TIMES_COUNT - 1);
-    //     printk("Avg poll interval: %d, count: %d\n", avg, counter);
-    //     panic("done\n");
-    //   }
-    // }
+        uint64_t avg = total / (TIMES_COUNT - 1);
+        printk("Avg poll interval: %d, count: %d\n", avg, counter);
+        panic("done\n");
+      }
+    }
+#endif
 
     total_count++;
     int irq = plic_claim();
