@@ -84,11 +84,15 @@ git checkout paper_poll_measurements
 NAUT_BENCHMARK=<benchmark> ./scripts/build_polling.sh
 ```
 
+The notable measurement numbers are shown after `Hit count/total: ...`
+
 To collect polling accuracy data for a benchmark, you can turn on a flag to collect this accuracy data like this:
 
 ```
 NAUT_BENCHMARK=<benchmark> NAUT_MEASURE_POLL_INTERVAL=1 ./scripts/build_polling.sh
 ```
+
+The benchmark should stop early and display an average poll interval.
 
 ## Paper testbed
 
