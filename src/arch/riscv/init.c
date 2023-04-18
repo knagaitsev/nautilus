@@ -264,7 +264,9 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // We now have serial output without SBI
   sifive_serial_init(fdt);
 
-  // sifive_gpio_init(fdt);
+#ifdef NAUT_CONFIG_RISCV_GPIO_ENABLE
+  sifive_gpio_init(fdt);
+#endif
 
   // my_monitor_entry();
 
