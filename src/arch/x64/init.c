@@ -528,7 +528,7 @@ init (unsigned long mbd,
     nk_gdt_init();
 #endif
     
-    sti();
+    arch_enable_ints();
 
     /* interrupts are now on */
 

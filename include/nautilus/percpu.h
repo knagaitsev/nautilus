@@ -227,9 +227,9 @@ get_cpu (void)
 #ifdef NAUT_CONFIG_ARCH_ARM64
 
 // TODO(arm64)
-#define per_cpu_put(var, newval)
+#define per_cpu_put(var, newval) 
 // TODO(arm64)
-#define per_cpu_get(var) 0
+#define per_cpu_get(var) ((struct cpu*)0)->var
 // TODO(arm64)
 #define my_cpu_id() per_cpu_get(id)
 

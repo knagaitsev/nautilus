@@ -89,15 +89,22 @@ static inline void nk_counting_barrier(volatile nk_counting_barrier_t *b)
 	// We need to be sure that these operations occur in order 
 	// and are fully visible in order
     #ifdef NAUT_CONFIG_ARCH_RISCV
-        *curp ^= 0x1;
-	__asm__ __volatile__ ("fence.i" : : : "memory");
-        *countp = 0;
-	__asm__ __volatile__ ("fence.i" : : : "memory");
-    #else
-        *curp ^= 0x1;
-	__asm__ __volatile__ ("mfence" : : : "memory");
-        *countp = 0;
-	__asm__ __volatile__ ("mfence" : : : "memory");
+			*curp ^= 0x1;
+			__asm__ __volatile__ ("fence.i" : : : "memory");
+			*countp = 0;
+			__asm__ __volatile__ ("fence.i" : : : "memory");
+    #elif NAUT_CONFIG_ARCH_ARM64
+			*curp ^= 0x1;
+			// TODO(arm64): mfence. Do this with __sync_synchronize();
+			*countp = 0;
+			// TODO(arm64): mfence
+    #elif NAUT_CONFIG_ARCH_X86
+			*curp ^= 0x1;
+			__asm__ __volatile__ ("mfence" : : : "memory");
+			*countp = 0;
+			__asm__ __volatile__ ("mfence" : : : "memory");
+		#else 	
+			#error "unsupported arch"
     #endif
     } else {
         // k1om compiler does not know what "volatile" means
@@ -106,10 +113,14 @@ static inline void nk_counting_barrier(volatile nk_counting_barrier_t *b)
 	while ( ({ __asm__ __volatile__( "ld %0, %1" : "=r"(old) : "m"(*countp) : ); old; }) ) {
 	    __asm__ __volatile__ ("nop");
 	}
-    #else
+    #elif NAUT_CONFIG_ARCH_ARM64
+			// TODO(arm64): mfence. Do this with __sync_synchronize();
+    #elif NAUT_CONFIG_ARCH_X86
 	while ( ({ __asm__ __volatile__( "movq %1, %0" : "=r"(old) : "m"(*countp) : ); old; }) ) {
 	    __asm__ __volatile__ ("pause");
 	}
+		#else 	
+			#error "unsupported arch"
     #endif
     }
 }

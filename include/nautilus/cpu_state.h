@@ -31,6 +31,8 @@
 #include <nautilus/msr.h>
 #endif
 
+// #include <nautilus/arch.h>
+
 //
 // This code assumes that %gs base (or tp) is pointing to
 // the struct cpu of the running cpu and it assumes the
@@ -159,16 +161,23 @@ static inline int in_interrupt_context()
     return interrupt_nesting_level()>0;
 }
 
+
+
+void arch_enable_ints(void);
+void arch_disable_ints(void);
+int arch_ints_enabled(void);
+
 // Do not directly use these functions or sti/cli unless you know
 // what you are doing...  
 // Instead, use irq_disable_save and a matching irq_enable_restore
-#define enable_irqs() sti()
-#define disable_irqs() cli()
+#define enable_irqs() arch_enable_ints()
+#define disable_irqs() arch_disable_ints()
 
 static inline uint8_t irqs_enabled (void)
 {
-    uint64_t rflags = read_rflags();
-    return (rflags & RFLAGS_IF) != 0;
+	return arch_ints_enabled();
+    // uint64_t rflags = read_rflags();
+    // return (rflags & RFLAGS_IF) != 0;
 }
 
 static inline uint8_t irq_disable_save (void)
@@ -178,7 +187,8 @@ static inline uint8_t irq_disable_save (void)
     uint8_t enabled = irqs_enabled();
 
     if (enabled) {
-        disable_irqs();
+				arch_disable_ints();
+        // disable_irqs();
     }
 
     preempt_enable();
@@ -191,7 +201,8 @@ static inline void irq_enable_restore (uint8_t iflag)
 {
     if (iflag) {
         /* Interrupts were originally enabled, so turn them back on */
-        enable_irqs();
+				arch_enable_ints();
+        // enable_irqs();
     }
 }
 

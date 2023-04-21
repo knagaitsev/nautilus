@@ -10,40 +10,31 @@
  * http://www.v3vee.org  and
  * http://xstack.sandia.gov/hobbes
  *
- * Copyright (c) 2015, Kyle C. Hale <khale@cs.iit.edu>
+ * Copyright (c) 2015, Kyle C. Hale <kh@u.northwestern.edu>
  * Copyright (c) 2015, The V3VEE Project  <http://www.v3vee.org> 
  *                     The Hobbes Project <http://xstack.sandia.gov/hobbes>
  * All rights reserved.
  *
- * Author: Kyle C. Hale <khale@cs.iit.edu>
+ * Author: Kyle C. Hale <kh@u.northwestern.edu>
  *
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
-#ifndef __CPU_H__
-#define __CPU_H__
+#ifdef __STRING_H__
 
-#ifdef __cplusplus 
-extern "C" {
-#endif
+#define OP_T_THRES 8
+#define OPSIZ sizeof(unsigned long int)
 
-#include <nautilus/naut_types.h>
+#define WORD_COPY_BWD(dst_ep, src_ep, nbytes_left, nbytes)        \
+  do                                          \
+    {                                         \
+                                              \
+    } while (0)
 
-#ifdef NAUT_CONFIG_ARCH_ARM64
-#include <arch/arm64/cpu.h>
-#endif
+#define BYTE_COPY_BWD(dst_ep, src_ep, nbytes)                     \
+  do                                          \
+    {                                         \
+                                              \
+    } while (0)
 
-#ifdef NAUT_CONFIG_ARCH_RISCV
-#include <arch/riscv/cpu.h>
-#endif
-
-#ifdef NAUT_CONFIG_ARCH_X86
-#include <arch/x64/cpu.h>
-#endif
-    
-#ifdef __cplusplus 
-}
-#endif
-
-
-#endif
+#endif 

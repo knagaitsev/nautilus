@@ -438,7 +438,7 @@ smp_ap_finish (struct cpu * core)
 
     SMP_DEBUG("Core %u ready - enabling interrupts\n", core->id);
 
-    sti();
+    arch_enable_ints();
 
 #ifdef NAUT_CONFIG_PROFILE
     nk_instrument_calibrate(INSTR_CAL_LOOPS);
@@ -481,7 +481,7 @@ smp_ap_entry (struct cpu * core)
     
     ASSERT(irqs_enabled());
 
-    sti();
+    arch_enable_ints();
 
     idle(NULL, NULL);
 }

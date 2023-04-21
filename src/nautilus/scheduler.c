@@ -63,6 +63,7 @@
 #include <nautilus/backtrace.h>
 #include <nautilus/shell.h>
 #include <nautilus/topo.h>
+#include <nautilus/libccompat.h>
 #include <dev/gpio.h>
 
 #ifdef NAUT_CONFIG_ARCH_X86
@@ -2179,7 +2180,6 @@ static int pump_sized_tasks(rt_scheduler *scheduler, rt_thread *next)
 // In both cases updates the timer to reflect the thread
 // that should be running
 //
-#define INTERRUPT __attribute__((target("no-sse")))
 INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched)
 {
     LOCAL_LOCK_CONF;
@@ -4554,7 +4554,7 @@ fail_free:
     }
     FREE(main);
 
-    sti();
+    arch_enable_ints();
 
     return -1;
 }
@@ -5187,14 +5187,14 @@ test_timed_stop (char * buf, void * priv)
   uint64_t* timestamps = (uint64_t*)MALLOC(sizeof(uint64_t) * count);
 
   nk_vc_printf("Starting and stopping the world %lu times\n", count);
-  start = rdtsc();
+  start = arch_read_timestamp();
   for (i = 0; i < count; i++) { 
-    timestamps[i] = rdtsc();
+    timestamps[i] = arch_read_timestamp();
     nk_sched_stop_world();
     nk_sched_start_world();
-    timestamps[i] = rdtsc() - timestamps[i];
+    timestamps[i] = arch_read_timestamp() - timestamps[i];
   }
-  end = rdtsc();
+  end = arch_read_timestamp();
   sum = 0;
   sum2 = 0;
   min = -1;

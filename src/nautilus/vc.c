@@ -47,6 +47,12 @@
 #include <arch/hrt/hrt.h>
 #endif
 
+#ifdef NAUT_CONFIG_ARCH_X86
+#define INTERRUPT __attribute__((target("no-sse")))
+#else
+#define INTERRUPT
+#endif
+
 #ifndef NAUT_CONFIG_DEBUG_VIRTUAL_CONSOLE
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
@@ -374,7 +380,6 @@ int nk_switch_to_next_vc()
 
 }
 
-#define INTERRUPT __attribute__((target("no-sse")))
 INTERRUPT static int _vc_scrollup_specific(struct nk_virtual_console *vc)
 {
   int i;
@@ -657,7 +662,6 @@ int nk_vc_setpos_specific(struct nk_virtual_console *vc, uint8_t x, uint8_t y)
 
 
 // display scrolling or explicitly on screen at a given location
-#define INTERRUPT __attribute__((target("no-sse")))
 INTERRUPT static int _vc_putchar_specific(struct nk_virtual_console *vc, uint8_t c) 
 {
   if (!vc) {
@@ -719,7 +723,6 @@ INTERRUPT static int _vc_putchar_specific(struct nk_virtual_console *vc, uint8_t
 }
 
 // display scrolling or explicitly on screen at a given location
-#define INTERRUPT __attribute__((target("no-sse")))
 INTERRUPT static int _vc_putchar(uint8_t c) 
 {
   struct nk_virtual_console *vc;
@@ -771,7 +774,6 @@ int nk_vc_putchar(uint8_t c)
   return c;
 }
 
-#define INTERRUPT __attribute__((target("no-sse")))
 INTERRUPT static int _vc_print_specific(struct nk_virtual_console *vc, char *s) 
 {
   if (!vc) {

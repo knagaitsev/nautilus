@@ -242,6 +242,14 @@ nk_get_nautilus_info (void)
 }
 
 
+// Slap this on the front of a function that should be 'interrupt' style
+#ifdef NAUT_CONFIG_ARCH_X86
+#define INTERRUPT __attribute__((target("no-sse")))
+#else
+#define INTERRUPT
+#endif
+
+
 
 #include <nautilus/arch.h>
 #ifdef NAUT_CONFIG_XEON_PHI

@@ -145,7 +145,7 @@ void secondary_entry(int hartid) {
 
   nk_sched_start();
 
-  sti();
+  arch_enable_ints();
 
   idle(NULL, NULL);
 }

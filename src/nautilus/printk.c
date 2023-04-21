@@ -149,7 +149,7 @@ panic (const char * fmt, ...)
     vprintk(fmt, arg);
     va_end(arg);
 
-   cli();
+   arch_disable_ints();
 
    while(1);
 }

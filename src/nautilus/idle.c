@@ -107,7 +107,7 @@ idle (void * in, void ** out)
 #endif
 
 #ifdef NAUT_CONFIG_HALT_WHILE_IDLE
-        sti();
+        arch_enable_ints();
         halt();
 #endif
     }
