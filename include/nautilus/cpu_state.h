@@ -46,9 +46,21 @@ static inline void *__cpu_state_get_cpu()
     uint64_t tp;
     asm volatile("mv %0, tp" : "=r" (tp) );
     return (void *) tp;
-#else
+#endif
+
+
+
+#ifdef NAUT_CONFIG_ARCH_ARM64
+		// TODO(arm64)
+		return (void*)0;
+#endif
+
+#ifdef NAUT_CONFIG_ARCH_X86
     return (void *) msr_read(MSR_GS_BASE);
 #endif
+
+		// TODO: unreachable
+		return 0;
 }
 
 
@@ -114,6 +126,8 @@ static inline int preempt_is_disabled()
 	// per-cpu functional
 #ifdef NAUT_CONFIG_ARCH_RISCV
 	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+#elif NAUT_CONFIG_ARCH_RISCV
+	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
 	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #endif
@@ -128,6 +142,8 @@ static inline uint16_t interrupt_nesting_level()
     void *base = __cpu_state_get_cpu();
     if (base) {
 #ifdef NAUT_CONFIG_ARCH_RISCV
+	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+INL_OFFSET),0);
+#elif NAUT_CONFIG_ARCH_ARM64
 	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+INL_OFFSET),0);
 #else
 	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+INL_OFFSET),0);

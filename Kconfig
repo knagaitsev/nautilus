@@ -179,7 +179,7 @@ menu "Build"
 
     config CXX_SUPPORT
       bool "Enable C++ support"
-      default y
+      default n
       help
         Compiles the Nautilus kernel with C++ support. Necessary for,
         e.g. C++ HRT integration

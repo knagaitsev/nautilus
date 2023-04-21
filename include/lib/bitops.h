@@ -93,6 +93,8 @@
 
 #ifdef NAUT_CONFIG_ARCH_RISCV
 #include <arch/riscv/bitops.h>
+#elif NAUT_CONFIG_ARCH_ARM64
+#include <arch/riscv/bitops.h>
 #else
 #include <asm/bitops.h>
 #endif

@@ -35,12 +35,12 @@ void * arch_read_sp(void);
 void arch_relax(void);
 void arch_halt(void);
 
-#ifdef NAUT_CONFIG_ARCH_X86
+#ifdef NAUT_CONFIG_ARCH_X86_64
 #include <arch/x64/arch.h>
-#else
-#ifdef NAUT_CONFIG_ARCH_RISCV
+#elif NAUT_CONFIG_ARCH_RISCV
 #include <arch/riscv/arch.h>
+#elif NAUT_CONFIG_ARCH_ARM64
+#include <arch/arm64/arch.h>
 #else
 #error "Unsupported architecture"
-#endif
 #endif

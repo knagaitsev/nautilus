@@ -1,0 +1,61 @@
+OUTPUT_ARCH( "aarch64" )
+ENTRY( nautilus_entry )
+
+SECTIONS
+{
+  . = 0x40000000;
+
+  .text ALIGN(0x1000) : {
+    _loadStart = .;
+    *(.boot)
+    boot_stack_start = .;
+    . += 0x1000;  /* Allocate space for teh boot stack */
+    boot_stack_end = .;
+    *(.text* .text.*)
+    etext = .;
+  }
+
+  _dataStart = .;
+
+  .data : {
+    . = ALIGN(16);
+    *(.sdata .sdata.*) /* do not need to distinguish this from .data */
+    . = ALIGN(16);
+    *(.data .data.*)
+  }
+
+  .rodata : {
+    . = ALIGN(16);
+    *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */
+    . = ALIGN(16);
+    *(.rodata .rodata.*)
+  }
+
+  .cmdline_flags ALIGN(0x1000) : {
+    __start_flags = .;
+    *(.cmdline_flags*);
+    __stop_flags = .;
+  }
+
+  .shell_cmds ALIGN(0x1000) : {
+    __start_shell_cmds = .;
+    *(.shell_cmds*);
+    __stop_shell_cmds = .;
+  }
+
+  _loadEnd = .;
+
+  _bssStart = .;
+  .bss ALIGN(0x1000) : {
+    . = ALIGN(16);
+    *(.sbss .sbss.*) /* do not need to distinguish this from .bss */
+    . = ALIGN(16);
+    *(.bss .bss.*)
+  }
+
+  _bssEnd = .;
+
+  _dataEnd = .;
+
+  PROVIDE(kernel_end = .);
+}

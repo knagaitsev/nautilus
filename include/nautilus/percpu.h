@@ -21,6 +21,9 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 
+#ifndef __PER_CPU_H__
+#define __PER_CPU_H__
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -113,7 +116,10 @@ get_cpu (void)
 
 #endif /* !__PER_CPU_H__ */
 
-#else
+#endif
+
+
+#ifdef NAUT_CONFIG_ARCH_X86
 
 #define __movop_1 movb
 #define __movop_2 movw
@@ -205,8 +211,6 @@ do { \
     
 #define my_cpu_id() per_cpu_get(id)
 
-#ifndef __PER_CPU_H__
-#define __PER_CPU_H__
 
 #include <nautilus/msr.h>
 #include <nautilus/smp.h>
@@ -216,11 +220,32 @@ get_cpu (void)
     return (struct cpu*)msr_read(MSR_GS_BASE);
 }
 
-#endif /* !__PER_CPU_H__ */
 
-#endif /* NAUT_CONFIG_ARCH_RISCV */
+#endif /* NAUT_CONFIG_ARCH_X86 */
+
+
+#ifdef NAUT_CONFIG_ARCH_ARM64
+
+// TODO(arm64)
+#define per_cpu_put(var, newval)
+// TODO(arm64)
+#define per_cpu_get(var) 0
+// TODO(arm64)
+#define my_cpu_id() per_cpu_get(id)
+
+static inline struct cpu*
+get_cpu (void)
+{
+		// TODO(arm64)
+    return (struct cpu*)0;
+}
+
+
+
+#endif
 
 #ifdef __cplusplus
 }
 #endif
 
+#endif /* !__PER_CPU_H__ */

@@ -252,8 +252,10 @@ nk_get_nautilus_info (void)
 #include <arch/x64/main.h>
 #elif defined NAUT_CONFIG_GEM5
 #include <arch/gem5/main.h>
-#elif defined NAUT_CONFIG_RISCV_HOST
+#elif defined NAUT_CONFIG_ARCH_RISCV
 #include <arch/riscv/main.h>
+#elif defined NAUT_CONFIG_ARCH_ARM64
+#include <arch/arm64/main.h>
 #else
 #error "Unsupported architecture"
 #endif

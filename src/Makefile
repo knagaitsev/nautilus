@@ -16,6 +16,15 @@ obj-$(NAUT_CONFIG_ARCH_RISCV) += \
 	compat/ \
 	dev/
 
+
+
+obj-$(NAUT_CONFIG_ARCH_ARM64) += \
+	nautilus/ \
+	arch/ \
+	compat/ \
+	dev/
+
+
 obj-$(NAUT_CONFIG_CXX_SUPPORT) += cxx/
 obj-$(NAUT_CONFIG_LEGION_RT) += legion_runtime/
 obj-$(NAUT_CONFIG_LOAD_LUA) += lua_src/

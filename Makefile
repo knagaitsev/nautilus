@@ -339,6 +339,11 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 SUBARCH = riscv
 endif
 
+
+ifdef NAUT_CONFIG_ARCH_ARM64
+SUBARCH = arm64
+endif
+
 ARCH		?= $(SUBARCH)
 
 COMPILER_PREFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_PREFIX))
@@ -404,6 +409,11 @@ endif
 
 ifdef NAUT_CONFIG_ARCH_X86
   COMMON_FLAGS += -mcmodel=large -mno-red-zone
+endif
+
+
+ifdef NAUT_CONFIG_ARCH_ARM64
+  COMMON_FLAGS += -mcmodel=large 
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
@@ -763,25 +773,30 @@ nautilus := $(core-y) $(libs-y)
 
 ifdef NAUT_CONFIG_XEON_PHI
 LD_SCRIPT:=link/nautilus.ld.xeon_phi
-else 
+endif
+
 ifdef NAUT_CONFIG_HVM_HRT
 LD_SCRIPT:=link/nautilus.ld.hrt
-else
+endif
+
 ifdef NAUT_CONFIG_PALACIOS
 LD_SCRIPT:=link/nautilus.ld.palacios
-else
+endif
+
+
 ifdef NAUT_CONFIG_GEM5
 LD_SCRIPT:=link/nautilus.ld.gem5
-else
+endif
+
 ifdef NAUT_CONFIG_ARCH_RISCV
 LD_SCRIPT:=link/nautilus.ld.riscv
-else
-LD_SCRIPT:=link/nautilus.ld
 endif
+
+
+ifdef NAUT_CONFIG_ARCH_ARM64
+LD_SCRIPT:=link/nautilus.ld.arm64
 endif
-endif
-endif
-endif
+
 
 quiet_cmd_transform_linkscript__ ?= CC      $@
 	  cmd_transform_linkscript__ ?= $(CC) -E -P \
