@@ -80,11 +80,6 @@ static inline int test_bit(unsigned int nr, const volatile unsigned long *addr)
  */
 static __inline__ int test_and_set_bit(int nr, volatile void * addr)
 {
-    /*
-    int oldbit = __sync_fetch_and_or((int*)addr, (1<<nr));
-    __sync_synchronize();
-    return !!(oldbit & (1<<nr));
-    */
     int oldbit;
     __asm__ __volatile__(
         "lock ; btsl %2,%1\n\tsbbl %0,%0"

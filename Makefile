@@ -181,8 +181,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 ARCH		?= $(SUBARCH)
 
-
-CROSS_COMPILE	?= #/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
+CROSS_COMPILE ?= /opt/toolchain/aarch64/bin/aarch64-linux-gnu-
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 
 # Architecture as present in compile.h
@@ -869,7 +868,9 @@ qemu: nautilus.bin
 ifdef NAUT_CONFIG_ARCH_RISCV
 	qemu-system-riscv64 -bios default -m 2G -M sifive_u -kernel nautilus.bin -serial mon:stdio -display none -gdb tcp::1234
 endif
-
+ifdef NAUT_CONFIG_ARCH_ARM64
+	qemu-system-aarch64 -machine virt -kernel nautilus.bin --cpu cortex-a35 -serial stdio
+endif
 
 # New function to run a Python script which generates Lua test code,
 # addition of a separate flag (LUA_BUILD_FLAG) which is set to indicate

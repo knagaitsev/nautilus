@@ -46,7 +46,8 @@ nautilus_entry:
 
     # Jump to our kernel_main routine in C (make sure it doesn't return)
 4:  
-		bl      =init
+
+    bl      init
     # In case it does return, halt the master core too
     b       1b
 
