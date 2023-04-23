@@ -45,7 +45,7 @@ void *arch_read_sp(void);
 void arch_relax(void);
 void arch_halt(void);
 
-#ifdef NAUT_CONFIG_ARCH_X86_64
+#ifdef NAUT_CONFIG_ARCH_X86
 #include <arch/x64/arch.h>
 #elif NAUT_CONFIG_ARCH_RISCV
 #include <arch/riscv/arch.h>

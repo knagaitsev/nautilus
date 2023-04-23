@@ -3,7 +3,7 @@ obj-$(NAUT_CONFIG_ARCH_X86) += apic.o \
 	 i8254.o \
 	 ps2.o \
 	 pci.o \
-	 vga.o
+	 vga.o \
 
 ifndef NAUT_CONFIG_XEON_PHI
 obj-y += serial.o

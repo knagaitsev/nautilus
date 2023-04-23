@@ -93,7 +93,7 @@ obj-$(NAUT_CONFIG_PARTITION_SUPPORT) += partition.o
 obj-$(NAUT_CONFIG_PROVENANCE) += provenance.o
 
 obj-$(NAUT_CONFIG_PROCESSES) += process.o \
-								signal.o
+				signal.o
 
 obj-$(NAUT_CONFIG_LINUX_SYSCALLS) += syscalls/
 

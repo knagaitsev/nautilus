@@ -175,8 +175,12 @@ mm_boot_init (ulong_t mbd)
     addr_t kern_start     = (addr_t)&_loadStart;
 #ifdef NAUT_CONFIG_ARCH_RISCV
     addr_t kern_end       = (addr_t)&_loadEnd;
-#else
+#endif
+#ifdef NAUT_CONFIG_ARCH_X86
     addr_t kern_end       = multiboot_get_modules_end(mbd);
+#endif
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    addr_t kern_end       = (addr_t)&_loadEnd;
 #endif
     addr_t pm_start       = round_up(kern_end, PAGE_SIZE);
     boot_mem_info_t * mem = &bootmem;

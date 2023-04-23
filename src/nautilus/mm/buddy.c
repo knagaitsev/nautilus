@@ -72,11 +72,15 @@ __set_bit (ulong_t nr, volatile void * addr)
 {
 #ifdef NAUT_CONFIG_ARCH_RISCV
     set_bit(nr, addr);
-#else
+#endif
+#ifdef NAUT_CONFIG_ARCH_X86
     __asm__ __volatile__ (
         "btsq %1,%0"
         :"+m" (*(volatile long*)addr)
         :"r" (nr) : "memory");
+#endif
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    // TODO (This also could be a compiler intrinsic I think
 #endif
 }
 
@@ -86,11 +90,15 @@ __clear_bit (ulong_t nr, volatile void * addr)
 {
 #ifdef NAUT_CONFIG_ARCH_RISCV
     clear_bit(nr, addr);
-#else
+#endif
+#ifdef NAUT_CONFIG_ARCH_X86
     __asm__ __volatile__ (
         "btrq %1,%0"
         :"+m" (*(volatile long*)addr)
         :"r" (nr));
+#endif
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    // TODO
 #endif
 }
 

@@ -229,6 +229,7 @@ static inline unsigned long __ffs64(uint64_t word)
 	return __ffs((unsigned long)word);
 }
 
+
 /**
  * find_last_bit - find the last set bit in a memory region
  * @addr: The address to start the search at

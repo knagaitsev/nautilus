@@ -1293,10 +1293,10 @@ nk_scancode_t nk_vc_get_scancode(int wait)
 
 static int enqueue_scancode_as_keycode(struct nk_virtual_console *__cur_vc, uint8_t scan)
 {
-#ifdef NAUT_CONFIG_ARCH_RISCV
-  nk_keycode_t key = scan;
-#else
+#ifdef NAUT_CONFIG_ARCH_X86
   nk_keycode_t key = kbd_translate(scan);
+#else
+  nk_keycode_t key = scan;
 #endif
   if(key != NO_KEY) {
     nk_enqueue_keycode(__cur_vc, key);

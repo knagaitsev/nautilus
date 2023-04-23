@@ -182,9 +182,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 ARCH		?= $(SUBARCH)
 
 
-
-
-CROSS_COMPILE	?= 
+CROSS_COMPILE	?= #/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 
 # Architecture as present in compile.h
@@ -786,6 +784,10 @@ endif
 
 ifdef NAUT_CONFIG_GEM5
 LD_SCRIPT:=link/nautilus.ld.gem5
+endif
+
+ifdef NAUT_CONFIG_ARCH_X86
+LD_SCRIPT:=link/nautilus.ld
 endif
 
 ifdef NAUT_CONFIG_ARCH_RISCV

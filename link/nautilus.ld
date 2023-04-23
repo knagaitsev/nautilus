@@ -147,6 +147,7 @@ SECTIONS
     
     /DISCARD/ :
     {
+        *(.note*) /* qemu -kernel doesn't work without the PVH note section */
         *(.comment)
         *(.eh_frame)
     }

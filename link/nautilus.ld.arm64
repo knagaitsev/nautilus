@@ -8,6 +8,10 @@ SECTIONS
   .text ALIGN(0x1000) : {
     _loadStart = .;
     *(.boot)
+    . = ALIGN(0x1000);
+    pml4 = .;
+    . += 0x1000; /* Probably no need for the space but the symbol pml4 is needed for now */
+
     boot_stack_start = .;
     . += 0x1000;  /* Allocate space for teh boot stack */
     boot_stack_end = .;

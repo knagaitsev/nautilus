@@ -6,6 +6,7 @@
 #  GPL'ed, copyleft
 #
 
+# (Modified)
 
 check_error() {
     if [ "$1" -ne "0" ]; then

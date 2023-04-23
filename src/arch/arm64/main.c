@@ -22,11 +22,16 @@
  */
 #define __NAUTILUS_MAIN__
 
-#include <arch/riscv/init.h>
+/*
+ * The purpose of both a main and an init is somewhat unclear to me (symbol relocation distances might be an answer)
+ * But I know for certain we cannot include "nautilus/nautilus.h" here or else nautilus_info will be redefined
+ * because of the weird way that it is defined within the header
+ */
+
+#include <arch/arm64/init.h>
 
 void
-main (unsigned long hartid,
-      unsigned long fdt)
+main (unsigned long dtb_raw, unsigned long x1, unsigned long x2, unsigned long x3)
 {
-    init(hartid, fdt);
+    init(dtb_raw, x1, x2, x3);
 }
