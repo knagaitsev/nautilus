@@ -50,10 +50,18 @@
 // All output is handled via UART
 #define do_putchar(x) do { sifive_serial_putchar(x); } while (0)
 #define do_puts(x)    do { sifive_serial_write(x); sifive_serial_putchar('\n'); } while (0)
-#else
+#elif NAUT_CONFIG_ARCH_X86
 // All output is handled via the virtual console
 #define do_putchar(x) do { nk_vc_putchar(x);} while (0)
 #define do_puts(x)    do { nk_vc_puts(x); } while (0)
+#elif NAUT_CONFIG_ARCH_ARM64
+// All output is handled via PL011 UART
+#include<dev/pl011.h>
+struct pl011_uart *printk_uart;
+#define do_putchar(x) do { pl011_uart_putchar(printk_uart, x); } while (0)
+#define do_puts(x) do { pl011_uart_puts(printk_uart, x); pl011_uart_putchar(printk_uart, '\n'); } while (0)
+#else
+#error "Unknown Architecture"
 #endif
 
 spinlock_t printk_lock;

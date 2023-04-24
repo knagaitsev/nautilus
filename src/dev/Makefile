@@ -11,6 +11,8 @@ endif
 
 obj-$(NAUT_CONFIG_ARCH_RISCV) += sifive.o
 
+obj-$(NAUT_CONFIG_ARCH_ARM64) += pl011.o
+
 obj-$(NAUT_CONFIG_HPET) += hpet.o
 
 obj-$(NAUT_CONFIG_VIRTIO_PCI) += virtio_pci.o

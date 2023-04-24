@@ -21,16 +21,16 @@ tmp                     .req x9
 nautilus_entry:
     # Check processor ID is zero (executing on main core), else hang
     mrs     x1, mpidr_el1
-    and     x1, x1, #3
+    and     x1, x1, 3
     cbz     x1, 2f
 
     /* enable caches so atomics and spinlocks work */
     mrs     tmp, sctlr_el1
-    orr     tmp, tmp, #(1<<12) /* Enable icache */
-    orr     tmp, tmp, #(1<<2)  /* Enable dcache/ucache */
-    orr     tmp, tmp, #(1<<3)  /* Enable Stack Alignment Check EL1 */
-    orr     tmp, tmp, #(1<<4)  /* Enable Stack Alignment Check EL0 */
-    bic     tmp, tmp, #(1<<1)  /* Disable Alignment Checking for EL1 EL0 */
+    orr     tmp, tmp, (1<<12) /* Enable icache */
+    orr     tmp, tmp, (1<<2)  /* Enable dcache/ucache */
+    orr     tmp, tmp, (1<<3)  /* Enable Stack Alignment Check EL1 */
+    orr     tmp, tmp, (1<<4)  /* Enable Stack Alignment Check EL0 */
+    bic     tmp, tmp, (1<<1)  /* Disable Alignment Checking for EL1 EL0 */
     msr     sctlr_el1, tmp
 
     # We're not on the main core, so hang in an infinite wait loop
@@ -49,6 +49,8 @@ nautilus_entry:
 
     bl      init
     # In case it does return, halt the master core too
+    # Load a obvious value into x29 so it will be clear to the debugger
+    ldr x1, =0xCAFEBABE
     b       1b
 
 

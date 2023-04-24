@@ -16,6 +16,7 @@ GTAGS
 *.syms
 *.bc
 *.ll
+*.dtb
 ./src/llvm/toolchain
 
 # LSP-related tools
@@ -31,6 +32,7 @@ include/config/
 include/autoconf.h
 .kconfig.d
 nautilus.secs
+nautilus.asm
 
 # Scripts created by Kconfig when building the ncurses menu system
 scripts/basic/docproc
