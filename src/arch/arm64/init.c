@@ -2,6 +2,11 @@
 #define __NAUTILUS_MAIN__
 
 #include<nautilus/nautilus.h>
+#include<nautilus/printk.h>
+#include<nautilus/fpu.h>
+#include<nautilus/naut_string.h>
+
+#include<arch/arm64/unimpl.h>
 
 #include<dev/pl011.h>
 
@@ -31,14 +36,30 @@ vga_make_entry (char c, uint8_t color)
     return c16 | color16 << 8;
 }
 
+extern void *_bssEnd;
+extern void *_bssStart;
+
+
 void init(unsigned long dtb_raw, unsigned long x1, unsigned long x2, unsigned long x3) {
 
+  struct naut_info *naut = &nautilus_info;
+
+  // Zero out .bss
+  nk_low_level_memset(_bssStart, 0, (off_t)_bssEnd - (off_t)_bssStart);
+  
+  // Enable the FPU
+  fpu_init(naut, 0);
+ 
+  // Initialize serial output
+  pl011_uart_init(&_main_pl011_uart, (void*)QEMU_PL011_VIRT_BASE_ADDR, QEMU_VIRT_BASE_CLOCK);
+
+  // Enable printk by handing it the uart
   extern struct pl011_uart *printk_uart;
   printk_uart = &_main_pl011_uart;
 
-  pl011_uart_init(&_main_pl011_uart, (void*)QEMU_PL011_VIRT_BASE_ADDR, QEMU_VIRT_BASE_CLOCK);
+  printk(NAUT_WELCOME);
 
-  pl011_uart_puts(&_main_pl011_uart, NAUT_WELCOME);
+  printk("Hello, %d\n", 12345678);
 
   while(1) {}
 }

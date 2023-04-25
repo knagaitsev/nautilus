@@ -19,6 +19,7 @@
 tmp                     .req x9
 
 nautilus_entry:
+
     # Check processor ID is zero (executing on main core), else hang
     mrs     x1, mpidr_el1
     and     x1, x1, 3
@@ -40,9 +41,15 @@ nautilus_entry:
 
 2:  # We're on the main core!
 
+    # Configure the processor to use a different stack for each EL
+    msr SPsel, 1
+    
     # Set stack to start below our code
     ldr     x1, =boot_stack_end
     mov     sp, x1
+
+    # Install the interrupt vector tables
+    bl      __install_iv_tables
 
     # Jump to our kernel_main routine in C (make sure it doesn't return)
 4:  
@@ -54,7 +61,7 @@ nautilus_entry:
     b       1b
 
 
-.section .init.data
+.section .boot
 
 .align 16
 boot_stack:

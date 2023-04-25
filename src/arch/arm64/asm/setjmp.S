@@ -1,12 +1,12 @@
 
-.GLOBAL setjmp
+.GLOBAL low_level_setjmp
 
-setjmp:
+low_level_setjmp:
   // TODO
   ret
 
-.GLOBAL longjmp
+.GLOBAL low_level_longjmp
 
-longjmp:
+low_level_longjmp:
   // TODO
   ret

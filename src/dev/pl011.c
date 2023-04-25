@@ -68,9 +68,12 @@ static inline void pl011_disable(struct pl011_uart *p) {
   pl011_and_reg(p, UART_CTRL, ~UART_CTRL_ENABLE_BITMASK);
 }
 
-static inline void pl011_wait(struct pl011_uart *p) {
-  while(*(volatile uint32_t*)(p->mmio_base + UART_FLAG) & UART_FLAG_BSY) {
-    // Loop while the busy bit is set
+static void pl011_wait(struct pl011_uart *p) {
+  while(
+      *((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_BSY
+    ||*((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_TRANS_FIFO_FULL
+    ){
+    // Loop while the busy bit is set or the fifo is full
   }
 }
 
@@ -90,9 +93,8 @@ static inline void pl011_configure(struct pl011_uart *p) {
   // Wait for any transmission to complete
   pl011_wait(p);
 
-  // Flush the fifo queues
+  // Flushes the fifo queues
   pl011_disable_fifo(p);
-
 
   // div = clock / (16 * baudrate)
   // 2^6 * div = (2^2 * clock) / baudrate

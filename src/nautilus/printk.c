@@ -71,7 +71,7 @@ extern void serial_putln(const char * ln);
 
 struct printk_state {
 	char buf[PRINTK_BUFMAX];
-	unsigned int index;
+        unsigned int index;
 };
 
 
@@ -93,16 +93,16 @@ printk_char (char * arg, int c)
 {
 	struct printk_state *state = (struct printk_state *) arg;
 
-	if (c == '\n')
+	if ((c == 0) || (state->index >= PRINTK_BUFMAX))
+	{
+		flush(state);
+		do_putchar(c);
+        }
+        else if (c == '\n')
 	{
 		state->buf[state->index] = 0;
 		do_puts(state->buf);
 		state->index = 0;
-	}
-	else if ((c == 0) || (state->index >= PRINTK_BUFMAX))
-	{
-		flush(state);
-		do_putchar(c);
 	}
 	else
 	{
@@ -174,6 +174,15 @@ early_printk (const char *fmt, va_list args)
 int
 printk (const char *fmt, ...)
 {
+/*
+#ifdef NAUT_CONFIG_ARCH_ARM64
+        // Currently printk isn't working and I can't figure out why,
+        // so for now I'm just going to use a simpler version for ARM
+        // so I can set up stuff like interrupts which will help with debugging
+        pl011_uart_puts(printk_uart, fmt);
+        return 0;
+#endif
+*/
 	va_list	args;
 	int err = 0;
 
