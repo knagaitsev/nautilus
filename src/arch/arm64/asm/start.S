@@ -48,8 +48,10 @@ nautilus_entry:
     ldr     x1, =boot_stack_end
     mov     sp, x1
 
-    # Install the interrupt vector tables
+    # Install the interrupt vector tables (save the dtb)
+    mov x20, x0
     bl      __install_iv_tables
+    mov x0, x20
 
     # Jump to our kernel_main routine in C (make sure it doesn't return)
 4:  

@@ -5,6 +5,7 @@
 #include<nautilus/printk.h>
 #include<nautilus/fpu.h>
 #include<nautilus/naut_string.h>
+#include<nautilus/fdt.h>
 
 #include<arch/arm64/unimpl.h>
 
@@ -35,12 +36,12 @@ vga_make_entry (char c, uint8_t color)
     uint16_t color16 = color;
     return c16 | color16 << 8;
 }
+// (I want to stick this somewhere else later on (or make it not needed))
 
 extern void *_bssEnd;
 extern void *_bssStart;
 
-
-void init(unsigned long dtb_raw, unsigned long x1, unsigned long x2, unsigned long x3) {
+void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x3) {
 
   struct naut_info *naut = &nautilus_info;
 
@@ -59,7 +60,17 @@ void init(unsigned long dtb_raw, unsigned long x1, unsigned long x2, unsigned lo
 
   printk(NAUT_WELCOME);
 
-  printk("Hello, %d\n", 12345678);
+  printk("%p\n", (void*)dtb);
+  print_fdt(dtb);
 
-  while(1) {}
+  // Up next
+  //nk_dev_init();
+  //nk_char_dev_init();
+  //nk_block_dev_init();
+  //nk_net_dev_init();
+  //nk_gpu_dev_init();
+
+
+  // Setup the temporary boot-time allocator
+  //mm_boot_init(fdt);
 }

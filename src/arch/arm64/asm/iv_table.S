@@ -5,9 +5,9 @@
 __install_iv_tables:
   
   // Check that we are in EL1
-  mrs x0, CurrentEL
-  lsr x0, x0, 2
-  cmp x0, 1
+  mrs x1, CurrentEL
+  lsr x1, x1, 2
+  cmp x1, 1
   beq 1f
 
   // We are in the wrong EL!
@@ -18,8 +18,8 @@ __install_iv_tables:
   b .
 
 1:
-  adr x0, __el1_iv_table
-  msr VBAR_EL1, x0
+  adr x1, __el1_iv_table
+  msr VBAR_EL1, x1
   ret
 
 .EXTERN el1_to_el1_exception_entry
