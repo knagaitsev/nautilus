@@ -5,3 +5,4 @@ obj-y += asm/ \
 	fpu.o \
 	setjmp.o \
 	excp.o \
+	early_mem.o \

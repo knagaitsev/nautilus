@@ -870,7 +870,7 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 	qemu-system-riscv64 -bios default -m 2G -M sifive_u -kernel nautilus.bin -serial mon:stdio -display none -gdb tcp::1234
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
-	qemu-system-aarch64 -machine virt -kernel nautilus.bin --cpu cortex-a35 -serial stdio
+	qemu-system-aarch64 -machine virt -kernel nautilus.bin --cpu cortex-a35 -serial stdio -m 2G
 endif
 
 # New function to run a Python script which generates Lua test code,

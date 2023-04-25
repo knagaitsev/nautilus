@@ -37,14 +37,6 @@ int arch_numa_init(struct sys_info *sys) {
   return 0;
 }
 
-void arch_detect_mem_map(mmap_info_t *mm_info, mem_map_entry_t *memory_map,
-                         unsigned long mbd) {
-  ARM64_ERR_UNIMPL;
-}
-void arch_reserve_boot_regions(unsigned long mbd) {
-  ARM64_ERR_UNIMPL;
-}
-
 uint32_t arch_cycles_to_ticks(uint64_t cycles) {
   ARM64_ERR_UNIMPL;
   return 0;

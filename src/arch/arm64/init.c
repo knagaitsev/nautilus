@@ -60,17 +60,27 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   printk(NAUT_WELCOME);
 
-  printk("%p\n", (void*)dtb);
   print_fdt(dtb);
 
-  // Up next
-  //nk_dev_init();
-  //nk_char_dev_init();
-  //nk_block_dev_init();
-  //nk_net_dev_init();
-  //nk_gpu_dev_init();
-
+  // Init devices (these don't seem to do anything for now)
+  nk_dev_init();
+  nk_char_dev_init();
+  nk_block_dev_init();
+  nk_net_dev_init();
+  nk_gpu_dev_init();
 
   // Setup the temporary boot-time allocator
-  //mm_boot_init(fdt);
+  mm_boot_init(dtb);
+
+  // Testing exception logging
+  //*((int*)0xFFFFFFFFFFFFFFF0) = 100;
+  
+  // Enumate CPUs and initialize them
+//  smp_early_init(naut);
+
+  /* this will populate NUMA-related structures */
+//  arch_numa_init(&naut->sys);
+
+  // Setup the main kernel memory allocator
+//  nk_kmem_init();
 }

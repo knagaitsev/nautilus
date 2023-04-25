@@ -31,19 +31,23 @@ struct __attribute__((packed)) excp_entry_info {
 };
 
 void el1_to_el1_interrupt(struct excp_entry_info *info) {
+  printk("EL1 to EL1 Interrupt: :( Not an error we just haven't implemented correct handling yet\n");
   while(1) {}
 }
 
 void el0_to_el1_interrupt(struct excp_entry_info *info) {
+  printk("EL0 to EL1 Interrupt: :( Not an error we just haven't implemented correct handling yet\n");
   while(1) {}
 }
 
 // Double fault
 void el1_to_el1_exception(struct excp_entry_info *info) {
+  printk("EL1 to EL1 EXCEPTION: ESR = 0x%x, FAR = %p\n", info->esr, (void*)info->far);
   while(1) {}
 }
 
 // User-mode exception
 void el0_to_el1_exception(struct excp_entry_info *info) {
-
+  printk("EL0 to EL1 EXCEPTION: ESR = 0x%x, FAR = %p\n", info->esr, (void*)info->far);
+  while(1) {}
 }
