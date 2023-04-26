@@ -63,4 +63,23 @@ inline static void store_fp_ctrl_reg(fp_ctrl_reg_t *reg) {
   STORE_SYS_REG(FPCR, reg->raw);
 }
 
+typedef struct int_mask_reg {
+  uint64_t raw;
+  struct {
+    uint_t __resv1 : 6;
+    uint_t fiq_masked : 1;
+    uint_t irq_masked : 1;
+    uint_t serror_masked : 1;
+    uint_t debug_masked : 1;
+    // Rest reserved
+  };
+} int_mask_reg_t;
+
+inline static void load_int_mask_reg(int_mask_reg_t *reg) {
+  LOAD_SYS_REG(DAIF, reg->raw);
+}
+inline static void store_int_mask_reg(int_mask_reg_t *reg) {
+  STORE_SYS_REG(DAIF, reg->raw);
+}
+
 #endif

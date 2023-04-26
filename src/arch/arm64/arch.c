@@ -1,15 +1,30 @@
 
 #include<nautilus/arch.h>
 
+#include<arch/arm64/sys_reg.h>
+
 void arch_enable_ints(void) {
-  ARM64_ERR_UNIMPL;
+  int_mask_reg_t reg;
+  load_int_mask_reg(&reg);
+  reg.fiq_masked = 0;
+  reg.irq_masked = 0;
+  reg.serror_masked = 0;
+  reg.debug_masked = 0;
+  store_int_mask_reg(&reg);
 }
 void arch_disable_ints(void) {
-  ARM64_ERR_UNIMPL;
+  int_mask_reg_t reg;
+  load_int_mask_reg(&reg);
+  reg.fiq_masked = 1;
+  reg.irq_masked = 1;
+  reg.serror_masked = 1;
+  reg.debug_masked = 1;
+  store_int_mask_reg(&reg);
 }
 int arch_ints_enabled(void) {
-  ARM64_ERR_UNIMPL;
-  return 0;
+  int_mask_reg_t reg;
+  load_int_mask_reg(&reg);
+  return !!(reg.raw);
 }
 
 void arch_irq_enable(int irq) {
@@ -77,6 +92,7 @@ uint64_t arch_read_timestamp(void) {
 void arch_print_regs(struct nk_regs *r) {
   ARM64_ERR_UNIMPL;
 }
+
 void *arch_read_sp(void) {
   void *stack_ptr;
   __asm__ __volatile__ (
@@ -87,10 +103,11 @@ void *arch_read_sp(void) {
       );
   return stack_ptr;
 }
+
 void arch_relax(void) {
-  ARM64_ERR_UNIMPL;
+  __asm__ __volatile__ ("wfi");
 }
 void arch_halt(void) {
-  ARM64_ERR_UNIMPL;
+  __asm__ __volatile__ ("wfe");
 }
 

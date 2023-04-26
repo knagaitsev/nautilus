@@ -67,5 +67,5 @@ nautilus_entry:
 
 .align 16
 boot_stack:
-	.space 4096
+.space 4096
 boot_stack_end:

@@ -6,8 +6,15 @@
 #include<nautilus/fpu.h>
 #include<nautilus/naut_string.h>
 #include<nautilus/fdt.h>
+#include<nautilus/arch.h>
+#include<nautilus/dev.h>
+#include<nautilus/chardev.h>
+#include<nautilus/blkdev.h>
+#include<nautilus/netdev.h>
+#include<nautilus/gpudev.h>
 
 #include<arch/arm64/unimpl.h>
+#include<arch/arm64/gic.h>
 
 #include<dev/pl011.h>
 
@@ -60,7 +67,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   printk(NAUT_WELCOME);
 
-  print_fdt(dtb);
+  printk("--- Device Tree ---\n");
+  print_fdt((void*)dtb);
 
   // Init devices (these don't seem to do anything for now)
   nk_dev_init();
@@ -72,9 +80,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Setup the temporary boot-time allocator
   mm_boot_init(dtb);
 
-  // Testing exception logging
-  //*((int*)0xFFFFFFFFFFFFFFF0) = 100;
-  
   // Enumate CPUs and initialize them
 //  smp_early_init(naut);
 
