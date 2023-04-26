@@ -27,22 +27,6 @@ int arch_ints_enabled(void) {
   return !!(reg.raw);
 }
 
-void arch_irq_enable(int irq) {
-  ARM64_ERR_UNIMPL;
-}
-void arch_irq_disable(int irq) {
-  ARM64_ERR_UNIMPL;
-}
-void arch_irq_install(int irq, int (*handler)(excp_entry_t *excp,
-                                              ulong_t vector,
-                                              void *state)) {
-  ARM64_ERR_UNIMPL;
-}
-
-void arch_irq_uninstall(int irq) {
-  ARM64_ERR_UNIMPL;
-}
-
 int arch_early_init(struct naut_info *naut) {
   ARM64_ERR_UNIMPL;
   return 0;

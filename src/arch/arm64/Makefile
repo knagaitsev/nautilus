@@ -6,3 +6,4 @@ obj-y += asm/ \
 	setjmp.o \
 	excp.o \
 	early_mem.o \
+	gic.o \

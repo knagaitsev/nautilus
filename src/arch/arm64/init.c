@@ -33,6 +33,7 @@
 #define QEMU_VIRT_BASE_CLOCK 24000000 // 24 MHz Clock
 
 struct pl011_uart _main_pl011_uart;
+struct gic _main_gic;
 
 /* Faking some vc stuff */
 
@@ -79,6 +80,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Setup the temporary boot-time allocator
   mm_boot_init(dtb);
+
+  // Initialize (but not enable) the Generic Interrupt Controller
+  if(init_gic((void*)dtb, &_main_gic)) {
+    printk("Failed to initialize the GIC!\n");
+  }
 
   // Enumate CPUs and initialize them
 //  smp_early_init(naut);
