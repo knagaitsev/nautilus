@@ -12,6 +12,9 @@
 #include<nautilus/blkdev.h>
 #include<nautilus/netdev.h>
 #include<nautilus/gpudev.h>
+#include<nautilus/arch.h>
+#include<nautilus/irq.h>
+#include<nautilus/idt.h>
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/gic.h>
@@ -45,6 +48,12 @@ vga_make_entry (char c, uint8_t color)
     return c16 | color16 << 8;
 }
 // (I want to stick this somewhere else later on (or make it not needed))
+//
+
+int timer_interrupt_handler(excp_entry_t *info, excp_vec_t vec, void *state) {
+  printk("TIMER!!!\n");
+  return 0;
+}
 
 extern void *_bssEnd;
 extern void *_bssStart;
@@ -85,6 +94,20 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   if(init_gic((void*)dtb, &_main_gic)) {
     printk("Failed to initialize the GIC!\n");
   }
+
+
+  arch_irq_install(30, timer_interrupt_handler);
+  arch_enable_ints();
+
+  print_gic();
+  
+  // Set a 1 second timer
+  __asm__ __volatile__ (
+    "mrs x1, CNTFRQ_EL0;"
+    "msr CNTP_TVAL_EL0, x1;"
+    "mov x0, 1;"
+    "msr CNTP_CTL_EL0, x0;"
+    );
 
   // Enumate CPUs and initialize them
 //  smp_early_init(naut);

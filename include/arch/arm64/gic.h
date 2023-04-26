@@ -25,11 +25,11 @@ typedef struct gic {
 #endif
 
 #define GICD_BITMAP_SET(gic, num, offset) \
-  *((uint32_t*)(gic->dist_base + offset)+(num >> 6)) |= (1<<(num&0x3F))
+  *((volatile uint32_t*)(gic->dist_base + offset)+(num >> 6)) |= (1<<(num&0x3F))
 #define GICD_BITMAP_UNSET(gic, num, offset) \
-  *((uint32_t*)(gic->dist_base + offset)+(num >> 6)) &= ~(1<<(num&0x3F))
+  *((volatile uint32_t*)(gic->dist_base + offset)+(num >> 6)) &= ~(1<<(num&0x3F))
 #define GICD_BITMAP_READ(gic, num, offset) \
-  (!!(*((uint32_t*)(gic->dist_base + offset)+(num >> 6)) & (1<<(num&0x3F))))
+  (!!(*((volatile uint32_t*)(gic->dist_base + offset)+(num >> 6)) & (1<<(num&0x3F))))
 
 // Distributor Register Offsets
 #define GICD_CTLR_OFFSET 0x0
@@ -69,7 +69,10 @@ typedef struct gic {
 #define GICC_APR_0_OFFSET 0xD0
 #define GICC_NSAPR_0_OFFSET 0xE0
 
+extern gic_t *__gic_ptr;
+
 int init_gic(void *dtb, gic_t *gic);
+void print_gic(void);
 
 // Unique (non-bitmap) GICD Registers
 typedef union gicd_ctl_reg {
@@ -197,6 +200,30 @@ static inline int gicd_int_pending(gic_t *gic, uint_t int_num) {
   }
 }
 
+// Active Interrupts
+static inline int gicd_set_int_active(gic_t *gic, uint_t int_num) {
+  if(INVALID_INT_NUM(gic, int_num)) {
+    return -1;
+  }
+  GICD_BITMAP_SET(gic, int_num, GICD_ISACTIVER_0_OFFSET);
+  return 0;
+}
+static inline int gicd_clear_int_active(gic_t *gic, uint_t int_num) {
+  if(INVALID_INT_NUM(gic, int_num)) {
+    return -1;
+  }
+  GICD_BITMAP_SET(gic, int_num, GICD_ICACTIVER_0_OFFSET);
+  return 0;
+}
+static inline int gicd_int_active(gic_t *gic, uint_t int_num) {
+  if(INVALID_INT_NUM(gic, int_num)) {
+    return 0;
+  }
+  else {
+    return GICD_BITMAP_READ(gic, int_num, GICD_ISACTIVER_0_OFFSET);
+  }
+}
+
 /*
  * There are more to implement like "active" saving and restoring, 
  */
@@ -248,15 +275,15 @@ static inline gicc_binary_point_reg_t *get_gicc_aliased_binary_point_reg(gic_t *
   return (gicc_binary_point_reg_t*)(gic->cpu_interface_base + GICC_ABPR_OFFSET);
 }
 
-typedef __attribute__((packed)) struct gic_int_info {
-  uint_t int_id : 10;
-  uint_t cpu_id : 3;
-} gic_int_info_t;
-
-typedef union gicc_int_info_reg {
+typedef __attribute__((packed)) union gic_int_info {
   uint32_t raw;
-  gic_int_info_t info;
-} gicc_int_info_reg_t;
+  struct {
+    uint_t int_id : 10;
+    uint_t cpu_id : 3;
+  };
+} gic_int_info_t;
+typedef gic_int_info_t gicc_int_info_reg_t;
+
 ASSERT_SIZE(gicc_int_info_reg_t, 4);
 
 static inline gicc_int_info_reg_t *get_gicc_int_ack_reg(gic_t *gic) {
@@ -283,12 +310,13 @@ static inline gicc_int_info_reg_t *get_deactivate_int_reg(gic_t *gic) {
 
 // Acknowleges the interrupt by reading from the ack register
 static inline int gic_get_int_info(gic_t *gic, gic_int_info_t *info) {
-  *info = get_gicc_int_ack_reg(gic)->info;
+  gicc_int_info_reg_t *info_reg = get_gicc_int_ack_reg(gic);
+  info->raw = info_reg->raw;
   return 0;
 }
 // Signals end of interrupt to the GIC
 static inline int gic_end_of_int(gic_t *gic, gic_int_info_t *info) {
-  get_gicc_eoi_reg(gic)->info = *info;
+  get_gicc_eoi_reg(gic)->raw = info->raw;
   return 0;
 }
 

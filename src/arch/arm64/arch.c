@@ -2,6 +2,7 @@
 #include<nautilus/arch.h>
 
 #include<arch/arm64/sys_reg.h>
+#include<arch/arm64/gic.h>
 
 void arch_enable_ints(void) {
   int_mask_reg_t reg;
@@ -10,6 +11,13 @@ void arch_enable_ints(void) {
   reg.irq_masked = 0;
   reg.serror_masked = 0;
   reg.debug_masked = 0;
+
+  gicc_ctl_reg_t *ctl_reg = get_gicc_ctl_reg(__gic_ptr);
+  ctl_reg->enabled = 1;
+
+  gicc_priority_reg_t *priority_reg = get_gicc_priority_mask_reg(__gic_ptr);
+  priority_reg->priority = 0xFF;
+
   store_int_mask_reg(&reg);
 }
 void arch_disable_ints(void) {
@@ -19,6 +27,13 @@ void arch_disable_ints(void) {
   reg.irq_masked = 1;
   reg.serror_masked = 1;
   reg.debug_masked = 1;
+
+  gicc_ctl_reg_t *ctl_reg = get_gicc_ctl_reg(__gic_ptr);
+  ctl_reg->enabled = 0;
+  
+  gicc_priority_reg_t *priority_reg = get_gicc_priority_mask_reg(__gic_ptr);
+  priority_reg->priority = 0x0;
+
   store_int_mask_reg(&reg);
 }
 int arch_ints_enabled(void) {
