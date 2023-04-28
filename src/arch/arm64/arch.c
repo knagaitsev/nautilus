@@ -5,50 +5,34 @@
 #include<arch/arm64/gic.h>
 
 void arch_enable_ints(void) {
-  int_mask_reg_t reg;
-  load_int_mask_reg(&reg);
-  reg.fiq_masked = 0;
-  reg.irq_masked = 0;
-  reg.serror_masked = 0;
-  reg.debug_masked = 0;
 
-  gicc_ctl_reg_t *ctl_reg = get_gicc_ctl_reg(__gic_ptr);
-  ctl_reg->enabled = 1;
+  gicc_ctl_reg_t ctl_reg;
+  ctl_reg.raw = LOAD_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET);
+  ctl_reg.grp0_enabled = 1;
+  ctl_reg.grp1_enabled = 1;
+  STORE_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET, ctl_reg.raw);
 
-  gicc_priority_reg_t *priority_reg = get_gicc_priority_mask_reg(__gic_ptr);
-  priority_reg->priority = 0xFF;
+  gicc_priority_reg_t priority_reg;
+  priority_reg.raw = LOAD_GICC_REG(__gic_ptr, GICC_PMR_OFFSET);
+  priority_reg.priority = 0xFF;
+  STORE_GICC_REG(__gic_ptr, GICC_PMR_OFFSET, priority_reg.raw);
 
-  store_int_mask_reg(&reg);
+  __asm__ __volatile__ ("msr DAIFClr, 0xF");
 }
 void arch_disable_ints(void) {
-  int_mask_reg_t reg;
-  load_int_mask_reg(&reg);
-  reg.fiq_masked = 1;
-  reg.irq_masked = 1;
-  reg.serror_masked = 1;
-  reg.debug_masked = 1;
 
-  gicc_ctl_reg_t *ctl_reg = get_gicc_ctl_reg(__gic_ptr);
-  ctl_reg->enabled = 0;
-  
-  gicc_priority_reg_t *priority_reg = get_gicc_priority_mask_reg(__gic_ptr);
-  priority_reg->priority = 0x0;
+  gicc_ctl_reg_t ctl_reg;
+  ctl_reg.raw = LOAD_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET);
+  ctl_reg.grp0_enabled = 0;
+  ctl_reg.grp1_enabled = 0;
+  STORE_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET, ctl_reg.raw);
 
-  store_int_mask_reg(&reg);
+  __asm__ __volatile__ ("msr DAIFSet, 0xF");
 }
 int arch_ints_enabled(void) {
   int_mask_reg_t reg;
   load_int_mask_reg(&reg);
   return !!(reg.raw);
-}
-
-int arch_early_init(struct naut_info *naut) {
-  ARM64_ERR_UNIMPL;
-  return 0;
-}
-int arch_numa_init(struct sys_info *sys) {
-  ARM64_ERR_UNIMPL;
-  return 0;
 }
 
 uint32_t arch_cycles_to_ticks(uint64_t cycles) {
@@ -104,6 +88,7 @@ void *arch_read_sp(void) {
 }
 
 void arch_relax(void) {
+  // I don't know if these are correct for these two functions
   __asm__ __volatile__ ("wfi");
 }
 void arch_halt(void) {

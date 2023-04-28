@@ -1,5 +1,5 @@
 
-.EXTERN e10_to_el1_interrupt
+.EXTERN route_interrupt_from_user
 .GLOBAL el0_to_el1_interrupt_entry
 el0_to_el1_interrupt_entry:
 
@@ -22,7 +22,7 @@ el0_to_el1_interrupt_entry:
   stp x0, x1, [sp, 0xb0]
 
   mov x0, sp
-  bl el0_to_el1_interrupt
+  bl route_interrupt_from_user
 
   ldp x0, x1, [sp, 0x00]
   ldp x2, x3, [sp, 0x10]
@@ -40,7 +40,7 @@ el0_to_el1_interrupt_entry:
 
   eret
 
-.EXTERN e11_to_el1_interrupt
+.EXTERN route_interrupt_from_kernel
 .GLOBAL el1_to_el1_interrupt_entry
 el1_to_el1_interrupt_entry:
 
@@ -65,7 +65,7 @@ el1_to_el1_interrupt_entry:
   stp x0, x1, [sp, 0xb0]
 
   mov x0, sp
-  bl el1_to_el1_interrupt
+  bl route_interrupt_from_kernel
 
   ldp x0, x1, [sp, 0x00]
   ldp x2, x3, [sp, 0x10]
@@ -83,7 +83,7 @@ el1_to_el1_interrupt_entry:
 
   eret
 
-.EXTERN el0_to_el1_exception
+.EXTERN route_exception_from_user
 .GLOBAL el0_to_el1_exception_entry
 el0_to_el1_exception_entry:
 
@@ -108,7 +108,7 @@ el0_to_el1_exception_entry:
   stp x0, x1, [sp, 0xb0]
 
   mov x0, sp
-  bl el0_to_el1_exception
+  bl route_exception_from_user
 
   ldp x0, x1, [sp, 0x00]
   ldp x2, x3, [sp, 0x10]
@@ -126,7 +126,7 @@ el0_to_el1_exception_entry:
 
   eret
 
-.EXTERN el1_to_el1_exception
+.EXTERN route_exception_from_kernel
 .GLOBAL el1_to_el1_exception_entry
 el1_to_el1_exception_entry:
 
@@ -149,7 +149,7 @@ el1_to_el1_exception_entry:
   stp x0, x1, [sp, 0xb0]
 
   mov x0, sp
-  bl el1_to_el1_exception
+  bl route_exception_from_kernel
 
   ldp x0, x1, [sp, 0x00]
   ldp x2, x3, [sp, 0x10]

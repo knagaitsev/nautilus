@@ -18,6 +18,8 @@
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/gic.h>
+#include<arch/arm64/sys_reg.h>
+#include<arch/arm64/excp.h>
 
 #include<dev/pl011.h>
 
@@ -67,6 +69,12 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   
   // Enable the FPU
   fpu_init(naut, 0);
+
+  naut->sys.dtb = (struct dtb_fdt_header*)dtb;
+
+  mpid_reg_t mpid_reg;
+  load_mpid_reg(&mpid_reg);
+  naut->sys.bsp_id = mpid_reg.aff0; 
  
   // Initialize serial output
   pl011_uart_init(&_main_pl011_uart, (void*)QEMU_PL011_VIRT_BASE_ADDR, QEMU_VIRT_BASE_CLOCK);
@@ -90,31 +98,38 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Setup the temporary boot-time allocator
   mm_boot_init(dtb);
 
+  // Initialize SMP using the dtb
+  smp_early_init(naut);
+
+  // Initialize NUMA (Fake)
+  arch_numa_init(&naut->sys);
+
   // Initialize (but not enable) the Generic Interrupt Controller
-  if(init_gic((void*)dtb, &_main_gic)) {
-    printk("Failed to initialize the GIC!\n");
+  if(global_init_gic((void*)dtb, &_main_gic)) {
+    printk("Failed to globally initialize the GIC!\n");
+    return;
+  }
+  
+  // Locally Initialize the GIC on the init processor 
+  // (will need to call this on every processor which can receive interrupts)
+  if(per_cpu_init_gic()) {
+    printk("Failed to initialize the init processor's GIC registers!\n");
+    return;
   }
 
+  print_gic();
+
+  // Initialize the structures which hold info about 
+  // interrupt/exception handlers and routing
+  if(excp_init()) {
+    printk("Failed to initialize the excp handler tables!\n");
+    return;
+  }
+
+  // Now we should be able to install irq handlers
 
   arch_irq_install(30, timer_interrupt_handler);
+
+  // Enable interrupts
   arch_enable_ints();
-
-  print_gic();
-  
-  // Set a 1 second timer
-  __asm__ __volatile__ (
-    "mrs x1, CNTFRQ_EL0;"
-    "msr CNTP_TVAL_EL0, x1;"
-    "mov x0, 1;"
-    "msr CNTP_CTL_EL0, x0;"
-    );
-
-  // Enumate CPUs and initialize them
-//  smp_early_init(naut);
-
-  /* this will populate NUMA-related structures */
-//  arch_numa_init(&naut->sys);
-
-  // Setup the main kernel memory allocator
-//  nk_kmem_init();
 }

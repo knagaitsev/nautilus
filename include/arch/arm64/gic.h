@@ -24,6 +24,12 @@ typedef struct gic {
   #define INVALID_INT_NUM(gic, num) 0
 #endif
 
+#define LOAD_GICD_REG(gic, offset) *(volatile uint32_t*)(gic->dist_base + offset)
+#define STORE_GICD_REG(gic, offset, val) (*(volatile uint32_t*)(gic->dist_base + offset)) = val
+
+#define LOAD_GICC_REG(gic, offset) *(volatile uint32_t*)(gic->cpu_interface_base + offset)
+#define STORE_GICC_REG(gic, offset, val) *(volatile uint32_t*)(gic->cpu_interface_base + offset) = val
+
 #define GICD_BITMAP_SET(gic, num, offset) \
   *((volatile uint32_t*)(gic->dist_base + offset)+(num >> 6)) |= (1<<(num&0x3F))
 #define GICD_BITMAP_UNSET(gic, num, offset) \
@@ -71,7 +77,8 @@ typedef struct gic {
 
 extern gic_t *__gic_ptr;
 
-int init_gic(void *dtb, gic_t *gic);
+int global_init_gic(void *dtb, gic_t *gic);
+int per_cpu_init_gic(void);
 void print_gic(void);
 
 // Unique (non-bitmap) GICD Registers
@@ -84,10 +91,6 @@ typedef union gicd_ctl_reg {
   };
 } gicd_ctl_reg_t;
 ASSERT_SIZE(gicd_ctl_reg_t, 4);
-
-static inline gicd_ctl_reg_t *get_gicd_ctl_reg(gic_t *gic) {
-  return (gicd_ctl_reg_t*)(gic->dist_base + GICD_CTLR_OFFSET);
-}
 
 typedef union gicd_type_reg {
   uint32_t raw;
@@ -102,10 +105,6 @@ typedef union gicd_type_reg {
 } gicd_type_reg_t;
 ASSERT_SIZE(gicd_type_reg_t, 4);
 
-static inline gicd_type_reg_t *get_gicd_type_reg(gic_t *gic) {
-  return (gicd_type_reg_t*)(gic->dist_base + GICD_TYPER_OFFSET);
-}
-
 typedef union gicd_impl_id_reg {
   uint32_t raw;
   struct {
@@ -117,10 +116,6 @@ typedef union gicd_impl_id_reg {
   };
 } gicd_impl_id_reg_t;
 ASSERT_SIZE(gicd_impl_id_reg_t, 4);
-
-static inline gicd_impl_id_reg_t *get_gicd_impl_id_reg(gic_t *gic) {
-  return (gicd_impl_id_reg_t*)(gic->dist_base + GICD_IIDR_OFFSET);
-}
 
 typedef union gicd_sgi_reg {
   uint32_t raw;
@@ -134,10 +129,6 @@ typedef union gicd_sgi_reg {
   };
 } gicd_sgi_reg_t;
 ASSERT_SIZE(gicd_sgi_reg_t, 4);
-
-static inline gicd_sgi_reg_t *get_gicd_sgi_reg(gic_t *gic) {
-  return (gicd_sgi_reg_t*)(gic->dist_base + GICD_SGIR_OFFSET);
-}
 
 // Bitmapped GICD Register Access
 
@@ -233,15 +224,21 @@ static inline int gicd_int_active(gic_t *gic, uint_t int_num) {
 typedef union gicc_ctl_reg {
   uint32_t raw;
   struct {
-    uint_t enabled : 1;
-    // Rest reserved (unless in secure mode)
+    uint_t grp0_enabled : 1;
+    uint_t grp1_enabled : 1;
+    uint_t ack_ctl : 1;
+    uint_t grp0_fiq : 1;
+    uint_t bpr_aliased : 1;
+    uint_t sig_bypass_fiq : 1;
+    uint_t sig_bypass_irq : 1;
+    uint_t sig_bypass_fiq_alias : 1;
+    uint_t sig_bypass_irq_alias : 1;
+    uint_t dir_required_for_eoi : 1;
+    uint_t dir_required_for_eoi_alias : 1;
+    // Rest reserved
   };
 } gicc_ctl_reg_t;
 ASSERT_SIZE(gicc_ctl_reg_t, 4);
-
-static inline gicc_ctl_reg_t *get_gicc_ctl_reg(gic_t *gic) {
-  return (gicc_ctl_reg_t*)(gic->cpu_interface_base + GICC_CTLR_OFFSET);
-}
 
 typedef union gicc_priority_reg {
   uint32_t raw;
@@ -252,13 +249,6 @@ typedef union gicc_priority_reg {
 } gicc_priority_reg_t;
 ASSERT_SIZE(gicc_priority_reg_t, 4);
 
-static inline gicc_priority_reg_t *get_gicc_priority_mask_reg(gic_t *gic) {
-  return (gicc_priority_reg_t*)(gic->cpu_interface_base + GICC_PMR_OFFSET);
-}
-static inline gicc_priority_reg_t *get_gicc_running_priority_reg(gic_t *gic) {
-  return (gicc_priority_reg_t*)(gic->cpu_interface_base + GICC_RPR_OFFSET);
-}
-
 typedef union gicc_binary_point_reg {
   uint32_t raw;
   struct {
@@ -268,14 +258,7 @@ typedef union gicc_binary_point_reg {
 } gicc_binary_point_reg_t;
 ASSERT_SIZE(gicc_binary_point_reg_t, 4);
 
-static inline gicc_binary_point_reg_t *get_gicc_binary_point_reg(gic_t *gic) {
-  return (gicc_binary_point_reg_t*)(gic->cpu_interface_base + GICC_BPR_OFFSET);
-}
-static inline gicc_binary_point_reg_t *get_gicc_aliased_binary_point_reg(gic_t *gic) {
-  return (gicc_binary_point_reg_t*)(gic->cpu_interface_base + GICC_ABPR_OFFSET);
-}
-
-typedef __attribute__((packed)) union gic_int_info {
+typedef union gic_int_info {
   uint32_t raw;
   struct {
     uint_t int_id : 10;
@@ -286,37 +269,14 @@ typedef gic_int_info_t gicc_int_info_reg_t;
 
 ASSERT_SIZE(gicc_int_info_reg_t, 4);
 
-static inline gicc_int_info_reg_t *get_gicc_int_ack_reg(gic_t *gic) {
-  return (gicc_int_info_reg_t*)(gic->cpu_interface_base + GICC_IAR_OFFSET);
-}
-static inline gicc_int_info_reg_t *get_gicc_eoi_reg(gic_t *gic) {
-  return (gicc_int_info_reg_t*)(gic->cpu_interface_base + GICC_EOIR_OFFSET);
-}
-static inline gicc_int_info_reg_t *get_gicc_highest_priority_pending_int_reg(gic_t *gic) {
-  return (gicc_int_info_reg_t*)(gic->cpu_interface_base + GICC_HPPIR_OFFSET);
-}
-static inline gicc_int_info_reg_t *get_gicc_aliased_int_ack_reg(gic_t *gic) {
-  return (gicc_int_info_reg_t*)(gic->cpu_interface_base + GICC_AIAR_OFFSET);
-}
-static inline gicc_int_info_reg_t *get_gicc_aliased_eoi_reg(gic_t *gic) {
-  return (gicc_int_info_reg_t*)(gic->cpu_interface_base + GICC_AEOIR_OFFSET);
-}
-static inline gicc_int_info_reg_t *get_gicc_aliased_highest_priority_pending_int_reg(gic_t *gic) {
-  return (gicc_int_info_reg_t*)(gic->cpu_interface_base + GICC_AHPPIR_OFFSET);
-}
-static inline gicc_int_info_reg_t *get_deactivate_int_reg(gic_t *gic) {
-  return (gicc_int_info_reg_t*)(gic->cpu_interface_base + GICC_DIR_OFFSET);
-}
-
 // Acknowleges the interrupt by reading from the ack register
 static inline int gic_get_int_info(gic_t *gic, gic_int_info_t *info) {
-  gicc_int_info_reg_t *info_reg = get_gicc_int_ack_reg(gic);
-  info->raw = info_reg->raw;
+  info->raw = LOAD_GICC_REG(gic, GICC_IAR_OFFSET);
   return 0;
 }
 // Signals end of interrupt to the GIC
-static inline int gic_end_of_int(gic_t *gic, gic_int_info_t *info) {
-  get_gicc_eoi_reg(gic)->raw = info->raw;
+static __attribute__((noinline)) int gic_end_of_int(gic_t *gic, gic_int_info_t *info) {
+  STORE_GICC_REG(gic, GICC_EOIR_OFFSET, info->raw);
   return 0;
 }
 
@@ -330,9 +290,5 @@ typedef union gicc_interface_id_reg {
   };
 } gicc_interface_id_reg_t;
 ASSERT_SIZE(gicc_interface_id_reg_t, 4);
-
-static inline gicc_interface_id_reg_t *get_gicc_interface_id_reg(gic_t *gic) {
-  return (gicc_interface_id_reg_t*)(gic->cpu_interface_base + GICC_IIDR_OFFSET);
-}
 
 #endif

@@ -63,7 +63,7 @@ inline static void store_fp_ctrl_reg(fp_ctrl_reg_t *reg) {
   STORE_SYS_REG(FPCR, reg->raw);
 }
 
-typedef struct int_mask_reg {
+typedef union int_mask_reg {
   uint64_t raw;
   struct {
     uint_t __resv1 : 6;
@@ -80,6 +80,28 @@ inline static void load_int_mask_reg(int_mask_reg_t *reg) {
 }
 inline static void store_int_mask_reg(int_mask_reg_t *reg) {
   STORE_SYS_REG(DAIF, reg->raw);
+}
+
+typedef union mpid_reg {
+  uint64_t raw;
+  struct {
+    uint_t aff0 : 8;
+    uint_t aff1 : 8;
+    uint_t aff2 : 8;
+    uint_t mt : 1;
+    uint_t __resv1 : 5;
+    uint_t uniproc : 1;
+    uint_t __resv2 : 1;
+    uint_t aff3 : 8;
+    // Rest reserved
+  };
+} mpid_reg_t;
+
+inline static void load_mpid_reg(mpid_reg_t *reg) {
+  LOAD_SYS_REG(MPIDR_EL1, reg->raw);
+}
+inline static void store_mpid_reg(mpid_reg_t *reg) {
+  STORE_SYS_REG(MPIDR_EL1, reg->raw);
 }
 
 #endif

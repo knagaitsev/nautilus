@@ -7,3 +7,5 @@ obj-y += asm/ \
 	excp.o \
 	early_mem.o \
 	gic.o \
+	numa.o \
+	smp.o \
