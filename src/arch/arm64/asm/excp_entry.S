@@ -14,8 +14,10 @@ el0_to_el1_interrupt_entry:
   stp x12, x13, [sp, 0x60]
   stp x14, x15, [sp, 0x70]
   stp x16, x17, [sp, 0x80]
-  stp x18, xzr, [sp, 0x90]
-  stp x29, x30, [sp, 0xa0]
+  stp x18, x29, [sp, 0x90]
+
+  mrs x0, ELR_EL1
+  stp x30, x0, [sp, 0xa0]
 
   mrs x0, ESR_EL1
   mrs x1, FAR_EL1
@@ -33,8 +35,8 @@ el0_to_el1_interrupt_entry:
   ldp x12, x13, [sp, 0x60]
   ldp x14, x15, [sp, 0x70]
   ldp x16, x17, [sp, 0x80]
-  ldp x18, xzr, [sp, 0x90]
-  ldp x29, x30, [sp, 0xa0]
+  ldp x18, x29, [sp, 0x90]
+  ldp x30, xzr, [sp, 0xa0]
 
   add sp, sp, 0xc0
 
@@ -55,8 +57,10 @@ el1_to_el1_interrupt_entry:
   stp x12, x13, [sp, 0x60]
   stp x14, x15, [sp, 0x70]
   stp x16, x17, [sp, 0x80]
-  stp x18, xzr, [sp, 0x90]
-  stp x29, x30, [sp, 0xa0]
+  stp x18, x29, [sp, 0x90]
+
+  mrs x0, ELR_EL1
+  stp x30, x0, [sp, 0xa0]
 
   mrs x0, ESR_EL1
   mrs x1, FAR_EL1
@@ -76,8 +80,8 @@ el1_to_el1_interrupt_entry:
   ldp x12, x13, [sp, 0x60]
   ldp x14, x15, [sp, 0x70]
   ldp x16, x17, [sp, 0x80]
-  ldp x18, xzr, [sp, 0x90]
-  ldp x29, x30, [sp, 0xa0]
+  ldp x18, x29, [sp, 0x90]
+  ldp x30, xzr, [sp, 0xa0]
 
   add sp, sp, 0xc0
 
@@ -98,8 +102,10 @@ el0_to_el1_exception_entry:
   stp x12, x13, [sp, 0x60]
   stp x14, x15, [sp, 0x70]
   stp x16, x17, [sp, 0x80]
-  stp x18, xzr, [sp, 0x90]
-  stp x29, x30, [sp, 0xa0]
+  stp x18, x29, [sp, 0x90]
+
+  mrs x0, ELR_EL1
+  stp x30, x0, [sp, 0xa0]
 
   mrs x0, ESR_EL1
   mrs x1, FAR_EL1
@@ -119,8 +125,8 @@ el0_to_el1_exception_entry:
   ldp x12, x13, [sp, 0x60]
   ldp x14, x15, [sp, 0x70]
   ldp x16, x17, [sp, 0x80]
-  ldp x18, xzr, [sp, 0x90]
-  ldp x29, x30, [sp, 0xa0]
+  ldp x18, x29, [sp, 0x90]
+  ldp x30, xzr, [sp, 0xa0]
 
   add sp, sp, 0xc0
 
@@ -141,8 +147,10 @@ el1_to_el1_exception_entry:
   stp x12, x13, [sp, 0x60]
   stp x14, x15, [sp, 0x70]
   stp x16, x17, [sp, 0x80]
-  stp x18, xzr, [sp, 0x90]
-  stp x29, x30, [sp, 0xa0]
+  stp x18, x29, [sp, 0x90]
+
+  mrs x0, ELR_EL1
+  stp x30, x0, [sp, 0xa0]
 
   mrs x0, ESR_EL1
   mrs x1, FAR_EL1
@@ -160,8 +168,8 @@ el1_to_el1_exception_entry:
   ldp x12, x13, [sp, 0x60]
   ldp x14, x15, [sp, 0x70]
   ldp x16, x17, [sp, 0x80]
-  ldp x18, xzr, [sp, 0x90]
-  ldp x29, x30, [sp, 0xa0]
+  ldp x18, x29, [sp, 0x90]
+  ldp x30, xzr, [sp, 0xa0]
 
   add sp, sp, 0xc0
 

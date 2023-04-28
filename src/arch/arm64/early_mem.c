@@ -67,7 +67,7 @@ arch_detect_mem_map (mmap_info_t * mm_info,
 
     fdt_reg_t reg = { .address = 0, .size = 0 };
     int getreg_result = fdt_getreg(fdt, offset, &reg);
-    // printk("Res: %d, Reg: %x, %x\n\n", getreg_result, reg.address, reg.size);
+    printk("Res: %d, Reg: %x, %x\n\n", getreg_result, reg.address, reg.size);
 
     if (getreg_result == 0) {
         dtb_ram_start = reg.address;

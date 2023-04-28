@@ -52,8 +52,13 @@ vga_make_entry (char c, uint8_t color)
 // (I want to stick this somewhere else later on (or make it not needed))
 //
 
+uint64_t unsafe_counter = 0;
 int timer_interrupt_handler(excp_entry_t *info, excp_vec_t vec, void *state) {
-  printk("TIMER!!!\n");
+  printk("TIMER: %u\n", unsafe_counter);
+  unsafe_counter += 1;
+  asm volatile (
+    "mrs x1, CNTFRQ_EL0;"
+    "msr CNTP_TVAL_EL0, x1;");
   return 0;
 }
 
@@ -126,10 +131,23 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
     return;
   }
 
+  // Start using the main kernel allocator
+  nk_kmem_init();
+  mm_boot_kmem_init();
+
   // Now we should be able to install irq handlers
 
   arch_irq_install(30, timer_interrupt_handler);
 
   // Enable interrupts
   arch_enable_ints();
+
+  //asm volatile ("svc 10");
+
+  // Start the timer
+  asm volatile (
+    "mrs x1, CNTFRQ_EL0;"
+    "msr CNTP_TVAL_EL0, x1;"
+    "mov x0, 1;"
+    "msr CNTP_CTL_EL0, x0;");
 }
