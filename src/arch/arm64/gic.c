@@ -32,13 +32,6 @@ int global_init_gic(void *dtb, gic_t *gic) {
   GIC_PRINTK("maximum number of interrupts = %llu\n", __gic_ptr->max_ints);
   GIC_PRINTK("maximum number of cpu interfaces = %llu\n", __gic_ptr->max_cpu_interfaces);
 
-  gicd_sgi_reg_t sgi_reg;
-  sgi_reg.raw = LOAD_GICD_REG(__gic_ptr, GICD_SGIR_OFFSET);
-  // Forward SGI's to the processor which requests them
-  //     (other option is to send it to every processor)
-  sgi_reg.target_list_filter = 0b10;
-  STORE_GICD_REG(__gic_ptr, GICD_SGIR_OFFSET, sgi_reg.raw);
-
   gicd_ctl_reg_t ctl_reg;
   ctl_reg.raw = LOAD_GICD_REG(__gic_ptr, GICD_CTLR_OFFSET);
   ctl_reg.enabled = 1;
