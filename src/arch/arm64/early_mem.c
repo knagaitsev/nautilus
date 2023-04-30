@@ -40,9 +40,6 @@ extern char * mem_region_types[6];
 #define BMM_WARN(fmt, args...)  WARN_PRINT("BOOTMEM: " fmt, ##args)
 
 extern ulong_t kernel_end;
-off_t dtb_ram_start = 0;
-size_t dtb_ram_size = 0;
-
 
 void
 arch_reserve_boot_regions (unsigned long fdt)
@@ -50,7 +47,7 @@ arch_reserve_boot_regions (unsigned long fdt)
     int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "mmode_resv", 10);
 
     fdt_reg_t reg = { .address = 0, .size = 0 };
-    int getreg_result = fdt_getreg(fdt, offset, &reg);
+    int getreg_result = fdt_getreg((void*)fdt, offset, &reg);
 
     if (getreg_result == 0) {
         INFO_PRINT("Reseving region (%p, size %lu)\n", reg.address, reg.size);
@@ -58,52 +55,70 @@ arch_reserve_boot_regions (unsigned long fdt)
     }
 }
 
-void
-arch_detect_mem_map (mmap_info_t * mm_info,
-                     mem_map_entry_t * memory_map,
-                     ulong_t fdt)
-{
-    int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "memory", 6);
+// Nesting functions would take an executable stack and that seems like a bad idea
+// So for now these statics will be needed to hand off the mem map to the callback
+static mmap_info_t *__arch_detect_mem_map_mm_info;
+static mem_map_entry_t *__arch_detect_mem_map_memory_map;
+int fdt_dev_handle_memory_node(const void *fdt, int offset, int depth) {
+ 
+    // If this isn't a memory node of depth 1, we don't care
+    if(!fdt_nodename_eq(fdt, offset, "memory", 6) || depth > 1) {
+      return 1;
+    }
+
+    mmap_info_t *mm_info = __arch_detect_mem_map_mm_info;
+    mem_map_entry_t *memory_map = __arch_detect_mem_map_memory_map;
 
     fdt_reg_t reg = { .address = 0, .size = 0 };
     int getreg_result = fdt_getreg(fdt, offset, &reg);
-    printk("Res: %d, Reg: %x, %x\n\n", getreg_result, reg.address, reg.size);
 
-    if (getreg_result == 0) {
-        dtb_ram_start = reg.address;
-        dtb_ram_size = reg.size;
+    if (getreg_result != 0) {
+      printk("Found \"memory\" node in DTB with missing REG property!\n");
+      return 0;
     }
 
-    if (dtb_ram_start == 0) {
-      BMM_WARN("DTB did not contain memory segment. Assuming 128MB...\n");
-      dtb_ram_size = 128000000;
-      dtb_ram_start = (ulong_t) &kernel_end;
-    }
-
-    BMM_PRINT("Parsing ARM64 virt machine memory map\n");
+    //printk("Res: %d, Reg: %x, %x\n\n", getreg_result, reg.address, reg.size);
 
     unsigned long long start, end;
 
-    start = round_up(dtb_ram_start, PAGE_SIZE_4KB);
-    end   = round_down(dtb_ram_start + dtb_ram_size, PAGE_SIZE_4KB);
+    start = round_up(reg.address, PAGE_SIZE_4KB);
+    end   = round_down(reg.address + reg.size, PAGE_SIZE_4KB);
 
-    memory_map[0].addr = start;
-    memory_map[0].len  = end-start;
-    memory_map[0].type = MULTIBOOT_MEMORY_AVAILABLE;
+    if(mm_info->num_regions == MAX_MMAP_ENTRIES) {
+      BMM_WARN("Found extra memory region within FDT, however the MMAP is full! Region: [%p - %p] sz:%llu\n", start, end, end-start);
+      return 1;
+    }
+
+    memory_map[mm_info->num_regions].addr = start;
+    memory_map[mm_info->num_regions].len  = end-start;
+    memory_map[mm_info->num_regions].type = MULTIBOOT_MEMORY_AVAILABLE;
 
     BMM_PRINT("Memory map[%d] - [%p - %p] sz:%llu <%s>\n",
-        0,
+        mm_info->num_regions,
         start,
         end,
-		end - start,
-        mem_region_types[memory_map[0].type]);
-    mm_info->usable_ram += end-start;
+	end - start,
+        mem_region_types[memory_map[mm_info->num_regions].type]);
 
-    if (end > (mm_info->last_pfn << PAGE_SHIFT)) {
+    mm_info->usable_ram += end - start;
+
+    if ((end >> PAGE_SHIFT) > mm_info->last_pfn) {
       mm_info->last_pfn = end >> PAGE_SHIFT;
     }
 
     mm_info->total_mem += end-start;
 
     ++mm_info->num_regions;
+
+    return 1;
+}
+
+void
+arch_detect_mem_map (mmap_info_t * mm_info,
+                     mem_map_entry_t * memory_map,
+                     ulong_t fdt)
+{
+  __arch_detect_mem_map_mm_info = mm_info;
+  __arch_detect_mem_map_memory_map = memory_map;
+  fdt_walk_devices((void*)fdt, fdt_dev_handle_memory_node);
 }

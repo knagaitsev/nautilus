@@ -27,6 +27,7 @@
 #include <nautilus/errno.h>
 #include <nautilus/acpi.h>
 #include <nautilus/list.h>
+#include <nautilus/multiboot2.h>
 
 #define u8  uint8_t
 #define u16 uint16_t
@@ -34,9 +35,6 @@
 #define u64 uint64_t
 
 static int srat_rev;
-extern off_t dtb_ram_start;
-extern size_t dtb_ram_size;
-
 
 #ifndef NAUT_CONFIG_DEBUG_NUMA
 #undef DEBUG_PRINT
@@ -135,7 +133,7 @@ arch_numa_init (struct sys_info * sys)
 
     // }
 
-    NUMA_WARN("Faking domain 0 because of lack of ARM support\n");
+    NUMA_WARN("Faking domain 0\n");
     uint32_t i, domain_id = 0;
 	struct numa_domain *n = nk_numa_domain_create(sys, domain_id);
 	if (!n) {
@@ -143,30 +141,37 @@ arch_numa_init (struct sys_info * sys)
 	    return -1;
 	}
 
-    struct mem_region *mem = mm_boot_alloc(sizeof(struct mem_region));
-    if (!mem) {
-        ERROR_PRINT("Could not allocate mem region\n");
-        return -1;
-    }
-    memset(mem, 0, sizeof(struct mem_region));
+    for(uint_t i = 0; i < mm_boot_num_regions(); i++) {
+        mem_map_entry_t *mm_entry = mm_boot_get_region(i);
+        // If this region in the memory map isn't availible memory skip over it
+        if(mm_entry->type != MULTIBOOT_MEMORY_AVAILABLE) {
+          continue;
+        }
+
+        struct mem_region *mem = mm_boot_alloc(sizeof(struct mem_region));
+        if (!mem) {
+            ERROR_PRINT("Could not allocate mem region\n");
+            return -1;
+        }
+        memset(mem, 0, sizeof(struct mem_region));
+        
+        mem->domain_id     = domain_id;
+        mem->base_addr     = mm_entry->addr;
+        mem->len           = mm_entry->len;
+        mem->enabled       = 1;
     
-    mem->domain_id     = domain_id;
-    mem->base_addr     = dtb_ram_start;
-    mem->len           = dtb_ram_size;
-    mem->enabled       = 1;
-
-
-    n->num_regions++;
-    n->addr_space_size += mem->len;
+    
+        n->num_regions++;
+        n->addr_space_size += mem->len;
+     
+        if (list_empty(&n->regions)) {
+            list_add(&mem->entry, &n->regions);
+        } else {
+            list_add_tail(&mem->entry, &n->regions);
+        }
+    }
 
     NUMA_DEBUG("Domain %u now has 0x%lx regions and size 0x%lx\n", n->id, n->num_regions, n->addr_space_size);
-
-    if (list_empty(&n->regions)) {
-        list_add(&mem->entry, &n->regions);
-    } else {
-        list_add_tail(&mem->entry, &n->regions);
-    }
-
     for (i = 0; i < sys->num_cpus; i++) {
         sys->cpus[i]->domain = get_domain(sys, domain_id);
     }

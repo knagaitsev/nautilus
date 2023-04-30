@@ -188,8 +188,7 @@ mm_boot_init (ulong_t mbd)
     ulong_t pm_len;
 
     BMM_PRINT("Setting up boot memory allocator\n");
-
-		memset(&mm_info, 0, sizeof(mm_info));
+    memset(&mm_info, 0, sizeof(mm_info));
 
     /* parse the multiboot2 memory map, filing in 
      * some global data that we will subsequently use here  */

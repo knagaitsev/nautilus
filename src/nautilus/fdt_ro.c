@@ -50,7 +50,7 @@
  */
 #include <nautilus/fdt.h>
 
-static int fdt_nodename_eq_(const void *fdt, int offset,
+int fdt_nodename_eq(const void *fdt, int offset,
 			    const char *s, int len)
 {
 	int olen;
@@ -70,6 +70,7 @@ static int fdt_nodename_eq_(const void *fdt, int offset,
 	else
 		return 0;
 }
+#define fdt_nodename_eq_ fdt_nodename_eq
 
 const char *fdt_string(const void *fdt, int stroffset)
 {

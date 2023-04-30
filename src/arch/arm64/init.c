@@ -15,6 +15,12 @@
 #include<nautilus/arch.h>
 #include<nautilus/irq.h>
 #include<nautilus/idt.h>
+#include<nautilus/mm.h>
+#include<nautilus/waitqueue.h>
+#include<nautilus/future.h>
+#include<nautilus/timer.h>
+#include<nautilus/random.h>
+#include<nautilus/semaphore.h>
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/gic.h>
@@ -136,18 +142,21 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   mm_boot_kmem_init();
 
   // Now we should be able to install irq handlers
-
   arch_irq_install(30, timer_interrupt_handler);
 
   // Enable interrupts
   arch_enable_ints();
+  
+  printk("Interrupts are now enabled\n");
 
-  //asm volatile ("svc 10");
+  nk_wait_queue_init();
+  nk_future_init();
+  nk_timer_init();
+  nk_rand_init(naut->sys.cpus[0]);
+  nk_semaphore_init();
+  nk_msg_queue_init();
 
-  // Start the timer
-  asm volatile (
-    "mrs x1, CNTFRQ_EL0;"
-    "msr CNTP_TVAL_EL0, x1;"
-    "mov x0, 1;"
-    "msr CNTP_CTL_EL0, x0;");
+  //nk_sched_init(&sched_cfg);
+
+  printk("End of current boot process\n");
 }

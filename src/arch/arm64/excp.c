@@ -188,6 +188,7 @@ void route_exception_from_kernel(struct excp_entry_info *info) {
   } else {
     printk("\t16bit Instruction\n");
   }
+  while(1) {}
 }
 
 // User-mode exception
@@ -204,5 +205,6 @@ void route_exception_from_user(struct excp_entry_info *info) {
   } else {
     printk("\t16bit Instruction\n");
   }
+  while(1) {}
 }
 

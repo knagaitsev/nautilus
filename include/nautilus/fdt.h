@@ -2286,4 +2286,7 @@ void print_fdt(const void *fdt);
 // callback returns 0 if walking should stop, 1 otherwise
 void fdt_walk_devices(const void *fdt, int (*callback)(const void *fdt, int offset, int depth));
 
+// this function wasn't in the original list but is useful so I'm adding it -Kevin
+int fdt_nodename_eq(const void *fdt, int offset, const char *s, int len);
+
 #endif
