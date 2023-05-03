@@ -7,43 +7,7 @@
 #include<arch/arm64/gic.h>
 #include<arch/arm64/excp.h>
 
-typedef union esr_el1 {
-  uint64_t raw;
-  struct {
-    uint_t iss : 25;
-    uint_t inst_length : 1;
-    uint_t class : 6;
-    uint_t iss2 : 5;
-    // Rest reserved
-  };
-} esr_el1_t;
-
-struct __attribute__((packed)) excp_entry_info {
-  uint64_t x0;
-  uint64_t x1;
-  uint64_t x2;
-  uint64_t x3;
-  uint64_t x4;
-  uint64_t x5;
-  uint64_t x6;
-  uint64_t x7;
-  uint64_t x8;
-  uint64_t x9;
-  uint64_t x10;
-  uint64_t x11;
-  uint64_t x12;
-  uint64_t x13;
-  uint64_t x14;
-  uint64_t x15;
-  uint64_t x16;
-  uint64_t x17;
-  uint64_t x18;
-  uint64_t frame_ptr;
-  uint64_t link_ptr;
-  uint64_t elr;
-  esr_el1_t esr;
-  uint64_t far;
-};
+#define EXCP_SYNDROME_BITS 6
 
 typedef struct irq_handler_desc {
   irq_handler_t handler;
@@ -52,10 +16,41 @@ typedef struct irq_handler_desc {
 
 irq_handler_desc_t *__excp_irq_handler_desc_table;
 
+typedef struct excp_handler_desc {
+  excp_handler_t handler;
+  void *state;
+} excp_handler_desc_t;
+
+excp_handler_desc_t *__excp_excp_handler_desc_table;
+
 static int __unhandled_irq_handler(excp_entry_t *entry, excp_vec_t vec, void *state) {
   printk("\n--- UNHANDLED INTERRUPT ---\n");
   printk("\texcp_vec = %x\n\n", vec);
   return 1;
+}
+
+static int __unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state) {
+  if(el_from == 0) {
+    printk("\n--- UNKNOWN USERMODE EXCEPTION ---\n"); 
+  }
+  else if(el_from == 1) {
+    printk("\n--- UNKNOWN KERNEL EXCEPTION ---\n");
+  }
+  else {
+    printk("\n--- UNKNOWN EL LEVEL %u EXCEPTION---\n", el_from);
+  }
+  printk("\tELR = %p\n", info->elr);
+  printk("\tESR = 0x%x\n", info->esr.raw);
+  printk("\tFAR = %p\n", (void*)info->far);
+  printk("\t\tCLS = 0x%x\n", info->esr.class);
+  printk("\t\tISS = 0x%x\n", info->esr.iss);
+  printk("\t\tISS_2 = 0x%x\n", info->esr.iss2);
+  if(info->esr.inst_length){
+    printk("\t32bit Instruction\n");
+  } else {
+    printk("\t16bit Instruction\n");
+  }
+  while(1) {}
 }
 
 // Requires mm_boot to be initialized
@@ -64,6 +59,11 @@ int excp_init(void) {
   for(uint_t i = 0; i < __gic_ptr->max_ints; i++) {
     __excp_irq_handler_desc_table[i].handler = __unhandled_irq_handler;
     __excp_irq_handler_desc_table[i].state = NULL;
+  }
+  __excp_excp_handler_desc_table = mm_boot_alloc(sizeof(excp_handler_desc_t) * (1<<EXCP_SYNDROME_BITS));
+  for(uint_t i = 0; i < (1<<EXCP_SYNDROME_BITS); i++) {
+    __excp_excp_handler_desc_table[i].handler = __unhandled_excp_handler;
+    __excp_excp_handler_desc_table[i].state = NULL;
   }
   return 0;
 }
@@ -79,7 +79,18 @@ void *excp_remove_irq_handler(int irq) {
   return ret;
 }
 
-void route_interrupt_from_kernel(struct excp_entry_info *info) {
+void excp_assign_excp_handler(uint32_t syndrome, excp_handler_t handler, void *state) {
+  __excp_excp_handler_desc_table[syndrome].handler = handler;
+  __excp_excp_handler_desc_table[syndrome].state = state;
+}
+void *excp_remove_excp_handler(uint32_t syndrome) {
+  __excp_excp_handler_desc_table[syndrome].handler = __unhandled_excp_handler;
+  void *ret = __excp_excp_handler_desc_table[syndrome].state;
+  __excp_excp_handler_desc_table[syndrome].state = NULL;
+  return ret;
+}
+
+void route_interrupt_from_kernel(struct nk_regs *regs, struct excp_entry_info *info) {
   gic_int_info_t gic_info;
   gic_get_int_info(__gic_ptr, &gic_info);
 
@@ -103,8 +114,8 @@ void route_interrupt_from_kernel(struct excp_entry_info *info) {
 
   excp_entry_t entry = {
     .rip = info->far,
-    //.rflags = The CPU saves these for us so we need to get them from a specific register
-    .rsp = info->frame_ptr,
+    .rflags = info->status,
+    .rsp = regs->frame_ptr,
   };
 
   int status = (*handler)(&entry, gic_info.int_id, state);
@@ -116,7 +127,7 @@ void route_interrupt_from_kernel(struct excp_entry_info *info) {
   gic_end_of_int(__gic_ptr, &gic_info);
 }
 
-void route_interrupt_from_user(struct excp_entry_info *info) {
+void route_interrupt_from_user(struct nk_regs *regs, struct excp_entry_info *info) {
   gic_int_info_t gic_info;
   gic_get_int_info(__gic_ptr, &gic_info);
 
@@ -141,8 +152,8 @@ void route_interrupt_from_user(struct excp_entry_info *info) {
 
   excp_entry_t entry = {
     .rip = info->far,
-    //.rflags = The CPU saves these for us so we need to get them from a specific register
-    .rsp = info->frame_ptr
+    .rflags = info->status,
+    .rsp = regs->frame_ptr
   };
 
   int status = (*handler)(&entry, gic_info.int_id, state);
@@ -156,55 +167,21 @@ void route_interrupt_from_user(struct excp_entry_info *info) {
   gic_end_of_int(__gic_ptr, &info);
 }
 
-// These are not all possible valid values of ESR's class field
-#define ESR_CLS_UNKNOWN 0x0
-#define ESR_CLS_TRAPPED_WF_INSTR 0x1
-#define ESR_CLS_BRANCH_TARGET 0xD
-#define ESR_CLS_ILLEGAL_EXEC_STATE 0xE
-#define ESR_CLS_SYSCALL32 0x11
-#define ESR_CLS_SYSCALL64 0x15
-#define ESR_CLS_SVE_DISABLED 0x19
-#define ESR_CLS_IABORT_FROM_LOWER_EL 0x20
-#define ESR_CLS_IABORT_FROM_SAME_EL 0x21
-#define ESR_CLS_PC_UNALIGNED 0x22
-#define ESR_CLS_DABORT_FROM_LOWER_EL 0x24
-#define ESR_CLS_DABORT_FROM_SAME_EL 0x25
-#define ESR_CLS_SP_UNALIGNED 0x26
-#define ESR_CLS_FP32_TRAP 0x28
-#define ESR_CLS_FP64_TRAP 0x2C
-#define ESR_CLS_SERROR_INT 0x2F
-
 // Double fault
-void route_exception_from_kernel(struct excp_entry_info *info) {
-  printk("\n--- KERNEL EXCEPTION ---\n"); 
-  printk("\tELR = %p\n", info->elr);
-  printk("\tFAR = %p\n", (void*)info->far);
-  printk("\tESR = 0x%x\n", info->esr.raw);
-  printk("\t\tCLS = 0x%x\n", info->esr.class);
-  printk("\t\tISS = 0x%x\n", info->esr.iss);
-  printk("\t\tISS2 = 0x%x\n", info->esr.iss2);
-  if(info->esr.inst_length){
-    printk("\t32bit Instruction\n");
-  } else {
-    printk("\t16bit Instruction\n");
+void route_exception_from_kernel(struct nk_regs *regs, struct excp_entry_info *info) {
+  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, void*) = __excp_excp_handler_desc_table[info->esr.class].handler;
+  int ret = (*handler)(regs, info, 1, __excp_excp_handler_desc_table[info->esr.class].state);
+  if(ret) {
+    printk("Exception handler returned error code: %u\n", ret);
   }
-  while(1) {}
 }
 
 // User-mode exception
-void route_exception_from_user(struct excp_entry_info *info) {
-  printk("\n--- USERMODE EXCEPTION ---\n"); 
-  printk("\tELR = %p\n", info->elr);
-  printk("\tESR = 0x%x\n", info->esr.raw);
-  printk("\tFAR = %p\n", (void*)info->far);
-  printk("\t\tCLS = 0x%x\n", info->esr.class);
-  printk("\t\tISS = 0x%x\n", info->esr.iss);
-  printk("\t\tISS_2 = 0x%x\n", info->esr.iss2);
-  if(info->esr.inst_length){
-    printk("\t32bit Instruction\n");
-  } else {
-    printk("\t16bit Instruction\n");
+void route_exception_from_user(struct nk_regs *regs, struct excp_entry_info *info) {
+  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, void*) = __excp_excp_handler_desc_table[info->esr.class].handler;
+  int ret = (*handler)(regs, info, 0, __excp_excp_handler_desc_table[info->esr.class].state);
+  if(ret) {
+    printk("Exception handler returned error code: %u\n", ret);
   }
-  while(1) {}
 }
 

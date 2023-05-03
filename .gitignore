@@ -17,6 +17,7 @@ GTAGS
 *.bc
 *.ll
 *.dtb
+*.dts
 ./src/llvm/toolchain
 
 # LSP-related tools

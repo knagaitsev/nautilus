@@ -6,6 +6,8 @@
  
 # To keep this in the first portion of the binary.
 .section .boot
+
+.EXTERN secondary_entry
  
 .globl nautilus_entry
 # Entry point for the kernel. Registers:
@@ -36,7 +38,9 @@ nautilus_entry:
 
     # We're not on the main core, so hang in an infinite wait loop
 1:  wfe
-    b       1b
+    bl __install_iv_tables
+    bl secondary_entry
+    b  1b
 
 
 2:  # We're on the main core!

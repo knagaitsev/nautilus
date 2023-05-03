@@ -50,11 +50,10 @@ static inline void *__cpu_state_get_cpu()
     return (void *) tp;
 #endif
 
-
-
 #ifdef NAUT_CONFIG_ARCH_ARM64
-		// TODO(arm64)
-		return (void*)0;
+    uint64_t tid;
+    asm volatile("mrs %0, TPIDR_EL1" : "=r" (tid));
+    return (void*)tid;
 #endif
 
 #ifdef NAUT_CONFIG_ARCH_X86
@@ -69,6 +68,8 @@ static inline void *__cpu_state_get_cpu()
 #define INL_OFFSET 8
 #ifdef NAUT_CONFIG_ARCH_RISCV
 #define PREEMPT_DISABLE_OFFSET 12
+#elif NAUT_CONFIG_ARCH_ARM64
+#define PREEMPT_DISABLE_OFFSET 12
 #else
 #define PREEMPT_DISABLE_OFFSET 10
 #endif
@@ -79,6 +80,8 @@ static inline void preempt_disable()
     if (base) {
 	// per-cpu functional
 #ifdef NAUT_CONFIG_ARCH_RISCV
+	__sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+#elif NAUT_CONFIG_ARCH_ARM64
 	__sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
 	__sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
@@ -94,6 +97,8 @@ static inline void preempt_enable()
     if (base) {
 	// per-cpu functional
 #ifdef NAUT_CONFIG_ARCH_RISCV
+	__sync_fetch_and_sub((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+#elif  NAUT_CONFIG_ARCH_ARM64
 	__sync_fetch_and_sub((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
 	__sync_fetch_and_sub((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
@@ -113,6 +118,8 @@ static inline void preempt_reset()
 	// per-cpu functional
 #ifdef NAUT_CONFIG_ARCH_RISCV
 	__sync_fetch_and_and((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+#elif NAUT_CONFIG_ARCH_ARM64
+	__sync_fetch_and_and((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
 	__sync_fetch_and_sub((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #endif
@@ -128,7 +135,7 @@ static inline int preempt_is_disabled()
 	// per-cpu functional
 #ifdef NAUT_CONFIG_ARCH_RISCV
 	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
-#elif NAUT_CONFIG_ARCH_RISCV
+#elif NAUT_CONFIG_ARCH_ARM64
 	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
 	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
@@ -175,7 +182,7 @@ int arch_ints_enabled(void);
 
 static inline uint8_t irqs_enabled (void)
 {
-	return arch_ints_enabled();
+    return arch_ints_enabled();
     // uint64_t rflags = read_rflags();
     // return (rflags & RFLAGS_IF) != 0;
 }
@@ -187,7 +194,7 @@ static inline uint8_t irq_disable_save (void)
     uint8_t enabled = irqs_enabled();
 
     if (enabled) {
-				arch_disable_ints();
+	arch_disable_ints();
         // disable_irqs();
     }
 
@@ -195,13 +202,13 @@ static inline uint8_t irq_disable_save (void)
 
     return enabled;
 }
-        
+ 
 
 static inline void irq_enable_restore (uint8_t iflag)
 {
     if (iflag) {
         /* Interrupts were originally enabled, so turn them back on */
-				arch_enable_ints();
+	arch_enable_ints();
         // enable_irqs();
     }
 }

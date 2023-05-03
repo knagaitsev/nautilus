@@ -226,28 +226,27 @@ get_cpu (void)
 
 #ifdef NAUT_CONFIG_ARCH_ARM64
 
-#include<arch/arm64/unimpl.h>
+#include<arch/arm64/sys_reg.h>
 
-// TODO(arm64)
-#define per_cpu_put(var, newval)
-// TODO(arm64)
-#define per_cpu_get(var) ((struct cpu*)0)->var
-// TODO(arm64)
+#define per_cpu_put(var, newval) do { \
+  get_cpu()->var = newval;\
+  } while(0);
+
+#define per_cpu_get(var) ({ \
+    get_cpu()->var; \
+    })
+    
 #define my_cpu_id() per_cpu_get(id)
 
 static inline struct cpu*
 get_cpu (void)
 {
-		// TODO(arm64)
-#ifdef NAUT_CONFIG_ARCH_ARM64
-    ARM64_ERR_UNIMPL;
-#endif
-    return (struct cpu*)0;
+  struct cpu *c;
+  LOAD_SYS_REG(TPIDR_EL1, c);
+  return c;
 }
 
-
-
-#endif
+#endif /* NAUT_CONFIG_ARCH_ARM64 */
 
 #ifdef __cplusplus
 }

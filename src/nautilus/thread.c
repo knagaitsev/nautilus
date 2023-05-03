@@ -247,7 +247,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
         *(uint64_t*)(t->rsp-GPR_SAVE_SIZE)  = (uint64_t)nk_thread_entry;
     }
 
-#else
+#elif NAUT_CONFIG_ARCH_X86
 #define RSP_STACK_OFFSET   8
 #define GPR_RDI_OFFSET     48
 #define GPR_RAX_OFFSET     8
@@ -287,8 +287,19 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
     if (!fun) {
         *(uint64_t*)(t->rsp-GPR_RAX_OFFSET) = 0;
     }
-
+#elif NAUT_CONFIG_ARCH_ARM64
+    #define GPR_SAVE_SIZE 0x110
+    #define GPR_RDI_OFFSET (GPR_SAVE_SIZE - 0x60 - 0x00)
+    #define GPR_LR_OFFSET (GPR_SAVE_SIZE - 0x60 - 0xa0)
+    if (fun) {
+        thread_push(t, (uint64_t)&thread_cleanup);
+        thread_push(t, (uint64_t)fun);
+        thread_push(t, (uint64_t)0);
+        *(uint64_t*)(t->rsp-GPR_RDI_OFFSET) = (uint64_t)arg;
+        *(uint64_t*)(t->rsp-GPR_LR_OFFSET)  = (uint64_t)nk_thread_entry;
+    }
 #endif
+
     t->rsp -= GPR_SAVE_SIZE;                             // account for the GPRS;
 }
 
