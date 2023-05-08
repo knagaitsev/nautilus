@@ -218,6 +218,15 @@ thread_cleanup (void)
     nk_thread_exit(0);
 }
 
+static inline void thread_print_stack(nk_thread_t *t) {
+  uint64_t *base = (uint64_t*)(((uint8_t*)t->stack) + t->stack_size);
+  printk("Thread %p's Stack: base = %p, rsp = %p\n", (void*)t, base, (uint64_t*)t->rsp);
+  while(base > t->rsp) {
+    base--;
+    printk("\t0x%016x\n", *base);
+  }
+  printk("End of stack\n");
+}
 
 /*
  * utility function for setting up
@@ -226,15 +235,20 @@ thread_cleanup (void)
 static inline void
 thread_push (nk_thread_t * t, uint64_t x)
 {
+    printk("Pushing 0x%016x onto thread %p's stack\n", x, t);
     t->rsp -= 8;
     *(uint64_t*)(t->rsp) = x;
+    thread_print_stack(t);
 }
-
 
 static void
 thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
 {
 
+  if(t == NULL || fun == NULL) {
+    ERROR_PRINT("Trying to initialize the stack of a NULL thread!\n");
+    panic("Trying to initialize the stack of a NULL thread!\n");
+  }
 
 #ifdef NAUT_CONFIG_ARCH_RISCV
 #define GPR_SAVE_SIZE      31*8
@@ -288,19 +302,26 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
         *(uint64_t*)(t->rsp-GPR_RAX_OFFSET) = 0;
     }
 #elif NAUT_CONFIG_ARCH_ARM64
-    #define GPR_SAVE_SIZE 0x110
-    #define GPR_RDI_OFFSET (GPR_SAVE_SIZE - 0x60 - 0x00)
-    #define GPR_LR_OFFSET (GPR_SAVE_SIZE - 0x60 - 0xa0)
+    #define GPR_SAVE_SIZE 0x120
+    #define GPR_RDI_OFFSET (GPR_SAVE_SIZE - 0x70 - 0x00)
+    #define GPR_LR_OFFSET (GPR_SAVE_SIZE - 0x70 - 0xa0)
+    #define INTERRUPT_FLAG_OFFSET (GPR_SAVE_SIZE - 0x58)
+    printk("thread_cleanup = %p\n", thread_cleanup);
+    printk("fun = %p\n", fun);
+
     if (fun) {
-        thread_push(t, (uint64_t)&thread_cleanup);
+        thread_push(t, (uint64_t)thread_cleanup);
         thread_push(t, (uint64_t)fun);
-        thread_push(t, (uint64_t)0);
         *(uint64_t*)(t->rsp-GPR_RDI_OFFSET) = (uint64_t)arg;
         *(uint64_t*)(t->rsp-GPR_LR_OFFSET)  = (uint64_t)nk_thread_entry;
+        *(uint64_t*)(t->rsp-INTERRUPT_FLAG_OFFSET) = (uint64_t)0;
     }
 #endif
 
     t->rsp -= GPR_SAVE_SIZE;                             // account for the GPRS;
+    
+    printk("End of stack init\n");
+    thread_print_stack(t);
 }
 
 

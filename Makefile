@@ -865,22 +865,25 @@ uImage: $(BIN_NAME)
 		-d Image uImage
 	rm Image
 
+#QEMU_GDB_FLAGS := -s -S
+QEMU_GDB_FLAGS := 
+
 qemu: nautilus.bin
 ifdef NAUT_CONFIG_ARCH_RISCV
 	qemu-system-riscv64 -bios default -m 2G -M sifive_u -kernel nautilus.bin -serial mon:stdio -display none -gdb tcp::1234
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
-	qemu-system-aarch64 -smp cpus=8 -numa node,cpus=0-3,memdev=m0 -numa node,cpus=4-7,memdev=m1 --machine virt --cpu cortex-a72 -m 4G -kernel nautilus.bin -object memory-backend-ram,id=m0,size=2G -object memory-backend-ram,id=m1,size=2G -serial stdio
+	qemu-system-aarch64 -smp cpus=8 -numa node,cpus=0-3,memdev=m0 -numa node,cpus=4-7,memdev=m1 --machine virt --cpu cortex-a72 -m 4G -kernel nautilus.bin -object memory-backend-ram,id=m0,size=2G -object memory-backend-ram,id=m1,size=2G -serial stdio $(QEMU_GDB_FLAGS)
 endif
 
 qemu-mp: nautilus.bin
 ifdef NAUT_CONFIG_ARCH_ARM64	
-	qemu-system-aarch64 -smp cpus=8 -numa node,cpus=0-7,memdev=m0 --machine virt --cpu cortex-a72 -m 4G -kernel nautilus.bin -object memory-backend-ram,id=m0,size=4G -serial stdio
+	qemu-system-aarch64 -smp cpus=8 -numa node,cpus=0-7,memdev=m0 --machine virt --cpu cortex-a72 -m 4G -kernel nautilus.bin -object memory-backend-ram,id=m0,size=4G -serial stdio $(QEMU_GDB_FLAGS)
 endif
 
 qemu-up: nautilus.bin
 ifdef NAUT_CONFIG_ARCH_ARM64
-	qemu-system-aarch64 --machine virt --cpu cortex-a72 -m 4G -kernel nautilus.bin -serial stdio
+	qemu-system-aarch64 --machine virt --cpu cortex-a72 -m 4G -kernel nautilus.bin -serial stdio $(QEMU_GDB_FLAGS)
 endif
 
 # New function to run a Python script which generates Lua test code,

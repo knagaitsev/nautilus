@@ -5,38 +5,44 @@
 #include<arch/arm64/gic.h>
 
 void arch_enable_ints(void) {
-
-  gicc_ctl_reg_t ctl_reg;
-  ctl_reg.raw = LOAD_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET);
-  ctl_reg.grp0_enabled = 1;
-  ctl_reg.grp1_enabled = 1;
-  STORE_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET, ctl_reg.raw);
-
-  gicc_priority_reg_t priority_reg;
-  priority_reg.raw = LOAD_GICC_REG(__gic_ptr, GICC_PMR_OFFSET);
-  priority_reg.priority = 0xFF;
-  STORE_GICC_REG(__gic_ptr, GICC_PMR_OFFSET, priority_reg.raw);
-
-  __asm__ __volatile__ ("msr DAIFClr, 0xF");
+  __asm__ __volatile__ ("msr DAIFClr, 0xF; isb");
 }
 void arch_disable_ints(void) {
-
-  gicc_ctl_reg_t ctl_reg;
-  ctl_reg.raw = LOAD_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET);
-  ctl_reg.grp0_enabled = 0;
-  ctl_reg.grp1_enabled = 0;
-  STORE_GICC_REG(__gic_ptr, GICC_CTLR_OFFSET, ctl_reg.raw);
-
-  __asm__ __volatile__ ("msr DAIFSet, 0xF");
+  __asm__ __volatile__ ("msr DAIFSet, 0xF; isb");
 }
 int arch_ints_enabled(void) {
-  int_mask_reg_t reg;
-  load_int_mask_reg(&reg);
-  return !!(reg.raw);
+  uint_t daif;
+  __asm__ __volatile__ ("mrs %0, DAIF" : "=r" (daif));
+  return !(daif);
 }
 
 void arch_print_regs(struct nk_regs *r) {
-  ARM64_ERR_UNIMPL;
+
+#define PRINT_REG(REG) printk("\t"#REG" = 0x%x = %u\n", r->REG, r->REG)
+
+  printk("--- Registers ---\n");
+  PRINT_REG(x0);
+  PRINT_REG(x1);
+  PRINT_REG(x2);
+  PRINT_REG(x3);
+  PRINT_REG(x4);
+  PRINT_REG(x5);
+  PRINT_REG(x6);
+  PRINT_REG(x7);
+  PRINT_REG(x8);
+  PRINT_REG(x9);
+  PRINT_REG(x10);
+  PRINT_REG(x11);
+  PRINT_REG(x12);
+  PRINT_REG(x13);
+  PRINT_REG(x14);
+  PRINT_REG(x15);
+  PRINT_REG(x16);
+  PRINT_REG(x17);
+  PRINT_REG(x18);
+  PRINT_REG(frame_ptr);
+  PRINT_REG(link_ptr);
+  printk("--- End Registers ---\n");
 }
 
 void *arch_read_sp(void) {
@@ -51,7 +57,7 @@ void *arch_read_sp(void) {
 }
 
 void arch_relax(void) {
-  // NOP (correct but bad for power
+  // NOP (correct but bad for power)
 }
 void arch_halt(void) {
   __asm__ __volatile__ ("wfi");

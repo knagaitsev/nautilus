@@ -24,7 +24,7 @@ typedef union esr_el1 {
   struct {
     uint_t iss : 25;
     uint_t inst_length : 1;
-    uint_t class : 6;
+    uint_t syndrome : 6;
     uint_t iss2 : 5;
     // Rest reserved
   };

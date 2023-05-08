@@ -9,179 +9,147 @@
 
 #define EXCP_SYNDROME_BITS 6
 
+
+#ifndef NAUT_CONFIG_DEBUG_PRINTS
+#undef DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...)
+#endif
+
+#define EXCP_PRINT(fmt, args...) printk("excp: " fmt, ##args)
+#define EXCP_DEBUG(fmt, args...) DEBUG_PRINT("excp: " fmt, ##args)
+#define EXCP_ERROR(fmt, args...) ERROR_PRINT("excp: " fmt, ##args)
+#define EXCP_WARN(fmt, args...) WARN_PRINT("excp: " fmt, ##args)
+
 typedef struct irq_handler_desc {
   irq_handler_t handler;
   void *state;
 } irq_handler_desc_t;
 
-irq_handler_desc_t *__excp_irq_handler_desc_table;
+irq_handler_desc_t *irq_handler_desc_table;
 
 typedef struct excp_handler_desc {
   excp_handler_t handler;
   void *state;
 } excp_handler_desc_t;
 
-excp_handler_desc_t *__excp_excp_handler_desc_table;
+excp_handler_desc_t *excp_handler_desc_table;
 
-static int __unhandled_irq_handler(excp_entry_t *entry, excp_vec_t vec, void *state) {
-  printk("\n--- UNHANDLED INTERRUPT ---\n");
-  printk("\texcp_vec = %x\n\n", vec);
+static int unhandled_irq_handler(excp_entry_t *entry, excp_vec_t vec, void *state) {
+  EXCP_PRINT("--- UNHANDLED INTERRUPT ---\n");
+  EXCP_PRINT("\texcp_vec = %x\n", vec);
   return 1;
 }
 
-static int __unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state) {
+static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state) {
   if(el_from == 0) {
-    printk("\n--- UNKNOWN USERMODE EXCEPTION ---\n"); 
+    EXCP_PRINT("--- UNKNOWN USERMODE EXCEPTION ---\n"); 
   }
   else if(el_from == 1) {
-    printk("\n--- UNKNOWN KERNEL EXCEPTION ---\n");
+    EXCP_PRINT("--- UNKNOWN KERNEL EXCEPTION ---\n");
   }
   else {
-    printk("\n--- UNKNOWN EL LEVEL %u EXCEPTION---\n", el_from);
+    EXCP_PRINT("--- UNKNOWN EL LEVEL %u EXCEPTION---\n", el_from);
   }
-  printk("\tELR = %p\n", info->elr);
-  printk("\tESR = 0x%x\n", info->esr.raw);
-  printk("\tFAR = %p\n", (void*)info->far);
-  printk("\t\tCLS = 0x%x\n", info->esr.class);
-  printk("\t\tISS = 0x%x\n", info->esr.iss);
-  printk("\t\tISS_2 = 0x%x\n", info->esr.iss2);
+  EXCP_PRINT("\tELR = %p\n", info->elr);
+  EXCP_PRINT("\tESR = 0x%x\n", info->esr.raw);
+  EXCP_PRINT("\tFAR = %p\n", (void*)info->far);
+  EXCP_PRINT("\t\tCLS = 0x%x\n", info->esr.syndrome);
+  EXCP_PRINT("\t\tISS = 0x%x\n", info->esr.iss);
+  EXCP_PRINT("\t\tISS_2 = 0x%x\n", info->esr.iss2);
   if(info->esr.inst_length){
-    printk("\t32bit Instruction\n");
+    EXCP_PRINT("\t32bit Instruction\n");
   } else {
-    printk("\t16bit Instruction\n");
+    EXCP_PRINT("\t16bit Instruction\n");
   }
-  while(1) {}
 }
 
 // Requires mm_boot to be initialized
 int excp_init(void) {
-  __excp_irq_handler_desc_table = mm_boot_alloc(sizeof(irq_handler_desc_t) * __gic_ptr->max_ints);
+  irq_handler_desc_table = mm_boot_alloc(sizeof(irq_handler_desc_t) * __gic_ptr->max_ints);
   for(uint_t i = 0; i < __gic_ptr->max_ints; i++) {
-    __excp_irq_handler_desc_table[i].handler = __unhandled_irq_handler;
-    __excp_irq_handler_desc_table[i].state = NULL;
+    irq_handler_desc_table[i].handler = unhandled_irq_handler;
+    irq_handler_desc_table[i].state = NULL;
   }
-  __excp_excp_handler_desc_table = mm_boot_alloc(sizeof(excp_handler_desc_t) * (1<<EXCP_SYNDROME_BITS));
+  excp_handler_desc_table = mm_boot_alloc(sizeof(excp_handler_desc_t) * (1<<EXCP_SYNDROME_BITS));
   for(uint_t i = 0; i < (1<<EXCP_SYNDROME_BITS); i++) {
-    __excp_excp_handler_desc_table[i].handler = __unhandled_excp_handler;
-    __excp_excp_handler_desc_table[i].state = NULL;
+    excp_handler_desc_table[i].handler = unhandled_excp_handler;
+    excp_handler_desc_table[i].state = NULL;
   }
   return 0;
 }
 
 void excp_assign_irq_handler(int irq, irq_handler_t handler, void *state) {
-  __excp_irq_handler_desc_table[irq].handler = handler;
-  __excp_irq_handler_desc_table[irq].state = state;
+  irq_handler_desc_table[irq].handler = handler;
+  irq_handler_desc_table[irq].state = state;
 }
 void *excp_remove_irq_handler(int irq) {
-  __excp_irq_handler_desc_table[irq].handler = __unhandled_irq_handler;
-  void *ret = __excp_irq_handler_desc_table[irq].state;
-  __excp_irq_handler_desc_table[irq].state = NULL;
+  irq_handler_desc_table[irq].handler = unhandled_irq_handler;
+  void *ret = irq_handler_desc_table[irq].state;
+  irq_handler_desc_table[irq].state = NULL;
   return ret;
 }
 
 void excp_assign_excp_handler(uint32_t syndrome, excp_handler_t handler, void *state) {
-  __excp_excp_handler_desc_table[syndrome].handler = handler;
-  __excp_excp_handler_desc_table[syndrome].state = state;
+  excp_handler_desc_table[syndrome].handler = handler;
+  excp_handler_desc_table[syndrome].state = state;
 }
 void *excp_remove_excp_handler(uint32_t syndrome) {
-  __excp_excp_handler_desc_table[syndrome].handler = __unhandled_excp_handler;
-  void *ret = __excp_excp_handler_desc_table[syndrome].state;
-  __excp_excp_handler_desc_table[syndrome].state = NULL;
+  excp_handler_desc_table[syndrome].handler = unhandled_excp_handler;
+  void *ret = excp_handler_desc_table[syndrome].state;
+  excp_handler_desc_table[syndrome].state = NULL;
   return ret;
 }
 
-void route_interrupt_from_kernel(struct nk_regs *regs, struct excp_entry_info *info) {
-  gic_int_info_t gic_info;
-  gic_get_int_info(__gic_ptr, &gic_info);
+void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, uint8_t el) {
+  gic_int_info_t int_info;
+  int_info.raw = LOAD_GICC_REG(__gic_ptr, GICC_IAR_OFFSET);
 
-  if(gic_info.int_id < 16) {
-    printk("\n--- Software Generated Interrupt ---\n"); 
-    printk("\tEL = 1\n");
-    printk("\tINT ID = %u\n", gic_info.int_id);
-    printk("\tCPU ID = %u\n\n", gic_info.cpu_id);
+  if(int_info.int_id < 16) {
+    EXCP_DEBUG("--- Software Generated Interrupt ---\n"); 
+    EXCP_DEBUG("\tEL = %u\n", el);
+    EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
+    EXCP_DEBUG("\tCPU ID = %u\n", int_info.cpu_id);
   }
   else {
-    printk("\n--- Interrupt ---\n");
-    printk("\tEL = 1\n");
-    printk("\tINT ID = %u\n\n", gic_info.int_id);
-  }
+    EXCP_DEBUG("--- Interrupt ---\n");
+    EXCP_DEBUG("\tEL = %u\n", el);
+    EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
 
+    arch_print_regs(regs);
+  }
+  
   int(*handler)(excp_entry_t*, excp_vec_t, void*);
   void *state;
 
-  handler = __excp_irq_handler_desc_table[gic_info.int_id].handler;
-  state = __excp_irq_handler_desc_table[gic_info.int_id].state;
+  handler = irq_handler_desc_table[int_info.int_id].handler;
+  state = irq_handler_desc_table[int_info.int_id].state;
 
   excp_entry_t entry = {
-    .rip = info->far,
-    .rflags = info->status,
-    .rsp = regs->frame_ptr,
-  };
-
-  int status = (*handler)(&entry, gic_info.int_id, state);
-  if(status) {
-    printk("Error Code Returned from Handling EL1 to EL1 Exception!\n");
-    printk("EC: %u, INT_ID: %u, CPUID: %u\n", status, gic_info.int_id, gic_info.cpu_id);
-  }
-
-  gic_end_of_int(__gic_ptr, &gic_info);
-}
-
-void route_interrupt_from_user(struct nk_regs *regs, struct excp_entry_info *info) {
-  gic_int_info_t gic_info;
-  gic_get_int_info(__gic_ptr, &gic_info);
-
-  if(gic_info.int_id < 16) {
-    printk("\n--- Software Generated Interrupt ---\n");
-    printk("\tEL = 0\n");
-    printk("\tINT ID = %u\n", gic_info.int_id);
-    printk("\tCPU ID = %u\n\n", gic_info.cpu_id);
-  }
-  else {
-    printk("\n--- Interrupt ---\n");
-    printk("\tEL = 0\n");
-    printk("\tINT ID = %u\n\n", gic_info.int_id);
-  }
-
-
-  int(*handler)(excp_entry_t*, excp_vec_t, void*);
-  void *state;
-
-  handler = __excp_irq_handler_desc_table[gic_info.int_id].handler;
-  state = __excp_irq_handler_desc_table[gic_info.int_id].state;
-
-  excp_entry_t entry = {
-    .rip = info->far,
-    .rflags = info->status,
+    .rip = excp_info->far,
+    .rflags = excp_info->status,
     .rsp = regs->frame_ptr
   };
 
-  int status = (*handler)(&entry, gic_info.int_id, state);
-  /*
-  if(status) {
-    printk("Error Code Returned from Handling EL1 to EL1 Exception!\n");
-    printk("EC: %u, INT_ID: %u, CPUID: %u\n", status, gic_info.int_id, gic_info.cpu_id);
-  }
-  */
+//  arch_enable_ints();
+  int status = (*handler)(&entry, int_info.int_id, state);
+//  arch_disable_ints();
 
-  gic_end_of_int(__gic_ptr, &info);
+  extern INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched);
+  void *thread = _sched_need_resched(0, 1);
+
+  EXCP_DEBUG("_sched_need_resched(0, 1) returned 0x%x\n", (uint64_t)thread);
+
+  EXCP_DEBUG("END OF INTERRUPT\n");
+  STORE_GICC_REG(__gic_ptr, GICC_EOIR_OFFSET, int_info.raw);
+
+  return thread;
 }
 
-// Double fault
-void route_exception_from_kernel(struct nk_regs *regs, struct excp_entry_info *info) {
-  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, void*) = __excp_excp_handler_desc_table[info->esr.class].handler;
-  int ret = (*handler)(regs, info, 1, __excp_excp_handler_desc_table[info->esr.class].state);
+void route_exception(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el) {
+  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, void*) = excp_handler_desc_table[info->esr.syndrome].handler;
+  int ret = (*handler)(regs, info, 1, excp_handler_desc_table[info->esr.syndrome].state);
   if(ret) {
-    printk("Exception handler returned error code: %u\n", ret);
-  }
-}
-
-// User-mode exception
-void route_exception_from_user(struct nk_regs *regs, struct excp_entry_info *info) {
-  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, void*) = __excp_excp_handler_desc_table[info->esr.class].handler;
-  int ret = (*handler)(regs, info, 0, __excp_excp_handler_desc_table[info->esr.class].state);
-  if(ret) {
-    printk("Exception handler returned error code: %u\n", ret);
+    EXCP_ERROR("Exception handler returned error code: %u\n", ret);
   }
 }
 

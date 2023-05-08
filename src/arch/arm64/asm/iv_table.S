@@ -26,6 +26,7 @@ __install_iv_tables:
 .EXTERN el0_to_el1_exception_entry
 .align 11
 __el1_iv_table:
+__el0_stack_iv_entrances:
 # Uses EL0 stack
 .align 7
   b .
@@ -37,6 +38,7 @@ __el1_iv_table:
   b .
 
 # Uses EL1 stack
+__el1_stack_iv_entrances:
 .align 7
   b el1_to_el1_exception_entry
 .align 7
@@ -47,6 +49,7 @@ __el1_iv_table:
   b el1_to_el1_exception_entry
 
 # From EL0 (aarch64)
+__from_el0_iv_entrances:
 .align 7
   b el0_to_el1_exception_entry
 .align 7
@@ -57,6 +60,7 @@ __el1_iv_table:
   b el0_to_el1_exception_entry
 
 # From EL0 (aarch32)
+__from_el0_in_aarch32_iv_entrances:
 .align 7
   b .
 .align 7

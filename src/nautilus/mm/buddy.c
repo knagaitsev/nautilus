@@ -80,7 +80,7 @@ __set_bit (ulong_t nr, volatile void * addr)
         :"r" (nr) : "memory");
 #endif
 #ifdef NAUT_CONFIG_ARCH_ARM64
-    // TODO (This also could be a compiler intrinsic I think
+    set_bit(nr, addr);
 #endif
 }
 
@@ -98,7 +98,7 @@ __clear_bit (ulong_t nr, volatile void * addr)
         :"r" (nr));
 #endif
 #ifdef NAUT_CONFIG_ARCH_ARM64
-    // TODO
+    clear_bit(nr, addr);
 #endif
 }
 
@@ -151,7 +151,6 @@ block_to_id (struct buddy_mempool *mp, struct block *block)
 
     return block_id;
 }
-
 
 /**
  * Marks a block as free by setting its tag bit to one.

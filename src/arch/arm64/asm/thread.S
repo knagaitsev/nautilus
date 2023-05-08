@@ -3,14 +3,18 @@
 
 nk_thread_entry:
 
-  ldr lr, [sp, 0x8]
-  add sp, sp, 0x10
+  ldr x0, [sp, 0x0]
   
-  blr lr
+  blr x0
 
-  bl nk_thread_exit
+  ldr x0, [sp, 0x8]
+
+  add sp, sp, 0x10
+
+  br x0
 
 .GLOBAL nk_thread_switch
+.GLOBAL nk_thread_switch_intr_entry
 
 nk_thread_switch:
 
@@ -31,58 +35,44 @@ nk_thread_switch:
   stp x18, x29, [sp, 0x90]
   stp x30, xzr, [sp, 0xa0]
 
-  // Fake the excp_entry_info structure on the stack
-  sub sp, sp, 0x20
-
-  // increment the interrupt nesting level
-  mrs x1, TPIDR_EL1
-  ldr x2, [x1, 8]
-  add x2, x2, 1
-  str x2, [x1, 8]
+  // Make sure that lr is zero if we don't enter through intr entry
+  mov lr, 0
 
 nk_thread_switch_intr_entry:
-
-  // Throw away the excp_entry_info struct
-  add sp, sp, 0x20
+  
+  // If we enter through interrupts, lr should now be non-zero.
 
   // Save the other GP registers
   // That we normally can ignore on exception entry
-  sub sp, sp, 0x60
+  sub sp, sp, 0x70
   stp x20, x21, [sp, 0x00]
   stp x22, x23, [sp, 0x10]
   stp x24, x25, [sp, 0x20]
   stp x26, x27, [sp, 0x30]
   stp x28, x29, [sp, 0x40]
 
-
-  // Store flags
-  mrs x2, NZCV
-  stp xzr, x2, [sp, 0x50]
-
+  // Save the return address if we entered through an interrupt
+  stp lr, xzr, [sp, 0x50]
 
   // Save our stack ptr into the thread struct
-  ldr x1, [x1]
+  mrs x3, TPIDR_EL1
+  ldr x3, [x3] // Thread field of CPU struct
   mov x2, sp
-  str x2, [x1]
+  str x2, [x3] // RSP field of thread struct
+
+  // Store flags
+  mrs x2, DAIF
+  mrs x3, NZCV
+  stp x2, x3, [sp, 0x60]
 
 nk_thread_switch_on_exit:
-
   // Set this CPU's current thread to the function argument
-  mrs x1, TPIDR_EL1
-  str x0, [x1]
+  mrs x3, TPIDR_EL1
+  str x0, [x3]
 
   // Load the stack ptr
   ldr x2, [x0]
   mov sp, x2
-
-  // Decrement the interrupt nesting level
-  ldr x2, [x1, 8]
-  sub x2, x2, 1
-  str x2, [x1, 8]
- 
-  // Restore registers
-  // Incrementing the stack in steps isn't needed but for now
-  // when correctness is a worry it's simpler to understand
 
   ldp x20, x21, [sp, 0x00]
   ldp x22, x23, [sp, 0x10]
@@ -90,12 +80,21 @@ nk_thread_switch_on_exit:
   ldp x26, x27, [sp, 0x30]
   ldp x28, x29, [sp, 0x40]
 
+  // Get whether or not we entered this via interrupt context or not
+  ldp lr, xzr, [sp, 0x50]
+
   // Restore flags
-  ldp xzr, x2, [sp, 0x50]
-  msr NZCV, x2
+  ldp x2, x3, [sp, 0x60]
+  msr DAIF, x2
+  msr NZCV, x3
  
-  add sp, sp, 0x60
- 
+  add sp, sp, 0x70
+
+  cbz lr, 1f // If x1 is 0 then we shouldn't return early, because we didn't enter 
+             // through an interrupt
+  ret
+1:
+
   ldp x0, x1, [sp, 0x00]
   ldp x2, x3, [sp, 0x10]
   ldp x4, x5, [sp, 0x20]
@@ -115,15 +114,14 @@ nk_thread_switch_on_exit:
 .GLOBAL nk_thread_switch_exit_helper
 nk_thread_switch_exit_helper:
 
-  // Set interrupt nesting to 1 (will be decremented to zero later)
   mrs x3, TPIDR_EL1
-  mov x4, 1
-  str x4, [x3]
+
+  // Reset the interrupt nesting level
+  strh wzr, [x3, 8]
 
   // Reset preemption disable level
-  mov x4, 0
-  str x4, [x3, 12]
-
+  strh wzr, [x3, 12]
+  
   // Change our status as the arguments tell us to
   str x2, [x1]
 
@@ -131,6 +129,7 @@ nk_thread_switch_exit_helper:
 
   // BAD
   ret
+
 
 .GLOBAL nk_fp_save
 

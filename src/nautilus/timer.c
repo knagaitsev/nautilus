@@ -442,6 +442,8 @@ uint64_t nk_timer_handler (void)
     now = nk_sched_get_realtime();
 #ifdef NAUT_CONFIG_ARCH_RISCV
     return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
+#elif NAUT_CONFIG_ARCH_ARM64
+    return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
 #else
     return earliest > now ? earliest-now : 0;
 #endif

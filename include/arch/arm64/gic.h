@@ -85,8 +85,10 @@ void print_gic(void);
 typedef union gicd_ctl_reg {
   uint32_t raw;
   struct {
-    uint_t enabled : 1;
     uint_t grp0_enabled : 1;
+    uint_t grp1_enabled : 1;
+    uint_t __resv1 : 29; // There are fields in here I just don't care for now
+    uint_t write_pending : 1;
     // Rest reserved
   };
 } gicd_ctl_reg_t;
@@ -182,6 +184,7 @@ static inline int gicd_clear_int_pending(gic_t *gic, uint_t int_num) {
   }
   GICD_BITMAP_SET(gic, int_num, GICD_ICPENDR_0_OFFSET);
 }
+
 static inline int gicd_int_pending(gic_t *gic, uint_t int_num) {
   if(INVALID_INT_NUM(gic, int_num)) {
     return 0;
@@ -268,17 +271,6 @@ typedef union gic_int_info {
 typedef gic_int_info_t gicc_int_info_reg_t;
 
 ASSERT_SIZE(gicc_int_info_reg_t, 4);
-
-// Acknowleges the interrupt by reading from the ack register
-static inline int gic_get_int_info(gic_t *gic, gic_int_info_t *info) {
-  info->raw = LOAD_GICC_REG(gic, GICC_IAR_OFFSET);
-  return 0;
-}
-// Signals end of interrupt to the GIC
-static __attribute__((noinline)) int gic_end_of_int(gic_t *gic, gic_int_info_t *info) {
-  STORE_GICC_REG(gic, GICC_EOIR_OFFSET, info->raw);
-  return 0;
-}
 
 typedef union gicc_interface_id_reg {
   uint32_t raw;

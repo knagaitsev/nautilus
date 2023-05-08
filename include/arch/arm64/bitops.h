@@ -64,18 +64,18 @@
  */
 static inline void set_bit(int nr, volatile unsigned long *addr)
 {
-    addr[BIT_WORD(nr)] |= (1<<(nr&(BITS_PER_LONG-1)));
+    addr[BIT_WORD((uint64_t)nr)] |= (1UL<<((uint64_t)nr % BITS_PER_LONG));
 }
 
 
 static inline void clear_bit(int nr, volatile unsigned long *addr)
 {
-    addr[BIT_WORD(nr)] &= ~(1 << (nr&(BITS_PER_LONG-1)));
+    addr[BIT_WORD((uint64_t)nr)] &= ~(1UL << ((uint64_t)nr % BITS_PER_LONG));
 }
 
 static inline int test_bit(unsigned int nr, const volatile unsigned long *addr)
 {
-    return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
+    return 1UL & (addr[BIT_WORD((uint64_t)nr)] >> ((uint64_t)nr % BITS_PER_LONG));
 }
 
 /**
@@ -88,8 +88,8 @@ static inline int test_bit(unsigned int nr, const volatile unsigned long *addr)
  */
 static inline int test_and_set_bit(int nr, volatile unsigned long * addr)
 {
-    unsigned long old = __atomic_fetch_or(&addr[BIT_WORD(nr)], 1<<(nr&(BITS_PER_LONG-1)), __ATOMIC_SEQ_CST);
-    return (old & (1<<(nr&(BITS_PER_LONG-1))));
+    unsigned long old = __atomic_fetch_or(&addr[BIT_WORD((uint64_t)nr)], 1<<((uint64_t)nr % BITS_PER_LONG), __ATOMIC_SEQ_CST);
+    return (old & (1UL<<((uint64_t)nr % BITS_PER_LONG)));
 }
 
 /**
@@ -102,8 +102,8 @@ static inline int test_and_set_bit(int nr, volatile unsigned long * addr)
  */
 static inline int test_and_clear_bit(int nr, volatile unsigned long * addr)
 {
-    unsigned long old = __atomic_fetch_and(&addr[BIT_WORD(nr)], ~(1<<(nr&(BITS_PER_LONG-1))), __ATOMIC_SEQ_CST);
-    return (old & (1<<nr));
+    unsigned long old = __atomic_fetch_and(&addr[BIT_WORD((uint64_t)nr)], ~(1<<((uint64_t)nr % BITS_PER_LONG)), __ATOMIC_SEQ_CST);
+    return (old & (1UL<<((uint64_t)nr % BITS_PER_LONG)));
 }
 
 /**
@@ -117,7 +117,7 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long * addr)
  */
 static inline void change_bit(int nr, volatile unsigned long *addr)
 {
-    addr[BIT_WORD(nr)] ^= (1<<(nr&(BITS_PER_LONG)));
+    addr[BIT_WORD((uint64_t)nr)] ^= (1UL<<((uint64_t)nr % BITS_PER_LONG));
 }
 
 

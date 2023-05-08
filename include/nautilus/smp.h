@@ -83,9 +83,9 @@ struct nk_xcall {
 struct cpu {
     struct nk_thread * cur_thread;             /* +0  KCH: this must be first! */
 
-#ifdef NAUT_CONFIG_ARCH_RISCV
-    uint32_t interrupt_nesting_level;
-    uint32_t preempt_disable_level;
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
+    uint32_t interrupt_nesting_level; /* +8 PAD: DO NOT MOVE */
+    uint32_t preempt_disable_level; /* +12 PAD: DO NOT MOVE */
 #else
     // track whether we are in an interrupt, nested or otherwise
     // this is intended for use by the scheduler (any scheduler)

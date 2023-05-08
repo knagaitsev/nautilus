@@ -39,6 +39,7 @@ extern char * mem_region_types[6];
 #define BMM_PRINT(fmt, args...) printk("BOOTMEM: " fmt, ##args)
 #define BMM_WARN(fmt, args...)  WARN_PRINT("BOOTMEM: " fmt, ##args)
 
+extern ulong_t kernel_start;
 extern ulong_t kernel_end;
 
 void
@@ -53,6 +54,30 @@ arch_reserve_boot_regions (unsigned long fdt)
         INFO_PRINT("Reseving region (%p, size %lu)\n", reg.address, reg.size);
         mm_boot_reserve_mem(reg.address, reg.size);
     }
+}
+
+static inline void insert_free_region_into_memory_map(mem_map_entry_t *memory_map, mmap_info_t *mm_info, uint64_t start, uint64_t end)
+{
+    memory_map[mm_info->num_regions].addr = start;
+    memory_map[mm_info->num_regions].len  = end-start;
+    memory_map[mm_info->num_regions].type = MULTIBOOT_MEMORY_AVAILABLE;
+
+    BMM_PRINT("Memory map[%d] - [%p - %p] sz:%llu <%s>\n",
+        mm_info->num_regions,
+        start,
+        end,
+	end - start,
+        mem_region_types[memory_map[mm_info->num_regions].type]);
+
+    mm_info->usable_ram += end - start;
+
+    if ((end >> PAGE_SHIFT) > mm_info->last_pfn) {
+      mm_info->last_pfn = end >> PAGE_SHIFT;
+    }
+
+    mm_info->total_mem += end-start;
+
+    ++mm_info->num_regions;
 }
 
 // Nesting functions would take an executable stack and that seems like a bad idea
@@ -89,26 +114,24 @@ int fdt_dev_handle_memory_node(const void *fdt, int offset, int depth) {
       return 1;
     }
 
-    memory_map[mm_info->num_regions].addr = start;
-    memory_map[mm_info->num_regions].len  = end-start;
-    memory_map[mm_info->num_regions].type = MULTIBOOT_MEMORY_AVAILABLE;
+    if(!((start >= &kernel_end) || (end <= &kernel_start))) {
+      BMM_PRINT("FDT Memory Region Overlaps the Kernel Memory Bounds!\n");
+      BMM_PRINT("kernel_start = 0x%x, kernel_end = 0x%x\n", &kernel_start, &kernel_end);
+      BMM_PRINT("start = 0x%x, end = 0x%x\n", start, end);
+      
+      BMM_PRINT("Splitting the region as possible\n");
 
-    BMM_PRINT("Memory map[%d] - [%p - %p] sz:%llu <%s>\n",
-        mm_info->num_regions,
-        start,
-        end,
-	end - start,
-        mem_region_types[memory_map[mm_info->num_regions].type]);
+      if(start < &kernel_start) {
+        insert_free_region_into_memory_map(memory_map, mm_info, start, end <= &kernel_start ? end : &kernel_start);
+      }
+      if(&kernel_end < end) {
+        insert_free_region_into_memory_map(memory_map, mm_info, start > &kernel_end ? start : &kernel_end, end);
+      }
 
-    mm_info->usable_ram += end - start;
-
-    if ((end >> PAGE_SHIFT) > mm_info->last_pfn) {
-      mm_info->last_pfn = end >> PAGE_SHIFT;
+      return 1;
     }
 
-    mm_info->total_mem += end-start;
-
-    ++mm_info->num_regions;
+    insert_free_region_into_memory_map(memory_map, mm_info, start, end);
 
     return 1;
 }

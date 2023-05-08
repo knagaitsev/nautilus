@@ -25,11 +25,13 @@
 #include<nautilus/group_sched.h>
 #include<nautilus/idle.h>
 #include<nautilus/barrier.h>
+#include<nautilus/smp.h>
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/gic.h>
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/excp.h>
+#include<arch/arm64/timer.h>
 
 #include<dev/pl011.h>
 
@@ -94,20 +96,6 @@ static inline int init_core_barrier(struct sys_info *sys) {
   return 0;
 }
 
-static inline void generic_timer_init(void) {
-
-  // Make sure that ints are disabled
-  arch_disable_ints();
-
-  // Set the comparator value to -1
-  asm volatile ("mov x0, -1; msr CNTP_CVAL_EL0, x0" ::: "x0");
-
-  // Start the timer
-  asm volatile ("mov x0, 1; msr CNTP_CTL_EL0, x0" ::: "x0");
-  INIT_DEBUG("Started the generic timer\n");
-
-}
-
 void secondary_entry(void) {
 
   struct naut_info *naut = &nautilus_info;
@@ -126,7 +114,6 @@ void secondary_entry(void) {
 
   nk_core_barrier_arrive(); 
 
-  while(1){}
   idle(NULL, NULL);
 }
 
@@ -153,6 +140,7 @@ vga_make_entry (char c, uint8_t color)
 }
 // (I want to stick this somewhere else later on (or make it not needed))
 //
+
 
 extern void *_bssEnd;
 extern void *_bssStart;
@@ -227,15 +215,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   }
 
   // Start using the main kernel allocator
+  mm_dump_page_map();
   nk_kmem_init();
   mm_boot_kmem_init();
 
   // Now we should be able to install irq handlers
-  
-  arch_irq_install(30, arch_timer_handler);
-
-  //enable the timer
-  generic_timer_init();
 
   nk_wait_queue_init();
   nk_future_init();
@@ -256,17 +240,39 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_thread_name(get_cur_thread(), "init");
   
-  // Enable interrupts
-  arch_enable_ints();
-  
-  INIT_DEBUG("Interrupts are now enabled\n");
-
   //start_secondaries(&(naut->sys));
 
+  // Start the scheduler
   nk_sched_start();
+  
+  // Enable interrupts
+  arch_enable_ints(); 
 
-  INIT_DEBUG("End of current boot process\n");
+  INIT_DEBUG("Interrupts are now enabled\n");
+  
+  //enable the timer
+  percpu_timer_init();
 
+  INIT_DEBUG("About to set timer\n");
+
+  arch_set_timer(1000);
+
+  INIT_DEBUG("Timer set\n");
+
+/* 
+  while(1){
+    for(volatile uint64_t i = 0; i < 100000000; i++) {}
+    INIT_DEBUG("1, tval = %d, cval = %u, pcnt = %u, ctl = 0x%x, DAIF = 0x%x, preempt_dis_level = 0x%x\n", 
+          arch_read_timer(),
+          ({uint64_t cval; asm volatile ("mrs %0, CNTP_CVAL_EL0" : "=r" (cval)); cval;}),
+          ({uint64_t pcnt; asm volatile ("mrs %0, CNTPCT_EL0" : "=r" (pcnt)); pcnt;}),
+          ({uint64_t ctl; asm volatile ("mrs %0, CNTP_CTL_EL0" : "=r" (ctl)); ctl;}),
+          ({uint64_t daif; asm volatile ("mrs %0, DAIF" : "=r" (daif)); daif;}),
+          per_cpu_get(preempt_disable_level)
+        );  
+    print_gic();
+  }
+ */
   execute_threading(NULL);
 
   INIT_DEBUG("End of current boot process!\n");
@@ -275,27 +281,33 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 }
 
 
-static bool_t done = false;
+volatile static bool_t done = false;
 
-static void print_ones(void)
+static void print_ones(void*, void**)
 {
     while (!done) {
-        printk("1");
-        nk_yield();
+      INIT_DEBUG("1\n");
     }
+
+    INIT_DEBUG("End of print_ones\n");
 }
 
-static void print_twos(void)
+static void print_twos(void*, void**)
 {
     while (!done) {
-        printk("2");
-        nk_yield();
+      INIT_DEBUG("2\n");
     }
+
+    INIT_DEBUG("End of print_twos\n");
 }
 
 int execute_threading(char command[])
 {
     nk_thread_id_t a, b;
+
+    printk("print_ones = %p\n", (nk_thread_fun_t)print_ones);
+    printk("print_twos = %p\n", (nk_thread_fun_t)print_twos);
+
     nk_thread_start((nk_thread_fun_t)print_ones, 0, 0, 0, 0, &a, my_cpu_id());
     nk_thread_start((nk_thread_fun_t)print_twos, 0, 0, 0, 0, &b, my_cpu_id());
 
@@ -305,8 +317,8 @@ int execute_threading(char command[])
     done = false;
     int i = 0;
     while (i < 10) {
-        nk_yield();
         i++;
+        nk_yield();
     }
     printk("\n");
     done = true;

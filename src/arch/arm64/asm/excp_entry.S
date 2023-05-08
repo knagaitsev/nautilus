@@ -1,5 +1,4 @@
-
-.MACRO PREEMPTIBLE_EXCP_ENTRY
+.MACRO SAVE_GPRS
   sub sp, sp, 0xb0
   // Store GP Registers
   stp x0, x1, [sp, 0x00]
@@ -15,6 +14,29 @@
   stp x30, xzr, [sp, 0xa0]
 
   mov x0, sp // Store nk_regs*
+
+.ENDM
+
+.MACRO RESTORE_GPRS
+
+  // Restore GP Registers
+  ldp x0, x1, [sp, 0x00]
+  ldp x2, x3, [sp, 0x10]
+  ldp x4, x5, [sp, 0x20]
+  ldp x6, x7, [sp, 0x30]
+  ldp x8, x9, [sp, 0x40]
+  ldp x10, x11, [sp, 0x50]
+  ldp x12, x13, [sp, 0x60]
+  ldp x14, x15, [sp, 0x70]
+  ldp x16, x17, [sp, 0x80]
+  ldp x18, x29, [sp, 0x90]
+  ldp x30, xzr, [sp, 0xa0]
+
+  add sp, sp, 0xb0
+
+.ENDM
+
+.MACRO NESTABLE_EXCP_ENTRY
 
   sub sp, sp, 0x20
 
@@ -32,23 +54,13 @@
 
   // Increment exception depth
   mrs x2, TPIDR_EL1
-  ldr x3, [x2, 8]
-  add x3, x3, 1
-  str x3, [x2, 8]
+  ldrh w3, [x2, 8]
+  add w3, w3, 1
+  strh w3, [x2, 8]
  
-  // Enable interrupts
-  msr DAIFClr, 0b1111
 .ENDM
 
-.MACRO PREEMPTIBLE_EXCP_EXIT
-  // Disable interrupts
-  msr DAIFSet, 0b1111
-
-  // Decrement exception depth
-  mrs x2, TPIDR_EL1
-  ldr x3, [x2, 8]
-  sub x3, x3, 1
-  str x3, [x2, 8]
+.MACRO NESTABLE_EXCP_EXIT
 
   // Restore interrupt registers
   ldp x0, x1, [sp]
@@ -57,61 +69,89 @@
 
   add sp, sp, 0x20
 
-  // Restore GP Registers
-  ldp x0, x1, [sp, 0x00]
-  ldp x2, x3, [sp, 0x10]
-  ldp x4, x5, [sp, 0x20]
-  ldp x6, x7, [sp, 0x30]
-  ldp x8, x9, [sp, 0x40]
-  ldp x10, x11, [sp, 0x50]
-  ldp x12, x13, [sp, 0x60]
-  ldp x14, x15, [sp, 0x70]
-  ldp x16, x17, [sp, 0x80]
-  ldp x18, x29, [sp, 0x90]
-  ldp x30, xzr, [sp, 0xa0]
-
-  add sp, sp, 0xb0
 .ENDM
 
-.EXTERN route_interrupt_from_user
+.MACRO DEC_EXCP_DEPTH
+
+  mrs x2, TPIDR_EL1
+  ldrh w3, [x2, 8]
+  sub w3, w3, 1
+  strh w3, [x2, 8]
+
+.ENDM
+
+.EXTERN route_interrupt
+.EXTERN nk_thread_switch_intr_entry
+
 .GLOBAL el0_to_el1_interrupt_entry
 el0_to_el1_interrupt_entry:
   // Push data onto the stack
-  PREEMPTIBLE_EXCP_ENTRY
-  
-  bl route_interrupt_from_user
-  
+  SAVE_GPRS 
+  NESTABLE_EXCP_ENTRY 
+
+  mov x3, 0
+  bl route_interrupt
+
+  DEC_EXCP_DEPTH
+
+  cbz x0, 1f
+  bl nk_thread_switch_intr_entry
+1:
+
   // Pop data off of the stack
-  PREEMPTIBLE_EXCP_EXIT
+  NESTABLE_EXCP_EXIT
+  RESTORE_GPRS
   eret
 
-.EXTERN route_interrupt_from_kernel
 .GLOBAL el1_to_el1_interrupt_entry
 el1_to_el1_interrupt_entry:
-  PREEMPTIBLE_EXCP_ENTRY
+before_gpr_save:
+  SAVE_GPRS
+  NESTABLE_EXCP_ENTRY
 
-  bl route_interrupt_from_kernel
+  mov x3, 1
+  bl route_interrupt
 
-  PREEMPTIBLE_EXCP_EXIT
+  DEC_EXCP_DEPTH
+
+  cbz x0, 1f 
+
+  bl nk_thread_switch_intr_entry
+1:
+  
+  NESTABLE_EXCP_EXIT
+  RESTORE_GPRS
+before_eret: 
   eret
 
-.EXTERN route_exception_from_user
+.EXTERN route_exception
+
 .GLOBAL el0_to_el1_exception_entry
 el0_to_el1_exception_entry:
-  PREEMPTIBLE_EXCP_ENTRY
+  SAVE_GPRS
+  NESTABLE_EXCP_ENTRY
 
-  bl route_exception_from_user
-  
-  PREEMPTIBLE_EXCP_EXIT
+  mov x3, 0
+  bl route_exception
+
+  DEC_EXCP_DEPTH
+
+  NESTABLE_EXCP_EXIT
+  RESTORE_GPRS
   eret
 
-.EXTERN route_exception_from_kernel
 .GLOBAL el1_to_el1_exception_entry
 el1_to_el1_exception_entry:
-  PREEMPTIBLE_EXCP_ENTRY
+  SAVE_GPRS
+  NESTABLE_EXCP_ENTRY
 
-  bl route_exception_from_kernel
+  mov x3, 1
+  bl route_exception
 
-  PREEMPTIBLE_EXCP_EXIT
+  DEC_EXCP_DEPTH
+
+  NESTABLE_EXCP_EXIT
+  RESTORE_GPRS
+  b .
   eret
 

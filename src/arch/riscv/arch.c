@@ -32,7 +32,7 @@ static uint64_t timer_count = 0;
 
 void arch_update_timer(uint32_t ticks, nk_timer_condition_t cond) {
     if (!timer_set) {
-    arch_set_timer(ticks);
+      arch_set_timer(ticks);
     } else {
     switch(cond) {
     case UNCOND:

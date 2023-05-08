@@ -66,9 +66,7 @@ static inline void *__cpu_state_get_cpu()
 
 
 #define INL_OFFSET 8
-#ifdef NAUT_CONFIG_ARCH_RISCV
-#define PREEMPT_DISABLE_OFFSET 12
-#elif NAUT_CONFIG_ARCH_ARM64
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
 #define PREEMPT_DISABLE_OFFSET 12
 #else
 #define PREEMPT_DISABLE_OFFSET 10
@@ -79,9 +77,7 @@ static inline void preempt_disable()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	__sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
-#elif NAUT_CONFIG_ARCH_ARM64
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
 	__sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
 	__sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
@@ -96,9 +92,7 @@ static inline void preempt_enable()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	__sync_fetch_and_sub((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
-#elif  NAUT_CONFIG_ARCH_ARM64
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
 	__sync_fetch_and_sub((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
 	__sync_fetch_and_sub((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
@@ -116,12 +110,10 @@ static inline void preempt_reset()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	__sync_fetch_and_and((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
-#elif NAUT_CONFIG_ARCH_ARM64
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
 	__sync_fetch_and_and((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
-	__sync_fetch_and_sub((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+	__sync_fetch_and_and((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #endif
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
@@ -133,9 +125,7 @@ static inline int preempt_is_disabled()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
-#elif NAUT_CONFIG_ARCH_ARM64
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
 	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
 	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
@@ -150,9 +140,7 @@ static inline uint16_t interrupt_nesting_level()
 {
     void *base = __cpu_state_get_cpu();
     if (base) {
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+INL_OFFSET),0);
-#elif NAUT_CONFIG_ARCH_ARM64
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
 	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+INL_OFFSET),0);
 #else
 	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+INL_OFFSET),0);
