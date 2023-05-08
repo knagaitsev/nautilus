@@ -128,7 +128,7 @@ void pl011_uart_init(struct pl011_uart *p, void *base, uint64_t clock) {
   pl011_configure(p);
 }
 
-static inline void __pl011_uart_putchar(struct pl011_uart *p, unsigned char c) {
+static inline void __pl011_uart_putchar(struct pl011_uart *p, unsigned char c) { 
   pl011_wait(p);
   pl011_write_reg(p, UART_DATA, (uint32_t)c);
 }

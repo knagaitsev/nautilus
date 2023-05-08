@@ -170,7 +170,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   printk(NAUT_WELCOME);
 
-  printk("--- Device Tree ---\n");
+  INIT_PRINT("--- Device Tree ---\n");
   print_fdt((void*)dtb);
 
   // Init devices (these don't seem to do anything for now)
@@ -248,34 +248,16 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Enable interrupts
   arch_enable_ints(); 
 
-  INIT_DEBUG("Interrupts are now enabled\n");
+  INIT_PRINT("Interrupts are now enabled\n");
   
   //enable the timer
   percpu_timer_init();
 
-  INIT_DEBUG("About to set timer\n");
-
   arch_set_timer(1000);
 
-  INIT_DEBUG("Timer set\n");
-
-/* 
-  while(1){
-    for(volatile uint64_t i = 0; i < 100000000; i++) {}
-    INIT_DEBUG("1, tval = %d, cval = %u, pcnt = %u, ctl = 0x%x, DAIF = 0x%x, preempt_dis_level = 0x%x\n", 
-          arch_read_timer(),
-          ({uint64_t cval; asm volatile ("mrs %0, CNTP_CVAL_EL0" : "=r" (cval)); cval;}),
-          ({uint64_t pcnt; asm volatile ("mrs %0, CNTPCT_EL0" : "=r" (pcnt)); pcnt;}),
-          ({uint64_t ctl; asm volatile ("mrs %0, CNTP_CTL_EL0" : "=r" (ctl)); ctl;}),
-          ({uint64_t daif; asm volatile ("mrs %0, DAIF" : "=r" (daif)); daif;}),
-          per_cpu_get(preempt_disable_level)
-        );  
-    print_gic();
-  }
- */
   execute_threading(NULL);
 
-  INIT_DEBUG("End of current boot process!\n");
+  INIT_PRINT("End of current boot process!\n");
 
   idle(NULL,NULL);
 }
@@ -286,19 +268,18 @@ volatile static bool_t done = false;
 static void print_ones(void*, void**)
 {
     while (!done) {
-      INIT_DEBUG("1\n");
+      INIT_PRINT("1\n");
     }
 
-    INIT_DEBUG("End of print_ones\n");
+    INIT_PRINT("End of print_ones\n");
 }
 
 static void print_twos(void*, void**)
 {
-    while (!done) {
-      INIT_DEBUG("2\n");
-    }
-
-    INIT_DEBUG("End of print_twos\n");
+  while(!done){
+    INIT_PRINT("2\n");
+  }
+    INIT_PRINT("End of print_twos\n");
 }
 
 int execute_threading(char command[])
@@ -320,7 +301,7 @@ int execute_threading(char command[])
         i++;
         nk_yield();
     }
-    printk("\n");
+    INIT_PRINT("\n");
     done = true;
     nk_join(a, NULL);
     nk_join(b, NULL);

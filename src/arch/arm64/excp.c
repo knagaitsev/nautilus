@@ -61,6 +61,9 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
   } else {
     EXCP_PRINT("\t16bit Instruction\n");
   }
+#ifdef NAUT_CONFIG_DEBUG_PRINTS
+  arch_print_regs(regs);
+#endif
 }
 
 // Requires mm_boot to be initialized
@@ -115,7 +118,9 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
     EXCP_DEBUG("\tEL = %u\n", el);
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
 
+#ifdef NAUT_CONFIG_DEBUG_PRINTS
     arch_print_regs(regs);
+#endif
   }
   
   int(*handler)(excp_entry_t*, excp_vec_t, void*);

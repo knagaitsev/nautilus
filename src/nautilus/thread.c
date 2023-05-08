@@ -221,7 +221,7 @@ thread_cleanup (void)
 static inline void thread_print_stack(nk_thread_t *t) {
   uint64_t *base = (uint64_t*)(((uint8_t*)t->stack) + t->stack_size);
   printk("Thread %p's Stack: base = %p, rsp = %p\n", (void*)t, base, (uint64_t*)t->rsp);
-  while(base > t->rsp) {
+  while((uint64_t)base > t->rsp) {
     base--;
     printk("\t0x%016x\n", *base);
   }
@@ -305,7 +305,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
     #define GPR_SAVE_SIZE 0x120
     #define GPR_RDI_OFFSET (GPR_SAVE_SIZE - 0x70 - 0x00)
     #define GPR_LR_OFFSET (GPR_SAVE_SIZE - 0x70 - 0xa0)
-    #define INTERRUPT_FLAG_OFFSET (GPR_SAVE_SIZE - 0x58)
+    #define INTERRUPT_RETURN_OFFSET (GPR_SAVE_SIZE - 0x50)
     printk("thread_cleanup = %p\n", thread_cleanup);
     printk("fun = %p\n", fun);
 
@@ -314,7 +314,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
         thread_push(t, (uint64_t)fun);
         *(uint64_t*)(t->rsp-GPR_RDI_OFFSET) = (uint64_t)arg;
         *(uint64_t*)(t->rsp-GPR_LR_OFFSET)  = (uint64_t)nk_thread_entry;
-        *(uint64_t*)(t->rsp-INTERRUPT_FLAG_OFFSET) = (uint64_t)0;
+        *(uint64_t*)(t->rsp-INTERRUPT_RETURN_OFFSET) = (uint64_t)0;
     }
 #endif
 

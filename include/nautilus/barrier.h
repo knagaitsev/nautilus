@@ -115,8 +115,7 @@ static inline void nk_counting_barrier(volatile nk_counting_barrier_t *b)
 	}
     #elif NAUT_CONFIG_ARCH_ARM64
 			// TODO(arm64): mfence. Do this with __sync_synchronize();
-#include<arch/arm64/unimpl.h>
-        ARM64_ERR_UNIMPL;
+        __sync_synchronize();
     #elif NAUT_CONFIG_ARCH_X86
 	while ( ({ __asm__ __volatile__( "movq %1, %0" : "=r"(old) : "m"(*countp) : ); old; }) ) {
 	    __asm__ __volatile__ ("pause");

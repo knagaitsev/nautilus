@@ -54,7 +54,7 @@ struct nk_regs {
     pause();                                                                   \
   }
 
-#define mbarrier() /* TODO(arm64) */
+#define mbarrier() __sync_synchronize()
 
 #define BARRIER_WHILE(x)                                                       \
   while ((x)) {                                                                \

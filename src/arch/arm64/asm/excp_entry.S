@@ -1,6 +1,7 @@
 .MACRO SAVE_GPRS
+
   sub sp, sp, 0xb0
-  // Store GP Registers
+
   stp x0, x1, [sp, 0x00]
   stp x2, x3, [sp, 0x10]
   stp x4, x5, [sp, 0x20]
@@ -19,7 +20,6 @@
 
 .MACRO RESTORE_GPRS
 
-  // Restore GP Registers
   ldp x0, x1, [sp, 0x00]
   ldp x2, x3, [sp, 0x10]
   ldp x4, x5, [sp, 0x20]
@@ -63,7 +63,7 @@
 .MACRO NESTABLE_EXCP_EXIT
 
   // Restore interrupt registers
-  ldp x0, x1, [sp]
+  ldp x0, x1, [sp, 0x00]
   msr SPSR_EL1, x0
   msr ELR_EL1, x1
 
@@ -85,7 +85,6 @@
 
 .GLOBAL el0_to_el1_interrupt_entry
 el0_to_el1_interrupt_entry:
-  // Push data onto the stack
   SAVE_GPRS 
   NESTABLE_EXCP_ENTRY 
 
@@ -98,14 +97,12 @@ el0_to_el1_interrupt_entry:
   bl nk_thread_switch_intr_entry
 1:
 
-  // Pop data off of the stack
   NESTABLE_EXCP_EXIT
   RESTORE_GPRS
   eret
 
 .GLOBAL el1_to_el1_interrupt_entry
 el1_to_el1_interrupt_entry:
-before_gpr_save:
   SAVE_GPRS
   NESTABLE_EXCP_ENTRY
 
@@ -115,13 +112,12 @@ before_gpr_save:
   DEC_EXCP_DEPTH
 
   cbz x0, 1f 
-
   bl nk_thread_switch_intr_entry
 1:
   
   NESTABLE_EXCP_EXIT
   RESTORE_GPRS
-before_eret: 
+el1_to_el1_interrupt_end:
   eret
 
 .EXTERN route_exception
@@ -138,6 +134,7 @@ el0_to_el1_exception_entry:
 
   NESTABLE_EXCP_EXIT
   RESTORE_GPRS
+  b .
   eret
 
 .GLOBAL el1_to_el1_exception_entry

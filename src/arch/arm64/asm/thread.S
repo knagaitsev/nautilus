@@ -36,11 +36,11 @@ nk_thread_switch:
   stp x30, xzr, [sp, 0xa0]
 
   // Make sure that lr is zero if we don't enter through intr entry
-  mov lr, 0
+  mov x30, 0
 
 nk_thread_switch_intr_entry:
   
-  // If we enter through interrupts, lr should now be non-zero.
+  // If we enter through interrupts, x30 should now be non-zero.
 
   // Save the other GP registers
   // That we normally can ignore on exception entry
@@ -51,8 +51,8 @@ nk_thread_switch_intr_entry:
   stp x26, x27, [sp, 0x30]
   stp x28, x29, [sp, 0x40]
 
-  // Save the return address if we entered through an interrupt
-  stp lr, xzr, [sp, 0x50]
+  // Save the return address incase we entered through an interrupt
+  stp x30, xzr, [sp, 0x50]
 
   // Save our stack ptr into the thread struct
   mrs x3, TPIDR_EL1
@@ -81,7 +81,7 @@ nk_thread_switch_on_exit:
   ldp x28, x29, [sp, 0x40]
 
   // Get whether or not we entered this via interrupt context or not
-  ldp lr, xzr, [sp, 0x50]
+  ldp x30, xzr, [sp, 0x50]
 
   // Restore flags
   ldp x2, x3, [sp, 0x60]
@@ -90,7 +90,7 @@ nk_thread_switch_on_exit:
  
   add sp, sp, 0x70
 
-  cbz lr, 1f // If x1 is 0 then we shouldn't return early, because we didn't enter 
+  cbz x30, 1f // If lr is 0 then we shouldn't return early, because we didn't enter 
              // through an interrupt
   ret
 1:
