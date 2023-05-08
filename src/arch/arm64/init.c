@@ -32,6 +32,7 @@
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/excp.h>
 #include<arch/arm64/timer.h>
+#include<arch/arm64/smc.h>
 
 #include<dev/pl011.h>
 
