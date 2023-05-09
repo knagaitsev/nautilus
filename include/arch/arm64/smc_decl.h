@@ -32,16 +32,21 @@ typedef union smc_func_id {
 #ifdef SMC_DECL_64
 #define __SMC_TYPE uint64_t
 #define __SMC_REG_PREFIX "x"
+#define __SMC_STR_POSTFIX ""
 #else
 #define __SMC_TYPE uint32_t
 #define __SMC_REG_PREFIX "w"
+#define __SMC_STR_POSTFIX "h"
 #endif
+
+#define __SMC_INSTRUCTION_USED "hvc"
 
 #define __SMC_CLOBBER_LIST "x0", "x1", "x2", "x3", "x4", "x5", "x6", "x7", "x8", \
                            "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x16", "x17"
 
 static inline __SMC_TYPE SMC_DECL_NAME(
-    uint16_t id
+    uint32_t id,
+    uint8_t type
 // Returns
 #if SMC_DECL_NUM_RET >= 1
     , __SMC_TYPE *ret0
@@ -82,8 +87,9 @@ static inline __SMC_TYPE SMC_DECL_NAME(
       __SMC_TYPE *ret0 = &ret;
 #endif
       smc_func_id_t _id;
-      _id.id = id;
+      _id.id = id & 0xFFFF;
       _id.mbz = 0;
+      _id.service_call_range = type;
       _id.smc64 = 
 #ifdef SMC_DECL_64
         1;
@@ -94,66 +100,66 @@ static inline __SMC_TYPE SMC_DECL_NAME(
 
 
   asm volatile (
-      "mov "   __SMC_REG_PREFIX   "0, %[raw_id];"
+      "mov w0, %w[raw_id];"
 #if SMC_DECL_NUM_ARGS >= 1
-      "mov "   __SMC_REG_PREFIX   "1, %[arg0];"
+      "mov "   __SMC_REG_PREFIX   "1, %" __SMC_REG_PREFIX "[arg0];"
 #endif
 #if SMC_DECL_NUM_ARGS >= 2
-      "mov "   __SMC_REG_PREFIX   "2, %[arg1];"
+      "mov "   __SMC_REG_PREFIX   "2, %" __SMC_REG_PREFIX "[arg1];"
 #endif
 #if SMC_DECL_NUM_ARGS >= 3
-      "mov "   __SMC_REG_PREFIX   "3, %[arg2];"
+      "mov "   __SMC_REG_PREFIX   "3, %" __SMC_REG_PREFIX "[arg2];"
 #endif
 #if SMC_DECL_NUM_ARGS >= 4
-      "mov "   __SMC_REG_PREFIX   "4, %[arg3];"
+      "mov "   __SMC_REG_PREFIX   "4, %" __SMC_REG_PREFIX "[arg3];"
 #endif
 #if SMC_DECL_NUM_ARGS >= 5
-      "mov "   __SMC_REG_PREFIX   "5, %[arg4];"
+      "mov "   __SMC_REG_PREFIX   "5, %" __SMC_REG_PREFIX "[arg4];"
 #endif
 #if SMC_DECL_NUM_ARGS >= 6
-      "mov "   __SMC_REG_PREFIX   "6, %[arg5];"
+      "mov "   __SMC_REG_PREFIX   "6, %" __SMC_REG_PREFIX "[arg5];"
 #endif
-      "smc 0;"
-      "mov %[ret0], "   __SMC_REG_PREFIX   "0;"
+      "" __SMC_INSTRUCTION_USED " 0;"
+      "str" __SMC_STR_POSTFIX " " __SMC_REG_PREFIX "0, %" __SMC_REG_PREFIX "[ret0];"
 #if SMC_DECL_NUM_RET >= 2
-      "mov %[ret1], "   __SMC_REG_PREFIX   "1;"
+      "str" __SMC_STR_POSTFIX " " __SMC_REG_PREFIX "1, %" __SMC_REG_PREFIX "[ret1];"
 #endif
 #if SMC_DECL_NUM_RET >= 3
-      "mov %[ret2], "   __SMC_REG_PREFIX   "2;"
+      "str" __SMC_STR_POSTFIX " " __SMC_REG_PREFIX "2, %" __SMC_REG_PREFIX "[ret2];"
 #endif
 #if SMC_DECL_NUM_RET >= 4
-      "mov %[ret3], "   __SMC_REG_PREFIX   "3;"
+      "str" __SMC_STR_POSTFIX " " __SMC_REG_PREFIX "3, %" __SMC_REG_PREFIX "[ret3];"
 #endif
     : // Outputs
-    [ret0] "=rm" (*ret0)
+    [ret0] "=m" (*ret0)
 #if SMC_DECL_NUM_RET >= 2
-    , [ret1] "=rm" (*ret1)
+    , [ret1] "=m" (*ret1)
 #endif
 #if SMC_DECL_NUM_RET >= 3
-    , [ret2] "=rm" (*ret2)
+    , [ret2] "=m" (*ret2)
 #endif
 #if SMC_DECL_NUM_RET >= 4
-    , [ret3] "=rm" (*ret3)
+    , [ret3] "=m" (*ret3)
 #endif
     : //Inputs 
-    [raw_id] "rm" (_id.raw)
+    [raw_id] "r" (_id.raw)
 #if SMC_DECL_NUM_ARGS >= 1
-    , [arg0] "rm" (arg0)
+    , [arg0] "r" (arg0)
 #endif
 #if SMC_DECL_NUM_ARGS >= 2
-    , [arg1] "rm" (arg1)
+    , [arg1] "r" (arg1)
 #endif
 #if SMC_DECL_NUM_ARGS >= 3
-    , [arg2] "rm" (arg2)
+    , [arg2] "r" (arg2)
 #endif
 #if SMC_DECL_NUM_ARGS >= 4
-    , [arg3] "rm" (arg3)
+    , [arg3] "r" (arg3)
 #endif
 #if SMC_DECL_NUM_ARGS >= 5
-    , [arg4] "rm" (arg4)
+    , [arg4] "r" (arg4)
 #endif
 #if SMC_DECL_NUM_ARGS >= 6
-    , [arg5] "rm" (arg5)
+    , [arg5] "r" (arg5)
 #endif
     : __SMC_CLOBBER_LIST);
 

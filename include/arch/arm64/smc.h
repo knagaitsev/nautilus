@@ -1,6 +1,14 @@
 #ifndef __ARCH64_SMC_H__
 #define __ARCH64_SMC_H__
 
+#define SMC_CALL_TYPE_ARCH 0
+#define SMC_CALL_TYPE_CPU_SERV 1
+#define SMC_CALL_TYPE_SIP_SERV 2
+#define SMC_CALL_TYPE_OEM_SERV 3
+#define SMC_CALL_TYPE_SS_SERV 4
+#define SMC_CALL_TYPE_SH_SERV 5
+#define SMC_CALL_TYPE_VSH_SERV 6
+
 #undef SMC_DECL_64
 #define SMC_DECL_NUM_RET 0
 

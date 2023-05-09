@@ -7,7 +7,7 @@
 # To keep this in the first portion of the binary.
 .section .boot
 
-.EXTERN secondary_entry
+.EXTERN secondary_init
  
 .globl nautilus_entry
 # Entry point for the kernel. Registers:
@@ -38,8 +38,7 @@ nautilus_entry:
 
     # We're not on the main core, so hang in an infinite wait loop
 1:  wfe
-    bl __install_iv_tables
-    bl secondary_entry
+    b secondary_start
     b  1b
 
 
@@ -64,10 +63,23 @@ nautilus_entry:
     # In case it does return, halt the master core too
     # Load a obvious value into x29 so it will be clear to the debugger
     ldr x1, =0xCAFEBABE
-    b       1b
+    b .
 
 
-.section .boot
+.EXTERN __secondary_stack
+.GLOBAL secondary_start
+secondary_start:
+    
+    ldr x1, =__secondary_stack
+    ldr x1, [x1]
+    mov sp, x1
+
+    bl __install_iv_tables
+
+    bl secondary_init
+
+    ldr x1, =0xCAFEBABE
+    b .
 
 .align 16
 boot_stack:

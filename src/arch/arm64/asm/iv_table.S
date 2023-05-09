@@ -3,7 +3,7 @@
 .GLOBAL __install_iv_tables
 .align 3
 __install_iv_tables:
-  
+
   // Check that we are in EL1
   mrs x1, CurrentEL
   lsr x1, x1, 2

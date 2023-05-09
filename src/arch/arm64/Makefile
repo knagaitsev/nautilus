@@ -10,3 +10,4 @@ obj-y += asm/ \
 	numa.o \
 	smp.o \
 	timer.o \
+	psci.o \

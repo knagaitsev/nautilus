@@ -32,7 +32,7 @@
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/excp.h>
 #include<arch/arm64/timer.h>
-#include<arch/arm64/smc.h>
+#include<arch/arm64/psci.h>
 
 #include<dev/pl011.h>
 
@@ -97,34 +97,70 @@ static inline int init_core_barrier(struct sys_info *sys) {
   return 0;
 }
 
-void secondary_entry(void) {
+volatile static uint8_t __secondary_init_finish;
 
-  struct naut_info *naut = &nautilus_info;
+void secondary_init(uint64_t context_id) {
 
-  set_tpid_reg(naut);
+  fpu_init(&nautilus_info, 1);
 
-  DEBUG_PRINT("Starting CPU: %d\n", my_cpu_id());
+  set_tpid_reg(&nautilus_info);
 
-  // Initialize the stack
-  uint64_t *stack = (uint64_t)malloc(2 * 4096);
-  stack += 2 * 4096;
-  get_cur_thread()->rsp = stack;
-  naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+  DEBUG_PRINT("Starting...\n");
+ 
+  // Locally Initialize the GIC on the init processor 
+  // (will need to call this on every processor which can receive interrupts)
+  if(per_cpu_init_gic()) {
+    INIT_ERROR("Failed to initialize CPU %u's GIC registers!\n", my_cpu_id());
+    return;
+  }
+  INIT_DEBUG("Initialized the GIC!\n", my_cpu_id());
+
+  nk_sched_init_ap(&sched_cfg);
+
+  smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
+  nk_thread_name(get_cur_thread(), "secondary_init");
 
   DEBUG_PRINT("ARM64: successfully started CPU %d\n", my_cpu_id());
 
-  nk_core_barrier_arrive(); 
+  __secondary_init_finish = 1;
+
+  nk_sched_start();
+  
+  // Enable interrupts
+  arch_enable_ints(); 
+
+  INIT_DEBUG("Interrupts are now enabled\n");
+  
+  //enable the timer
+  percpu_timer_init();
+
+  arch_set_timer(1000);
 
   idle(NULL, NULL);
 }
 
+extern void secondary_start(void);
+void *__secondary_stack = NULL;
+
 static int start_secondaries(struct sys_info *sys) {
   DEBUG_PRINT("Starting secondary processors\n");
 
-  asm volatile ("sev");
+  for(uint64_t i = 1; i < sys->num_cpus; i++) {
+    __secondary_init_finish = 0;
+    // Initialize the stack
+    __secondary_stack = (uint8_t*)malloc(2 * PAGE_SIZE_4KB);
+    __secondary_stack += 2*PAGE_SIZE_4KB;
 
-  nk_core_barrier_raise();
-  nk_core_barrier_wait(); 
+    INIT_DEBUG("Trying to start secondary core: %u\n", i);
+    if(psci_cpu_on(i, (void*)secondary_start, i)) {
+      INIT_ERROR("PSCI Error: psci_cpu_on failed for CPU %u!\n", i);
+    }
+    while(!__secondary_init_finish) {
+      // Wait for the secondary cpu to finish initializing
+      // (We need to start them one by one because we need to re-use
+      //  the boot stack)
+    }
+  }
 
   DEBUG_PRINT("All CPU's are initialized!\n");
 }
@@ -148,19 +184,17 @@ extern void *_bssStart;
 
 void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x3) {
 
-  struct naut_info *naut = &nautilus_info;
-
   // Zero out .bss
   nk_low_level_memset(_bssStart, 0, (off_t)_bssEnd - (off_t)_bssStart);
   
   // Enable the FPU
-  fpu_init(naut, 0);
+  fpu_init(&nautilus_info, 0);
 
-  naut->sys.dtb = (struct dtb_fdt_header*)dtb;
+  nautilus_info.sys.dtb = (struct dtb_fdt_header*)dtb;
 
   mpid_reg_t mpid_reg;
   load_mpid_reg(&mpid_reg);
-  naut->sys.bsp_id = mpid_reg.aff0; 
+  nautilus_info.sys.bsp_id = mpid_reg.aff0; 
  
   // Initialize serial output
   pl011_uart_init(&_main_pl011_uart, (void*)QEMU_PL011_VIRT_BASE_ADDR, QEMU_VIRT_BASE_CLOCK);
@@ -171,7 +205,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   printk(NAUT_WELCOME);
 
-  INIT_PRINT("--- Device Tree ---\n");
+  INIT_DEBUG("--- Device Tree ---\n");
   print_fdt((void*)dtb);
 
   // Init devices (these don't seem to do anything for now)
@@ -185,13 +219,13 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   mm_boot_init(dtb);
 
   // Initialize SMP using the dtb
-  smp_early_init(naut);
+  smp_early_init(&nautilus_info);
 
   // Set our thread pointer id register for the BSP
-  set_tpid_reg(naut);
+  set_tpid_reg(&nautilus_info);
   
   // Initialize NUMA (Fake)
-  arch_numa_init(&naut->sys);
+  arch_numa_init(&(nautilus_info.sys));
 
   // Initialize (but not enable) the Generic Interrupt Controller
   if(global_init_gic((void*)dtb, &_main_gic)) {
@@ -225,7 +259,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nk_wait_queue_init();
   nk_future_init();
   nk_timer_init();
-  nk_rand_init(naut->sys.cpus[0]);
+  nk_rand_init(nautilus_info.sys.cpus[0]);
   nk_semaphore_init();
   nk_msg_queue_init();
 
@@ -234,53 +268,61 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nk_thread_group_init();
   nk_group_sched_init();
 
-  init_core_barrier(&(naut->sys));
+  init_core_barrier(&(nautilus_info.sys));
 
   // Swap stacks (now we definitely cannot return from this function
-  naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+  smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
 
   nk_thread_name(get_cur_thread(), "init");
+  INIT_DEBUG("Swapped to new stack\n");
   
-  //start_secondaries(&(naut->sys));
-
+  start_secondaries(&(nautilus_info.sys));
+  
   // Start the scheduler
-  nk_sched_start();
-  
+  nk_sched_start();  
+
   // Enable interrupts
   arch_enable_ints(); 
 
-  INIT_PRINT("Interrupts are now enabled\n");
+  INIT_DEBUG("Interrupts are now enabled\n");
   
   //enable the timer
   percpu_timer_init();
 
-  arch_set_timer(1000);
+  arch_set_timer(10000);
 
   execute_threading(NULL);
 
-  INIT_PRINT("End of current boot process!\n");
+  INIT_DEBUG("End of current boot process!\n");
+  
+  uint16_t psci_major, psci_minor;
+  psci_version(&psci_major, &psci_minor);
+  INIT_DEBUG("PSCI: Version = %u.%u\n", psci_major, psci_minor);
+  INIT_DEBUG("PSCI: Shutting down the system\n");
+  psci_system_off();
+  INIT_DEBUG("After shutting down the system...?\n");
 
   idle(NULL,NULL);
 }
 
 
-volatile static bool_t done = false;
+volatile static uint64_t count;
 
 static void print_ones(void*, void**)
 {
-    while (!done) {
-      INIT_PRINT("1\n");
+    while (count) {
+      INIT_DEBUG("1 : count = %u\n", count);
     }
 
-    INIT_PRINT("End of print_ones\n");
+    INIT_DEBUG("End of print_ones\n");
 }
 
 static void print_twos(void*, void**)
 {
-  while(!done){
-    INIT_PRINT("2\n");
+  while(count){
+    INIT_DEBUG("2 : count = %u\n", count);
   }
-    INIT_PRINT("End of print_twos\n");
+  INIT_DEBUG("End of print_twos\n");
 }
 
 int execute_threading(char command[])
@@ -290,20 +332,18 @@ int execute_threading(char command[])
     printk("print_ones = %p\n", (nk_thread_fun_t)print_ones);
     printk("print_twos = %p\n", (nk_thread_fun_t)print_twos);
 
-    nk_thread_start((nk_thread_fun_t)print_ones, 0, 0, 0, 0, &a, my_cpu_id());
-    nk_thread_start((nk_thread_fun_t)print_twos, 0, 0, 0, 0, &b, my_cpu_id());
+    nk_thread_start((nk_thread_fun_t)print_ones, 0, 0, 0, 0, &a, -1);
+    nk_thread_start((nk_thread_fun_t)print_twos, 0, 0, 0, 0, &b, -1);
 
     nk_thread_name(a, "print_ones");
     nk_thread_name(b, "print_twos");
 
-    done = false;
-    int i = 0;
-    while (i < 10) {
-        i++;
+    count = 10;
+    while (count > 0) {
+        count--;
         nk_yield();
     }
-    INIT_PRINT("\n");
-    done = true;
+    INIT_DEBUG("\n");
     nk_join(a, NULL);
     nk_join(b, NULL);
 

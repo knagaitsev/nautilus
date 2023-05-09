@@ -10,7 +10,7 @@
 #define EXCP_SYNDROME_BITS 6
 
 
-#ifndef NAUT_CONFIG_DEBUG_PRINTS
+#ifndef NAUT_CONFIG_DEBUG_TIMERS
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
 #endif
@@ -61,7 +61,7 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
   } else {
     EXCP_PRINT("\t16bit Instruction\n");
   }
-#ifdef NAUT_CONFIG_DEBUG_PRINTS
+#ifdef NAUT_CONFIG_DEBUG_TIMERS
   arch_print_regs(regs);
 #endif
 }
@@ -118,7 +118,7 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
     EXCP_DEBUG("\tEL = %u\n", el);
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
 
-#ifdef NAUT_CONFIG_DEBUG_PRINTS
+#ifdef NAUT_CONFIG_DEBUG_TIMERS
     arch_print_regs(regs);
 #endif
   }
