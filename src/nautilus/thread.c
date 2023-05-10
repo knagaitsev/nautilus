@@ -220,12 +220,12 @@ thread_cleanup (void)
 
 static inline void thread_print_stack(nk_thread_t *t) {
   uint64_t *base = (uint64_t*)(((uint8_t*)t->stack) + t->stack_size);
-  printk("Thread %p's Stack: base = %p, rsp = %p\n", (void*)t, base, (uint64_t*)t->rsp);
+  THREAD_DEBUG("Thread %p's Stack: base = %p, rsp = %p\n", (void*)t, base, (uint64_t*)t->rsp);
   while((uint64_t)base > t->rsp) {
     base--;
-    printk("\t0x%016x\n", *base);
+    THREAD_DEBUG("\t0x%016x\n", *base);
   }
-  printk("End of stack\n");
+  THREAD_DEBUG("End of stack\n");
 }
 
 /*
@@ -235,10 +235,9 @@ static inline void thread_print_stack(nk_thread_t *t) {
 static inline void
 thread_push (nk_thread_t * t, uint64_t x)
 {
-    printk("Pushing 0x%016x onto thread %p's stack\n", x, t);
+    THREAD_DEBUG("Pushing 0x%016x onto thread %p's stack\n", x, t);
     t->rsp -= 8;
     *(uint64_t*)(t->rsp) = x;
-    thread_print_stack(t);
 }
 
 static void
@@ -306,8 +305,6 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
     #define GPR_RDI_OFFSET (GPR_SAVE_SIZE - 0x70 - 0x00)
     #define GPR_LR_OFFSET (GPR_SAVE_SIZE - 0x70 - 0xa0)
     #define INTERRUPT_RETURN_OFFSET (GPR_SAVE_SIZE - 0x50)
-    printk("thread_cleanup = %p\n", thread_cleanup);
-    printk("fun = %p\n", fun);
 
     if (fun) {
         thread_push(t, (uint64_t)thread_cleanup);
@@ -319,9 +316,6 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
 #endif
 
     t->rsp -= GPR_SAVE_SIZE;                             // account for the GPRS;
-    
-    printk("End of stack init\n");
-    thread_print_stack(t);
 }
 
 

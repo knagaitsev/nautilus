@@ -228,16 +228,6 @@ get_cpu (void)
 
 #include<arch/arm64/sys_reg.h>
 
-#define per_cpu_put(var, newval) do { \
-  get_cpu()->var = newval;\
-  } while(0);
-
-#define per_cpu_get(var) ({ \
-    get_cpu()->var; \
-    })
-    
-#define my_cpu_id() per_cpu_get(id)
-
 static inline struct cpu*
 get_cpu (void)
 {
@@ -245,6 +235,14 @@ get_cpu (void)
   LOAD_SYS_REG(TPIDR_EL1, c);
   return c;
 }
+
+#define per_cpu_put(var, newval) do { \
+  get_cpu()->var = newval;\
+  } while(0)
+
+#define per_cpu_get(var) (get_cpu()->var)
+    
+#define my_cpu_id() per_cpu_get(id)
 
 #endif /* NAUT_CONFIG_ARCH_ARM64 */
 

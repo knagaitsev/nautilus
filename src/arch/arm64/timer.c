@@ -77,7 +77,7 @@ void arch_set_timer(uint32_t ticks) {
    
     asm volatile("msr CNTP_TVAL_EL0, %0" :: "r" ((int)ticks));
 
-//    gicd_clear_int_pending(__gic_ptr, 30);
+    gicd_clear_int_pending(__gic_ptr, 30);
 
     timer_set = 1;
     current_ticks = ticks;
@@ -123,6 +123,8 @@ int percpu_timer_init(void) {
 
   // install the handler
   arch_irq_install(30, arch_timer_handler);
+
+  print_timer_regs();
 
   // Enable the timer
   asm volatile ("mrs x0, CNTP_CTL_EL0; orr x0, x0, 1; msr CNTP_CTL_EL0, x0" ::: "x0");

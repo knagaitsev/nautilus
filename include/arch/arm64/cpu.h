@@ -47,7 +47,7 @@ struct nk_regs {
   uint64_t _zero; // Stack must be 16 byte aligned so we need this
 };
 
-#define pause() /* ... */
+#define pause()
 
 #define PAUSE_WHILE(x)                                                         \
   while ((x)) {                                                                \

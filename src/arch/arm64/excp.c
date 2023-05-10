@@ -61,9 +61,10 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
   } else {
     EXCP_PRINT("\t16bit Instruction\n");
   }
-#ifdef NAUT_CONFIG_DEBUG_TIMERS
-  arch_print_regs(regs);
-#endif
+//#ifdef NAUT_CONFIG_DEBUG_TIMERS
+//  arch_print_regs(regs);
+//#endif
+  return 0;
 }
 
 // Requires mm_boot to be initialized
@@ -112,11 +113,13 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
     EXCP_DEBUG("\tEL = %u\n", el);
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
     EXCP_DEBUG("\tCPU ID = %u\n", int_info.cpu_id);
+    EXCP_DEBUG("\tELR = %u\n", excp_info->elr);
   }
   else {
     EXCP_DEBUG("--- Interrupt ---\n");
     EXCP_DEBUG("\tEL = %u\n", el);
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
+    EXCP_DEBUG("\tELR = %u\n", excp_info->elr);
 
 #ifdef NAUT_CONFIG_DEBUG_TIMERS
     arch_print_regs(regs);
@@ -135,14 +138,12 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
     .rsp = regs->frame_ptr
   };
 
-//  arch_enable_ints();
   int status = (*handler)(&entry, int_info.int_id, state);
-//  arch_disable_ints();
 
-  extern INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched);
-  void *thread = _sched_need_resched(0, 1);
+  EXCP_DEBUG("About to call nk_sched_need_resched() preempt_disable_level = %u\n", per_cpu_get(preempt_disable_level) - 1);
+  void *thread = nk_sched_need_resched();
 
-  EXCP_DEBUG("_sched_need_resched(0, 1) returned 0x%x\n", (uint64_t)thread);
+  EXCP_DEBUG("nk_sched_need_resched() returned 0x%x\n", (uint64_t)thread);
 
   EXCP_DEBUG("END OF INTERRUPT\n");
   STORE_GICC_REG(__gic_ptr, GICC_EOIR_OFFSET, int_info.raw);

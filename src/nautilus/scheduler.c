@@ -2037,8 +2037,8 @@ static void set_timer(rt_scheduler *scheduler, rt_thread *thread, uint64_t now)
 	ERROR("Ticks is unlikely, probably overflow\n");
     }
 
-    //    DEBUG("Setting timer to at most %llu ns (%llu ticks)\n",scheduler->tsc.set_time - now + scheduler->slack,
-    //	  arch_realtime_to_ticks(arch, scheduler->tsc.set_time - now + scheduler->slack));
+    //DEBUG("Setting timer to at most %llu ns (%llu ticks)\n",scheduler->tsc.set_time - now + scheduler->slack,
+    // 	  arch_realtime_to_ticks(arch, scheduler->tsc.set_time - now + scheduler->slack));
 
     arch_update_timer(ticks, IF_EARLIER);
 			      
@@ -2232,7 +2232,7 @@ INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched
 		DEBUG("Reinjecting timer: in_timer=%d, in_kick=%d\n", 
 		      c->in_timer_interrupt, c->in_kick_interrupt);
 		//BACKTRACE(DEBUG,3);
-        arch_update_timer(
+                arch_update_timer(
                       arch_realtime_to_ticks(NAUT_CONFIG_INTERRUPT_REINJECTION_DELAY_NS), 
                       IF_EARLIER);
 		c->sched_state->reinject_count++;

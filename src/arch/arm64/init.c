@@ -41,7 +41,7 @@
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define INIT_PRINT(fmt, args...) printk("init: " fmt, ##args)
+#define INIT_PRINT(fmt, args...) INFO_PRINT("init: " fmt, ##args)
 #define INIT_DEBUG(fmt, args...) DEBUG_PRINT("init: " fmt, ##args)
 #define INIT_ERROR(fmt, args...) ERROR_PRINT("init: " fmt, ##args)
 #define INIT_WARN(fmt, args...) WARN_PRINT("init: " fmt, ##args)
@@ -92,7 +92,7 @@ static inline int init_core_barrier(struct sys_info *sys) {
     return -1;
   }
 
-  DEBUG_PRINT("Initialized the core barrier\n");
+  INIT_PRINT("Initialized the core barrier\n");
 
   return 0;
 }
@@ -105,7 +105,7 @@ void secondary_init(uint64_t context_id) {
 
   set_tpid_reg(&nautilus_info);
 
-  DEBUG_PRINT("Starting...\n");
+  INIT_PRINT("Starting CPU %u...\n");
  
   // Locally Initialize the GIC on the init processor 
   // (will need to call this on every processor which can receive interrupts)
@@ -113,14 +113,14 @@ void secondary_init(uint64_t context_id) {
     INIT_ERROR("Failed to initialize CPU %u's GIC registers!\n", my_cpu_id());
     return;
   }
-  INIT_DEBUG("Initialized the GIC!\n", my_cpu_id());
+  INIT_PRINT("Initialized the GIC!\n", my_cpu_id());
 
   nk_sched_init_ap(&sched_cfg);
 
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
   nk_thread_name(get_cur_thread(), "secondary_init");
 
-  DEBUG_PRINT("ARM64: successfully started CPU %d\n", my_cpu_id());
+  INIT_PRINT("ARM64: successfully started CPU %d\n", my_cpu_id());
 
   __secondary_init_finish = 1;
 
@@ -129,12 +129,10 @@ void secondary_init(uint64_t context_id) {
   // Enable interrupts
   arch_enable_ints(); 
 
-  INIT_DEBUG("Interrupts are now enabled\n");
+  INIT_PRINT("Interrupts are now enabled\n");
   
   //enable the timer
   percpu_timer_init();
-
-  arch_set_timer(1000);
 
   idle(NULL, NULL);
 }
@@ -143,7 +141,7 @@ extern void secondary_start(void);
 void *__secondary_stack = NULL;
 
 static int start_secondaries(struct sys_info *sys) {
-  DEBUG_PRINT("Starting secondary processors\n");
+  INIT_PRINT("Starting secondary processors\n");
 
   for(uint64_t i = 1; i < sys->num_cpus; i++) {
     __secondary_init_finish = 0;
@@ -151,7 +149,7 @@ static int start_secondaries(struct sys_info *sys) {
     __secondary_stack = (uint8_t*)malloc(2 * PAGE_SIZE_4KB);
     __secondary_stack += 2*PAGE_SIZE_4KB;
 
-    INIT_DEBUG("Trying to start secondary core: %u\n", i);
+    INIT_PRINT("Trying to start secondary core: %u\n", i);
     if(psci_cpu_on(i, (void*)secondary_start, i)) {
       INIT_ERROR("PSCI Error: psci_cpu_on failed for CPU %u!\n", i);
     }
@@ -162,7 +160,7 @@ static int start_secondaries(struct sys_info *sys) {
     }
   }
 
-  DEBUG_PRINT("All CPU's are initialized!\n");
+  INIT_PRINT("All CPU's are initialized!\n");
 }
 
 
@@ -205,7 +203,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   printk(NAUT_WELCOME);
 
-  INIT_DEBUG("--- Device Tree ---\n");
+  INIT_PRINT("--- Device Tree ---\n");
   print_fdt((void*)dtb);
 
   // Init devices (these don't seem to do anything for now)
@@ -274,7 +272,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
 
   nk_thread_name(get_cur_thread(), "init");
-  INIT_DEBUG("Swapped to new stack\n");
+  INIT_PRINT("Swapped to new stack\n");
   
   start_secondaries(&(nautilus_info.sys));
   
@@ -284,23 +282,25 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Enable interrupts
   arch_enable_ints(); 
 
-  INIT_DEBUG("Interrupts are now enabled\n");
+  INIT_PRINT("Interrupts are now enabled\n");
   
   //enable the timer
   percpu_timer_init();
 
-  arch_set_timer(10000);
+  arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
 
   execute_threading(NULL);
 
-  INIT_DEBUG("End of current boot process!\n");
-  
+  INIT_PRINT("End of current boot process!\n");
+
+  /*
   uint16_t psci_major, psci_minor;
   psci_version(&psci_major, &psci_minor);
   INIT_DEBUG("PSCI: Version = %u.%u\n", psci_major, psci_minor);
   INIT_DEBUG("PSCI: Shutting down the system\n");
   psci_system_off();
   INIT_DEBUG("After shutting down the system...?\n");
+  */
 
   idle(NULL,NULL);
 }
@@ -311,26 +311,26 @@ volatile static uint64_t count;
 static void print_ones(void*, void**)
 {
     while (count) {
-      INIT_DEBUG("1 : count = %u\n", count);
+      //INIT_DEBUG("1 : count = %u, preempt_disable_level = %u\n", count, nautilus_info.sys.cpus[0]->preempt_disable_level - 1);
     }
 
-    INIT_DEBUG("End of print_ones\n");
+    INIT_PRINT("End of print_ones\n");
 }
 
 static void print_twos(void*, void**)
 {
   while(count){
-    INIT_DEBUG("2 : count = %u\n", count);
+    //INIT_DEBUG("2 : count = %u\n", count);
   }
-  INIT_DEBUG("End of print_twos\n");
+  INIT_PRINT("End of print_twos\n");
 }
 
 int execute_threading(char command[])
 {
     nk_thread_id_t a, b;
 
-    printk("print_ones = %p\n", (nk_thread_fun_t)print_ones);
-    printk("print_twos = %p\n", (nk_thread_fun_t)print_twos);
+    INIT_PRINT("print_ones = %p\n", (nk_thread_fun_t)print_ones);
+    INIT_PRINT("print_twos = %p\n", (nk_thread_fun_t)print_twos);
 
     nk_thread_start((nk_thread_fun_t)print_ones, 0, 0, 0, 0, &a, -1);
     nk_thread_start((nk_thread_fun_t)print_twos, 0, 0, 0, 0, &b, -1);
@@ -343,7 +343,7 @@ int execute_threading(char command[])
         count--;
         nk_yield();
     }
-    INIT_DEBUG("\n");
+    INIT_PRINT("\n");
     nk_join(a, NULL);
     nk_join(b, NULL);
 
