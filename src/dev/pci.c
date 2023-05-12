@@ -40,6 +40,9 @@
 #define PCI_WARN(fmt, args...)  WARN_PRINT("PCI: " fmt, ##args)
 #define PCI_ERROR(fmt, args...) ERROR_PRINT("PCI: " fmt, ##args)
 
+#ifndef NAUT_CONFIG_ARCH_X86
+#define pci_ecam_base_addr 0x10000000
+#endif
 
 uint16_t 
 pci_cfg_readw (uint8_t bus, 
@@ -52,16 +55,20 @@ pci_cfg_readw (uint8_t bus,
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
     uint32_t ret;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+#ifdef NAUT_CONFIG_ARCH_X86
     outl(addr, PCI_CFG_ADDR_PORT);
     ret = inl(PCI_CFG_DATA_PORT);
     return (ret >> ((off & 0x2) * 8)) & 0xffff;
+#else
+    return *(uint16_t*)(pci_ecam_base_addr + (void*)addr);
+#endif
 }
 
 
@@ -75,15 +82,19 @@ pci_cfg_readl (uint8_t bus,
     uint32_t lbus  = (uint32_t)bus;
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+#ifdef NAUT_CONFIG_ARCH_X86
     outl(addr, PCI_CFG_ADDR_PORT);
     return inl(PCI_CFG_DATA_PORT);
+#else
+    return *(uint32_t*)(pci_ecam_base_addr + (void*)addr);
+#endif
 }
 
 
@@ -99,15 +110,19 @@ pci_cfg_writew (uint8_t bus,
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
     uint32_t ret;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+#ifdef NAUT_CONFIG_ARCH_X86
     outl(addr, PCI_CFG_ADDR_PORT);
     outw(val,PCI_CFG_DATA_PORT);
+#else
+    *(uint16_t*)(pci_ecam_base_addr + (void*)addr) = val;
+#endif
 }
 
 
@@ -122,15 +137,19 @@ pci_cfg_writel (uint8_t bus,
     uint32_t lbus  = (uint32_t)bus;
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+#ifdef NAUT_CONFIG_ARCH_X86
     outl(addr, PCI_CFG_ADDR_PORT);
     outl(val, PCI_CFG_DATA_PORT);
+#else
+    *(uint32_t*)(pci_ecam_base_addr + (void*)addr) = val;
+#endif
 }
 
 
@@ -436,14 +455,14 @@ static void pci_func_probe (struct pci_bus * bus, uint8_t dev, uint8_t fun, int 
     
     *ismultifunc = 0;
 
-    //PCI_DEBUG("probing %x:%x:%x\n", bus->num, dev, fun);
+    PCI_DEBUG("probing %x:%x:%x\n", bus->num, dev, fun);
   
     vendor_id = pci_get_vendor_id(bus->num, dev, fun);
 
 
     /* No device present */
     if (vendor_id == 0xffff) {
-      //PCI_DEBUG("Skipping nonexistent device %x:%x:%x\n", bus->num, dev, fun);
+      PCI_DEBUG("Skipping nonexistent device %x:%x:%x\n", bus->num, dev, fun);
       return;
     }
 
@@ -513,7 +532,7 @@ pci_bus_probe (struct pci_info * pci, uint8_t bus)
     uint8_t dev_found = 0;
     struct pci_bus * bus_ptr = NULL;
 
-    //PCI_DEBUG("probing bus 0x%x\n",bus);
+    PCI_DEBUG("probing bus 0x%x\n",bus);
 
     // probe/scan bus only once
     if (pci_already_have_bus(pci,bus)) { 
@@ -540,7 +559,7 @@ pci_bus_probe (struct pci_info * pci, uint8_t bus)
             pci_dev_probe(bus_ptr, dev);
         }
     } else {
-      //PCI_DEBUG("not adding bus since it has no devices\n");
+      PCI_DEBUG("not adding bus since it has no devices\n");
     }
 }
 
@@ -604,7 +623,7 @@ pci_bus_scan (struct pci_info * pci)
             if (pci_get_vendor_id(0, 0, fun) != 0xffff) {
                 PCI_DEBUG("Found new PCI host bridge, scanning bus %d\n", fun);
                 pci_bus_probe(pci, fun);
-            } 
+            }
         }
     }
 }
@@ -1570,12 +1589,21 @@ int pci_dev_is_pending_msi(struct pci_dev *dev, int vec)
 
 }
 
-
-
+#ifdef NAUT_CONFIG_ARCH_X86
 #define WRITEL(p,v) __asm__ __volatile__ ("movl %0, (%1)" : : "r"(v), "r"(p) : "memory")
 #define READL(p,v) __asm__ __volatile__ ("movl (%1), %0" : "=r"(v) :"r"(p) : "memory")
 #define WRITEQ(p,v) __asm__ __volatile__ ("movq %0, (%1)" : : "r"(v), "r"(p) : "memory")
 #define READQ(p,v) __asm__ __volatile__ ("movq (%1), %0" : "=r"(v) :"r"(p) : "memory")
+#elif NAUT_CONFIG_ARCH_ARM64
+#define WRITEL(p,v) __asm__ __volatile__ ("strh %w0, [%x1]" : : "r"(v), "r"(p) : "memory")
+#define READL(p,v) __asm__ __volatile__ ("ldrh %w0, [%x1]" : "=r"(v) :"r"(p) : "memory")
+#define WRITEQ(p,v) __asm__ __volatile__ ("str %x0, [%x1]" : : "r"(v), "r"(p) : "memory")
+#define READQ(p,v) __asm__ __volatile__ ("ldr %x0, [%x1]" : "=r"(v) :"r"(p) : "memory")
+#elif NAUT_CONFIG_ARCH_RISCV
+#error "RISC-V Does not support PCI yet!"
+#else
+#error "Unknown Architecture (PCI)"
+#endif
 
 int pci_dev_set_msi_x_entry(struct pci_dev *dev, int num, int vec, int target_cpu)
 {

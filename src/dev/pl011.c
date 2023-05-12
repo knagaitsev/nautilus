@@ -1,6 +1,10 @@
 
 #include<dev/pl011.h>
 
+#include<nautilus/dev.h>
+#include<nautilus/chardev.h>
+#include<nautilus/spinlock.h>
+
 #define UART_DATA        0x0
 #define UART_RECV_STATUS 0x4
 #define UART_ERR_CLR     0x4
@@ -51,6 +55,8 @@
 #define UART_CTRL_TRANS_ENABLE_BITMASK (1<<8)
 #define UART_CTRL_RECV_ENABLE_BITMASK (1<<9)
 
+static spinlock_t pl011_lock;
+
 static inline void pl011_write_reg(struct pl011_uart *p, uint32_t reg, uint32_t val) {
   *(volatile uint32_t*)(p->mmio_base + reg) = val;
 }
@@ -68,11 +74,13 @@ static inline void pl011_disable(struct pl011_uart *p) {
   pl011_and_reg(p, UART_CTRL, ~UART_CTRL_ENABLE_BITMASK);
 }
 
+static inline int pl011_busy_or_full(struct pl011_uart *p) {
+  return *((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_BSY
+       ||*((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_TRANS_FIFO_FULL;
+}
+
 static void pl011_wait(struct pl011_uart *p) {
-  while(
-      *((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_BSY
-    ||*((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_TRANS_FIFO_FULL
-    ){
+  while(pl011_busy_or_full(p)){
     // Loop while the busy bit is set or the fifo is full
   }
 }
@@ -120,10 +128,14 @@ static inline void pl011_configure(struct pl011_uart *p) {
   
 }
 
-void pl011_uart_init(struct pl011_uart *p, void *base, uint64_t clock) {
+void pl011_uart_early_init(struct pl011_uart *p, void *base, uint64_t clock) {
+  // The chardev system isn't initialized yet
+  p->dev = NULL;
   p->mmio_base = base;
   p->clock = clock; 
   p->baudrate = 100000;
+  spinlock_init(&p->input_lock);
+  spinlock_init(&p->output_lock);
 
   pl011_configure(p);
 }
@@ -145,8 +157,101 @@ void pl011_uart_puts(struct pl011_uart *p, const char *data) {
   }
 }
 
+
+
 void pl011_uart_write(struct pl011_uart *p, const char *data, size_t n) {
+  spin_lock(&p->output_lock);
   for(uint64_t i = 0; i < n; i++) {
     __pl011_uart_putchar(p, data[i]);
   }
+  spin_unlock(&p->output_lock);
 }
+
+static int pl011_uart_dev_get_characteristics(void *state, struct nk_char_dev_characteristics *c) {
+  memset(c,0,sizeof(struct nk_char_dev_characteristics));
+  return 0;
+}
+
+static int pl011_uart_dev_read(void *state, uint8_t *dest) {
+
+  struct pl011_uart *p = (struct pl011_uart*)state;
+
+  int rc = -1;
+  int flags = spin_lock_irq_save(&p->input_lock);
+
+  if(1) { // TODO: check if we're empty
+    rc = 0;
+  }
+  else {
+    *dest = 0; // TODO: read input
+    rc = 1;
+  }
+
+  spin_unlock_irq_restore(&p->input_lock, flags);
+  return 0;
+}
+
+static int pl011_uart_dev_write(void *state, uint8_t *src) {
+
+  struct pl011_uart *p = (struct pl011_uart*)state;
+
+  int wc = -1;
+  int flags = spin_lock_irq_save(&p->output_lock);
+
+  if(pl011_busy_or_full(p)) {
+    wc = 0;
+  } else {
+    __pl011_uart_putchar(p, *src);
+    wc = 1;
+  }
+
+  spin_unlock_irq_restore(&p->output_lock, flags);
+  return wc;
+}
+
+static int pl011_uart_dev_status(void *state) {
+  struct pl011_uart *p = (struct pl011_uart*)state;
+
+  int ret = 0;
+  int flags;
+
+  flags = spin_lock_irq_save(&p->input_lock);
+  // TODO: Check if there is input
+  spin_unlock_irq_restore(&p->input_lock, flags);
+
+  flags = spin_lock_irq_save(&p->output_lock);
+  if (!pl011_busy_or_full(p)) {
+    ret |= NK_CHARDEV_WRITEABLE;
+  }
+  spin_unlock_irq_restore(&p->output_lock, flags);
+
+  return ret;
+}
+
+static struct nk_char_dev_int pl011_uart_char_dev_ops = {
+  .get_characteristics = pl011_uart_dev_get_characteristics,
+  .read = pl011_uart_dev_read,
+  .write = pl011_uart_dev_write,
+  .status = pl011_uart_dev_status
+};
+
+int pl011_uart_dev_init(char *name, struct pl011_uart *p) {
+  // Acquire output lock so we can't register this uart twice
+  spin_lock(&p->output_lock);
+
+  if(p->dev != NULL) {
+    spin_unlock(&p->output_lock);
+    return -1;
+  }
+
+  p->dev = nk_char_dev_register(name,0,&pl011_uart_char_dev_ops, p);
+
+  if(!p->dev) {
+    spin_unlock(&p->output_lock);
+    return -1;
+  }
+
+  spin_unlock(&p->output_lock);
+  return 0;
+}
+

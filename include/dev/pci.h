@@ -26,6 +26,8 @@
 
 #include <nautilus/list.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+
 #define PCI_CFG_ADDR_PORT 0xcf8
 #define PCI_CFG_DATA_PORT 0xcfc
 
@@ -33,9 +35,19 @@
 #define PCI_BUS_SHIFT  16
 #define PCI_FUN_SHIFT  8
 
-#define PCI_REG_MASK(x) ((x) & 0xfc)
-
 #define PCI_ENABLE_BIT 0x80000000UL
+
+#else // PCIe
+
+#define PCI_SLOT_SHIFT 15
+#define PCI_BUS_SHIFT 20
+#define PCI_FUN_SHIFT 12
+
+#define PCI_ENABLE_BIT 0x0UL
+
+#endif
+
+#define PCI_REG_MASK(x) ((x) & 0xfc)
 
 #define PCI_MAX_BUS 256
 #define PCI_MAX_DEV 32

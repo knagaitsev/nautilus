@@ -93,7 +93,7 @@ nk_numa_domain_create (struct sys_info * sys, unsigned id)
 int 
 arch_numa_init (struct sys_info * sys)
 {
-    NUMA_PRINT("Parsing ACPI NUMA information...\n");
+    NUMA_PRINT("Parsing FTB NUMA information...\n");
 
     // /* SLIT: System Locality Information Table */
     // if (acpi_table_parse(ACPI_SIG_SLIT, acpi_parse_slit, &(sys->locality_info))) { 

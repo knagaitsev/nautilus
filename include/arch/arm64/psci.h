@@ -14,6 +14,8 @@
 #define PSCI_DISABLED (-8)
 #define PSCI_INVALID_ADDRESS (-9)
 
+int psci_init(void);
+
 void psci_version(uint16_t *major, uint16_t *minor);
 
 int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id);

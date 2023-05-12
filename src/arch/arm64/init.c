@@ -35,6 +35,7 @@
 #include<arch/arm64/psci.h>
 
 #include<dev/pl011.h>
+#include<dev/pci.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
 #undef DEBUG_PRINT
@@ -105,7 +106,7 @@ void secondary_init(uint64_t context_id) {
 
   set_tpid_reg(&nautilus_info);
 
-  INIT_PRINT("Starting CPU %u...\n");
+  INIT_PRINT("Starting CPU %u...\n", my_cpu_id());
  
   // Locally Initialize the GIC on the init processor 
   // (will need to call this on every processor which can receive interrupts)
@@ -117,6 +118,8 @@ void secondary_init(uint64_t context_id) {
 
   nk_sched_init_ap(&sched_cfg);
 
+  // nk_sched_init_ap should have allocated us a stack, so we need to switch to it
+  // (previously we should have been using the shared boot stack)
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
   nk_thread_name(get_cur_thread(), "secondary_init");
 
@@ -130,7 +133,7 @@ void secondary_init(uint64_t context_id) {
   arch_enable_ints(); 
 
   INIT_PRINT("Interrupts are now enabled\n");
-  
+ 
   //enable the timer
   percpu_timer_init();
 
@@ -155,8 +158,11 @@ static int start_secondaries(struct sys_info *sys) {
     }
     while(!__secondary_init_finish) {
       // Wait for the secondary cpu to finish initializing
-      // (We need to start them one by one because we need to re-use
+      // (We need to start them one by one because we're re-using
       //  the boot stack)
+      //
+      //  We could preallocate stacks for each core and let them use those instead
+      //  of the boot stack, if this becomes a bottleneck when booting large MP systems.
     }
   }
 
@@ -195,7 +201,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nautilus_info.sys.bsp_id = mpid_reg.aff0; 
  
   // Initialize serial output
-  pl011_uart_init(&_main_pl011_uart, (void*)QEMU_PL011_VIRT_BASE_ADDR, QEMU_VIRT_BASE_CLOCK);
+  pl011_uart_early_init(&_main_pl011_uart, (void*)QEMU_PL011_VIRT_BASE_ADDR, QEMU_VIRT_BASE_CLOCK);
 
   // Enable printk by handing it the uart
   extern struct pl011_uart *printk_uart;
@@ -212,7 +218,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nk_block_dev_init();
   nk_net_dev_init();
   nk_gpu_dev_init();
-
+  
   // Setup the temporary boot-time allocator
   mm_boot_init(dtb);
 
@@ -238,8 +244,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
     return;
   }
 
-  print_gic();
-
   // Initialize the structures which hold info about 
   // interrupt/exception handlers and routing
   if(excp_init()) {
@@ -248,11 +252,13 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   }
 
   // Start using the main kernel allocator
-  mm_dump_page_map();
+  //mm_dump_page_map();
   nk_kmem_init();
   mm_boot_kmem_init();
 
   // Now we should be able to install irq handlers
+
+  pl011_uart_dev_init("serial0", &_main_pl011_uart);
 
   nk_wait_queue_init();
   nk_future_init();
@@ -273,6 +279,10 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_thread_name(get_cur_thread(), "init");
   INIT_PRINT("Swapped to new stack\n");
+
+  psci_init();
+
+  pci_init(&nautilus_info);
   
   start_secondaries(&(nautilus_info.sys));
   
@@ -283,7 +293,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   arch_enable_ints(); 
 
   INIT_PRINT("Interrupts are now enabled\n");
-  
+   
   //enable the timer
   percpu_timer_init();
 
@@ -291,17 +301,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   execute_threading(NULL);
 
-  INIT_PRINT("End of current boot process!\n");
-
-  /*
-  uint16_t psci_major, psci_minor;
-  psci_version(&psci_major, &psci_minor);
-  INIT_DEBUG("PSCI: Version = %u.%u\n", psci_major, psci_minor);
-  INIT_DEBUG("PSCI: Shutting down the system\n");
-  psci_system_off();
-  INIT_DEBUG("After shutting down the system...?\n");
-  */
-
+  INIT_PRINT("BSP Idling forever\n");
   idle(NULL,NULL);
 }
 

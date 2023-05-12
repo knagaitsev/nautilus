@@ -4,6 +4,17 @@
 #include<arch/arm64/smc.h>
 #include<nautilus/nautilus.h>
 
+
+#ifndef NAUT_CONFIG_DEBUG_PRINTS
+#undef DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...)
+#endif
+
+#define PSCI_PRINT(fmt, args...) INFO_PRINT("PSCI: " fmt, ##args)
+#define PSCI_DEBUG(fmt, args...) DEBUG_PRINT("PSCI: " fmt, ##args)
+#define PSCI_ERROR(fmt, args...) ERROR_PRINT("PSCI: " fmt, ##args)
+#define PSCI_WARN(fmt, args...) WARN_PRINT("PSCI: " fmt, ##args)
+
 void psci_version(uint16_t *major, uint16_t *minor) {
   uint32_t ver = smc32_call_0_0(0x84000000, SMC_CALL_TYPE_SS_SERV);
   *major = (ver>>16) & 0xFFFF;
@@ -15,28 +26,28 @@ int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id) {
 
   switch(res) {
     case PSCI_SUCCESS:
-      printk("psci_cpu_on: SUCCESS\n");
+      PSCI_DEBUG("psci_cpu_on: SUCCESS\n");
       break;
     case PSCI_INVALID_PARAMETERS:
-      printk("psci_cpu_on: invalid parameters!\n");
+      PSCI_ERROR("psci_cpu_on: invalid parameters!\n");
       break;
     case PSCI_INVALID_ADDRESS:
-      printk("psci_cpu_on: invalid address!\n");
+      PSCI_ERROR("psci_cpu_on: invalid address!\n");
       break;
     case PSCI_ALREADY_ON:
-      printk("psci_cpu_on: cpu is already on!\n");
+      PSCI_WARN("psci_cpu_on: cpu is already on!\n");
       break;
     case PSCI_ON_PENDING:
-      printk("psci_cpu_on: cpu is pending!\n");
+      PSCI_ERROR("psci_cpu_on: cpu is pending!\n");
       break;
     case PSCI_INTERNAL_FAILURE:
-      printk("psci_cpu_on: internal failure!\n");
+      PSCI_ERROR("psci_cpu_on: internal failure!\n");
       break;
     case PSCI_DENIED:
-      printk("psci_cpu_on: permission denied!\n");
+      PSCI_ERROR("psci_cpu_on: permission denied!\n");
       break;
     default:
-      printk("psci_cpu_on: unknown error!\n");
+      PSCI_ERROR("psci_cpu_on: unknown error!\n");
       break;
   }
   return (int)res;
@@ -51,4 +62,14 @@ void psci_system_off(void) {
 }
 void psci_system_reset(void) {
   smc32_call_0_0(0x84000009, SMC_CALL_TYPE_SS_SERV);
+}
+
+int psci_init(void) {
+  // This function is mostly for future proofing (and testing psci functionality)
+
+  uint16_t psci_major, psci_minor;
+  psci_version(&psci_major, &psci_minor);
+  PSCI_PRINT("Version = %u.%u\n", psci_major, psci_minor);
+
+  PSCI_PRINT("Initialized PSCI\n");
 }
