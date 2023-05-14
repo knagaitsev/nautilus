@@ -41,7 +41,7 @@
 #define PCI_ERROR(fmt, args...) ERROR_PRINT("PCI: " fmt, ##args)
 
 #ifndef NAUT_CONFIG_ARCH_X86
-#define pci_ecam_base_addr 0x10000000
+#define pci_ecam_base_addr 0x4010000000
 #endif
 
 uint16_t 
@@ -67,7 +67,9 @@ pci_cfg_readw (uint8_t bus,
     ret = inl(PCI_CFG_DATA_PORT);
     return (ret >> ((off & 0x2) * 8)) & 0xffff;
 #else
-    return *(uint16_t*)(pci_ecam_base_addr + (void*)addr);
+    uint16_t read = *(uint16_t*)(pci_ecam_base_addr + (void*)addr);
+//    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
+    return read;
 #endif
 }
 
@@ -93,7 +95,10 @@ pci_cfg_readl (uint8_t bus,
     outl(addr, PCI_CFG_ADDR_PORT);
     return inl(PCI_CFG_DATA_PORT);
 #else
-    return *(uint32_t*)(pci_ecam_base_addr + (void*)addr);
+    uint32_t read;
+    read = *(uint32_t*)(pci_ecam_base_addr + (void*)addr);
+//    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
+    return read;
 #endif
 }
 
@@ -323,6 +328,16 @@ static void pci_msi_x_detect(struct pci_dev *d)
 
   if (!table_start || !pba_start) {
     PCI_ERROR("relevant bars have invalid starting address (table_start=%p, pba_start=%p)\n", table_start,pba_start);
+    int i,j;
+    uint32_t v;
+    for (i=0;i<256;i+=32) {
+            printk("%02x:", i);
+            for (j=0;j<8;j++) {
+                v = pci_cfg_readl(d->bus->num,d->num,d->fun,i+j*4);
+                printk(" %08x",v);
+            } 
+            printk("\n");
+        }
     return;
   }
 
@@ -954,6 +969,7 @@ int pci_map_over_devices(int (*f)(struct pci_dev *d, void *s), uint16_t vendor, 
 
 static int dump_dev_base(struct pci_dev *d, void *s)
 {
+#define nk_vc_printf printk
   uint16_t cmd, status, intr_pin, intr_line;
 
   cmd=pci_dev_cfg_readw(d,4);
@@ -993,6 +1009,7 @@ static int dump_dev_base(struct pci_dev *d, void *s)
     nk_vc_printf("not simple device\n");
   }
   return 0;
+#undef nk_vc_printf
 }
 
 

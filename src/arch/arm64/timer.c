@@ -77,7 +77,7 @@ void arch_set_timer(uint32_t ticks) {
    
     asm volatile("msr CNTP_TVAL_EL0, %0" :: "r" ((int)ticks));
 
-    gicd_clear_int_pending(__gic_ptr, 30);
+    gic_clear_int_pending(30);
 
     timer_set = 1;
     current_ticks = ticks;

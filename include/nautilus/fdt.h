@@ -2275,6 +2275,7 @@ typedef struct fdt_reg {
 
 // returns 0 on success, anything else on failure
 int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg);
+int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *reg, uint_t num);
 
 // NULL on failure (not ideal for the zero CPU)
 off_t fdt_getreg_address(const void *fdt, int offset);

@@ -17,7 +17,7 @@ struct pl011_uart {
   spinlock_t output_lock;
 };
 
-void pl011_uart_early_init(struct pl011_uart*, void *base, uint64_t clock);
+void pl011_uart_early_init(struct pl011_uart*, uint64_t dtb);
 int pl011_uart_dev_init(char *name, struct pl011_uart*);
 void pl011_uart_putchar(struct pl011_uart*, unsigned char);
 void pl011_uart_puts(struct pl011_uart*, const char*);

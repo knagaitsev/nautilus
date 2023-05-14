@@ -2,7 +2,6 @@
 #include<nautilus/arch.h>
 
 #include<arch/arm64/sys_reg.h>
-#include<arch/arm64/gic.h>
 
 void arch_enable_ints(void) {
   __asm__ __volatile__ ("msr DAIFClr, 0xF; isb");

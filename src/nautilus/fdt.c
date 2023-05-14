@@ -300,6 +300,63 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 	return 0;
 }
 
+int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, uint_t num) {
+ 
+	int reg_lenp = 0;
+        char *reg_prop = fdt_getprop(fdt, offset, "reg", &reg_lenp);
+
+	void *address_cells_p = NULL;
+	void *size_cells_p = NULL;
+	int parent_iter_offset = offset;
+	while (!address_cells_p || !size_cells_p) {
+		// unclear if we should return here or if we should fall back to the default values
+		// listed above (2, 1)
+		if (parent_iter_offset < 0) {
+			return -1;
+		}
+		int lenp = 0;
+
+		address_cells_p = fdt_getprop(fdt, parent_iter_offset, "#address-cells", &lenp);
+		size_cells_p = fdt_getprop(fdt, parent_iter_offset, "#size-cells", &lenp);
+
+		parent_iter_offset = fdt_parent_offset(fdt, parent_iter_offset);
+	}
+
+	uint32_t address_cells = bswap_32(*((uint32_t *)address_cells_p));
+	uint32_t size_cells = bswap_32(*((uint32_t *)size_cells_p));
+
+	// printk("Addr: %d, size: %d\n", address_cells, size_cells);
+
+	for(int i = 0; i < num; i++) {
+	    if (address_cells > 0) {
+		if (address_cells == 1) {
+                  regs[i].address = bswap_32(*((uint32_t *)reg_prop));
+                }
+		if (address_cells == 2) {
+                  regs[i].address = bswap_64(*((uint64_t *)reg_prop));
+                }
+	    }
+	    reg_prop += 4 * address_cells;
+	    if (size_cells > 0) {
+		if (size_cells == 1) {
+                  regs[i].size = bswap_32(*((uint32_t *)reg_prop));
+                }
+		if (size_cells == 2) {
+                  regs[i].size = bswap_64(*((uint64_t *)reg_prop));
+                }
+	    }
+            reg_prop += 4 * size_cells;
+        }
+
+    // for (int i = 0; i < lenp / 8; i++) {
+    //     printk("%x ", bswap_64(((uint64_t *)reg_prop)[i]));
+    // }
+    // printk("\n");
+
+	return 0; 
+}
+
+
 off_t fdt_getreg_address(const void *fdt, int offset) {
 	fdt_reg_t reg = { .address = 0, .size = 0 };
     int getreg_result = fdt_getreg(fdt, offset, &reg);

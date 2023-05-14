@@ -6,8 +6,12 @@ obj-y += asm/ \
 	setjmp.o \
 	excp.o \
 	early_mem.o \
-	gic.o \
 	numa.o \
 	smp.o \
 	timer.o \
 	psci.o \
+
+obj-$(NAUT_CONFIG_GIC_VERSION_2) += gicv2.o
+
+obj-$(NAUT_CONFIG_GIC_VERSION_3) += gicv3.o
+

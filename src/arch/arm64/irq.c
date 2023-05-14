@@ -5,13 +5,11 @@
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/excp.h>
 
-extern gic_t *__gic_ptr;
-
 void arch_irq_enable(int irq) {
-  gicd_enable_int(__gic_ptr, irq);
+  gic_enable_int(irq);
 }
 void arch_irq_disable(int irq) {
-  gicd_disable_int(__gic_ptr, irq);
+  gic_disable_int(irq);
 }
 
 void arch_irq_install(int irq, int (*handler)(excp_entry_t *excp,
@@ -31,6 +29,6 @@ void arch_irq_uninstall(int irq) {
 void
 nk_unmask_irq (uint8_t irq)
 {
-  ARM64_ERR_UNIMPL;
+  arch_irq_enable(irq);
 }
 

@@ -4,6 +4,7 @@
 #include<nautilus/dev.h>
 #include<nautilus/chardev.h>
 #include<nautilus/spinlock.h>
+#include<nautilus/fdt.h>
 
 #define UART_DATA        0x0
 #define UART_RECV_STATUS 0x4
@@ -128,7 +129,25 @@ static inline void pl011_configure(struct pl011_uart *p) {
   
 }
 
-void pl011_uart_early_init(struct pl011_uart *p, void *base, uint64_t clock) {
+#define QEMU_PL011_VIRT_BASE_ADDR 0x9000000
+#define QEMU_PL011_VIRT_BASE_CLOCK 24000000 // 24 MHz Clock
+                                      
+void pl011_uart_early_init(struct pl011_uart *p, uint64_t dtb) {
+
+  void *base = QEMU_PL011_VIRT_BASE_ADDR;
+  uint64_t clock = QEMU_PL011_VIRT_BASE_CLOCK;
+
+  int offset = fdt_subnode_offset_namelen(dtb, 0, "pl011", 5);
+  fdt_reg_t reg = { .address = 0, .size = 0 };
+  if(!fdt_getreg(dtb, offset, &reg)) {
+     base = reg.address;
+  } else {
+    // If we can't read from the dtb, then we can't exactly log an error
+    // so for now just use the qemu-virt locations and hope for the best
+  }
+
+  // TODO: Still need to use the fdt toread the clock speed but it's less clear which field to read
+
   // The chardev system isn't initialized yet
   p->dev = NULL;
   p->mmio_base = base;

@@ -12,13 +12,14 @@ endif
 obj-$(NAUT_CONFIG_ARCH_RISCV) += sifive.o
 
 obj-$(NAUT_CONFIG_ARCH_ARM64) += pl011.o \
-	pci.o 
+	pci.o \
 
 obj-$(NAUT_CONFIG_HPET) += hpet.o
 
 obj-$(NAUT_CONFIG_VIRTIO_PCI) += virtio_pci.o
 obj-$(NAUT_CONFIG_VIRTIO_NET) += virtio_net.o
 obj-$(NAUT_CONFIG_VIRTIO_BLK) += virtio_blk.o
+obj-$(NAUT_CONFIG_VIRTIO_GPU) += virtio_gpu.o
 
 obj-$(NAUT_CONFIG_E1000_PCI) += e1000_pci.o
 obj-$(NAUT_CONFIG_E1000E_PCI) += e1000e_pci.o

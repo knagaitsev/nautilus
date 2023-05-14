@@ -37,6 +37,14 @@
 #include<dev/pl011.h>
 #include<dev/pci.h>
 
+#ifdef NAUT_CONFIG_VIRTIO_PCI
+#include<dev/virtio_pci.h>
+#endif
+
+#ifdef NAUT_CONFIG_E1000_PCI
+#include<dev/e1000_pci.h>
+#endif
+
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
@@ -58,11 +66,7 @@
   " Kyle C. Hale (c) 2014 | Northwestern University   \n" \
   "+===============================================+  \n\n"
 
-#define QEMU_PL011_VIRT_BASE_ADDR 0x9000000
-#define QEMU_VIRT_BASE_CLOCK 24000000 // 24 MHz Clock
-
 struct pl011_uart _main_pl011_uart;
-struct gic _main_gic;
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
 struct nk_sched_config sched_cfg = {
@@ -201,7 +205,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nautilus_info.sys.bsp_id = mpid_reg.aff0; 
  
   // Initialize serial output
-  pl011_uart_early_init(&_main_pl011_uart, (void*)QEMU_PL011_VIRT_BASE_ADDR, QEMU_VIRT_BASE_CLOCK);
+  pl011_uart_early_init(&_main_pl011_uart, dtb); 
 
   // Enable printk by handing it the uart
   extern struct pl011_uart *printk_uart;
@@ -232,7 +236,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   arch_numa_init(&(nautilus_info.sys));
 
   // Initialize (but not enable) the Generic Interrupt Controller
-  if(global_init_gic((void*)dtb, &_main_gic)) {
+  if(global_init_gic(dtb)) {
     INIT_ERROR("Failed to globally initialize the GIC!\n");
     return;
   }
@@ -283,6 +287,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   psci_init();
 
   pci_init(&nautilus_info);
+
+  pci_dump_device_list();
   
   start_secondaries(&(nautilus_info.sys));
   
@@ -299,6 +305,14 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
 
+#ifdef NAUT_CONFIG_VIRTIO_PCI
+  virtio_pci_init(&nautilus_info);
+#endif
+
+#ifdef NAUT_CONFIG_E1000_PCI
+  e1000_pci_init(&nautilus_info);
+#endif
+
   execute_threading(NULL);
 
   INIT_PRINT("BSP Idling forever\n");
@@ -311,7 +325,8 @@ volatile static uint64_t count;
 static void print_ones(void*, void**)
 {
     while (count) {
-      //INIT_DEBUG("1 : count = %u, preempt_disable_level = %u\n", count, nautilus_info.sys.cpus[0]->preempt_disable_level - 1);
+      printk("1\n");
+      //nk_yield();
     }
 
     INIT_PRINT("End of print_ones\n");
@@ -320,7 +335,8 @@ static void print_ones(void*, void**)
 static void print_twos(void*, void**)
 {
   while(count){
-    //INIT_DEBUG("2 : count = %u\n", count);
+    printk("2\n");
+    //nk_yield();
   }
   INIT_PRINT("End of print_twos\n");
 }
@@ -328,9 +344,6 @@ static void print_twos(void*, void**)
 int execute_threading(char command[])
 {
     nk_thread_id_t a, b;
-
-    INIT_PRINT("print_ones = %p\n", (nk_thread_fun_t)print_ones);
-    INIT_PRINT("print_twos = %p\n", (nk_thread_fun_t)print_twos);
 
     nk_thread_start((nk_thread_fun_t)print_ones, 0, 0, 0, 0, &a, -1);
     nk_thread_start((nk_thread_fun_t)print_twos, 0, 0, 0, 0, &b, -1);

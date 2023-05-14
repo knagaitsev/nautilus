@@ -10,7 +10,7 @@
 #define EXCP_SYNDROME_BITS 6
 
 
-#ifndef NAUT_CONFIG_DEBUG_TIMERS
+#ifndef NAUT_CONFIG_DEBUG_PRINTS
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
 #endif
@@ -50,7 +50,7 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
   else {
     EXCP_PRINT("--- UNKNOWN EL LEVEL %u EXCEPTION---\n", el_from);
   }
-  EXCP_PRINT("\tELR = %p\n", info->elr);
+  EXCP_PRINT("\tELR = 0x%x\n", info->elr);
   EXCP_PRINT("\tESR = 0x%x\n", info->esr.raw);
   EXCP_PRINT("\tFAR = %p\n", (void*)info->far);
   EXCP_PRINT("\t\tCLS = 0x%x\n", info->esr.syndrome);
@@ -69,8 +69,8 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
 
 // Requires mm_boot to be initialized
 int excp_init(void) {
-  irq_handler_desc_table = mm_boot_alloc(sizeof(irq_handler_desc_t) * __gic_ptr->max_ints);
-  for(uint_t i = 0; i < __gic_ptr->max_ints; i++) {
+  irq_handler_desc_table = mm_boot_alloc(sizeof(irq_handler_desc_t) * gic_max_irq());
+  for(uint_t i = 0; i < gic_max_irq(); i++) {
     irq_handler_desc_table[i].handler = unhandled_irq_handler;
     irq_handler_desc_table[i].state = NULL;
   }
@@ -105,23 +105,26 @@ void *excp_remove_excp_handler(uint32_t syndrome) {
 }
 
 void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, uint8_t el) {
+  gic_dump_state();
+
   gic_int_info_t int_info;
-  int_info.raw = LOAD_GICC_REG(__gic_ptr, GICC_IAR_OFFSET);
+  gic_ack_int(&int_info);
+
+  gic_dump_state();
 
   if(int_info.int_id < 16) {
     EXCP_DEBUG("--- Software Generated Interrupt ---\n"); 
     EXCP_DEBUG("\tEL = %u\n", el);
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
-    EXCP_DEBUG("\tCPU ID = %u\n", int_info.cpu_id);
-    EXCP_DEBUG("\tELR = %u\n", excp_info->elr);
+    EXCP_DEBUG("\tELR = 0x%x\n", excp_info->elr);
   }
   else {
     EXCP_DEBUG("--- Interrupt ---\n");
     EXCP_DEBUG("\tEL = %u\n", el);
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
-    EXCP_DEBUG("\tELR = %u\n", excp_info->elr);
+    EXCP_DEBUG("\tELR = 0x%x\n", excp_info->elr);
 
-#ifdef NAUT_CONFIG_DEBUG_TIMERS
+#ifdef NAUT_CONFIG_DEBUG_PRINTS
     arch_print_regs(regs);
 #endif
   }
@@ -140,13 +143,15 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
 
   int status = (*handler)(&entry, int_info.int_id, state);
 
-  EXCP_DEBUG("About to call nk_sched_need_resched() preempt_disable_level = %u\n", per_cpu_get(preempt_disable_level) - 1);
-  void *thread = nk_sched_need_resched();
-
-  EXCP_DEBUG("nk_sched_need_resched() returned 0x%x\n", (uint64_t)thread);
+  void *thread = NULL;
+  if(per_cpu_get(in_timer_interrupt)) {
+    thread = nk_sched_need_resched();
+    EXCP_DEBUG("nk_sched_need_resched() returned 0x%x\n", (uint64_t)thread);
+  }
 
   EXCP_DEBUG("END OF INTERRUPT\n");
-  STORE_GICC_REG(__gic_ptr, GICC_EOIR_OFFSET, int_info.raw);
+
+  gic_end_of_int(&int_info);
 
   return thread;
 }

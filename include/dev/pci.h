@@ -47,7 +47,7 @@
 
 #endif
 
-#define PCI_REG_MASK(x) ((x) & 0xfc)
+#define PCI_REG_MASK(x) ((x) & 0x3ffc)
 
 #define PCI_MAX_BUS 256
 #define PCI_MAX_DEV 32
