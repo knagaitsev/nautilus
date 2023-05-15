@@ -11,16 +11,16 @@
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define TIMER_PRINT(fmt, args...) printk("Timer: " fmt, ##args)
+#define TIMER_PRINT(fmt, args...) INFO_PRINT("Timer: " fmt, ##args)
 #define TIMER_DEBUG(fmt, args...) DEBUG_PRINT("Timer: " fmt, ##args)
 #define TIMER_ERROR(fmt, args...) ERROR_PRINT("Timer: " fmt, ##args)
 #define TIMER_WARN(fmt, args...) WARN_PRINT("Timer: " fmt, ##args)
 
 static inline void print_timer_regs(void) {
-  DEBUG_PRINT("CNTPCT_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTPCT_EL0" : "=r" (reg)); reg;}));
-  DEBUG_PRINT("CNTFRQ_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTFRQ_EL0" : "=r" (reg)); reg;}));
-  DEBUG_PRINT("CNTP_CVAL_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTP_CVAL_EL0" : "=r" (reg)); reg;}));
-  DEBUG_PRINT("CNTP_TVAL_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTP_TVAL_EL0" : "=r" (reg)); reg;}));
+  TIMER_PRINT("CNTPCT_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTPCT_EL0" : "=r" (reg)); reg;}));
+  TIMER_PRINT("CNTFRQ_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTFRQ_EL0" : "=r" (reg)); reg;}));
+  TIMER_PRINT("CNTP_CVAL_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTP_CVAL_EL0" : "=r" (reg)); reg;}));
+  TIMER_PRINT("CNTP_TVAL_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTP_TVAL_EL0" : "=r" (reg)); reg;}));
 }
 
 static uint8_t  timer_set = 0;

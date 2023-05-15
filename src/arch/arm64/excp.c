@@ -9,8 +9,8 @@
 
 #define EXCP_SYNDROME_BITS 6
 
-
-#ifndef NAUT_CONFIG_DEBUG_PRINTS
+// This doesn't exist yet
+#ifndef NAUT_CONFIG_DEBUG_EXCPS
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
 #endif
@@ -61,9 +61,9 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
   } else {
     EXCP_PRINT("\t16bit Instruction\n");
   }
-//#ifdef NAUT_CONFIG_DEBUG_TIMERS
-//  arch_print_regs(regs);
-//#endif
+  #ifdef NAUT_CONFIG_DEBUG_EXCPS
+    arch_print_regs(regs);
+  #endif
   return 0;
 }
 
@@ -105,12 +105,9 @@ void *excp_remove_excp_handler(uint32_t syndrome) {
 }
 
 void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, uint8_t el) {
-  gic_dump_state();
 
   gic_int_info_t int_info;
   gic_ack_int(&int_info);
-
-  gic_dump_state();
 
   if(int_info.int_id < 16) {
     EXCP_DEBUG("--- Software Generated Interrupt ---\n"); 
@@ -124,7 +121,7 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
     EXCP_DEBUG("\tELR = 0x%x\n", excp_info->elr);
 
-#ifdef NAUT_CONFIG_DEBUG_PRINTS
+#ifdef NAUT_CONFIG_DEBUG_EXCPS
     arch_print_regs(regs);
 #endif
   }

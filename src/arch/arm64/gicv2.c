@@ -57,14 +57,27 @@
 #define GICC_AHPPIR_OFFSET 0x28
 #define GICC_IIDR_OFFSET 0xFC
 #define GICC_DIR_OFFSET 0x1000
-
 #define GICC_APR_0_OFFSET 0xD0
 #define GICC_NSAPR_0_OFFSET 0xE0
+
+#define MSI_TYPER_OFFSET 0x8
+
+typedef struct gic_msi_frame {
+  uint64_t mmio_base;
+
+  uint64_t spi_base;
+  uint64_t spi_num;
+} gic_msi_frame_t;
 
 typedef struct gic {
 
   uint64_t dist_base;
   uint64_t cpu_base;
+
+  // Technically there could be multiple of these
+  // but for now we're just going to support a single
+  // msi frame
+  gic_msi_frame_t msi_frame;
 
   uint32_t max_irq;
   uint32_t cpu_num;
@@ -86,6 +99,9 @@ static gic_t __gic;
 
 #define LOAD_GICC_REG(gic, offset) *(volatile uint32_t*)((gic).cpu_base + offset)
 #define STORE_GICC_REG(gic, offset, val) (*(volatile uint32_t*)((gic).cpu_base + offset)) = val
+
+#define LOAD_MSI_REG(gic, offset) *(volatile uint32_t*)((gic).msi_frame.mmio_base + offset)
+#define STORE_MSI_REG(gic, offset, val) (*(volatile uint32_t*)((gic).msi_frame.mmio_base + offset)) = val
 
 typedef union gicd_ctl_reg {
   uint32_t raw;
@@ -144,6 +160,23 @@ typedef union gicc_int_info_reg {
   };
 } gicc_int_info_reg_t;
 
+typedef union msi_type_reg {
+  uint32_t raw;
+  struct {
+    uint_t spi_num : 11;
+    uint_t __res0_0 : 5;
+    uint_t first_int_id : 13;
+    // Linux claims these don't exist
+    //uint_t secure_aliases : 1;
+    //uint_t clr_reg_supported : 1;
+    //uint_t valid : 1;
+  };
+} msi_type_reg_t;
+
+static char *gicv2_fdt_node_name_list[] = {
+        "intc",
+        "interrupt-controller"
+};
 static char *gicv2_compat_list[] = {
         "arm,arm1176jzf-devchip-gic",
 	"arm,arm11mp-gic",
@@ -164,19 +197,29 @@ int global_init_gic(uint64_t dtb) {
 
   memset(&__gic, 0, sizeof(gic_t));
 
-  int offset = fdt_subnode_offset_namelen((void*)dtb, 0, "intc", 4);
+  // Search by name because compatible list is so long
+  int offset = fdt_node_offset_by_prop_value((void*)dtb, -1, "interrupt-controller", NULL, NULL);
 
-  int compat_result = 1;
-  for(uint_t i = 0; i < sizeof(gicv2_compat_list)/sizeof(const char*); i++) {
-    compat_result &= fdt_node_check_compatible((void*)dtb, offset, gicv2_compat_list[i]);
-    if(!compat_result) {
-      __gic.compatible_string = gicv2_compat_list[i];
-      GIC_DEBUG("Found compatible GICv2 controller in device tree: %s\n", __gic.compatible_string);
+  while(offset >= 0) { 
+    int compat_result = 1;
+    for(uint_t i = 0; i < sizeof(gicv2_compat_list)/sizeof(const char*); i++) {
+      compat_result &= fdt_node_check_compatible((void*)dtb, offset, gicv2_compat_list[i]);
+      if(!compat_result) {
+        __gic.compatible_string = gicv2_compat_list[i];
+        GIC_DEBUG("Found compatible GICv2 controller in device tree: %s\n", __gic.compatible_string);
+        break;
+      }
+    }
+    if(compat_result) {
+      GIC_DEBUG("Found interrupt controller found in the device tree which is not compatible with GICv2!\n");
+    } else {
       break;
     }
+    offset = fdt_node_offset_by_prop_value((void*)dtb, offset, "interrupt-controller", NULL, NULL);
   }
-  if(compat_result) {
-    GIC_ERROR("Interrupt controller found in the device tree is not compatible with GICv2!\n");
+
+  if(offset < 0) {
+    GIC_ERROR("Could not find a compatible interrupt controller in the device tree!\n");
     return -1;
   }
 
@@ -206,6 +249,67 @@ int global_init_gic(uint64_t dtb) {
   d_ctl_reg.grp0_en = 1;
   d_ctl_reg.grp1_en = 1;
   STORE_GICD_REG(__gic, GICD_CTLR_OFFSET, d_ctl_reg.raw);
+
+  GIC_DEBUG("Looking for MSI(-X) Support\n");
+  int msi_offset = fdt_node_offset_by_compatible((void*)dtb, -1, "arm,gic-v2m-frame");
+  while(msi_offset >= 0) {
+
+    if(__gic.msi_frame.mmio_base) {
+      GIC_WARN("Another MSI Frame was found in the device tree, which is not supported yet, ignoring...\n");
+      msi_offset = fdt_node_offset_by_compatible((void*)dtb, msi_offset, "arm,gic-v2m-frame");
+      continue;
+    }
+    GIC_DEBUG("Found compatible msi-controller frame in device tree!\n");
+
+    fdt_reg_t msi_reg = { .address = 0, .size = 0 };
+    fdt_getreg((void*)dtb, msi_offset, &msi_reg);
+    __gic.msi_frame.mmio_base = msi_reg.address;
+    GIC_DEBUG("MSI_BASE = 0x%x\n", __gic.msi_frame.mmio_base);
+
+    int msi_info_not_found = 0;
+    
+    // We first try to get this info from the DTB
+    struct fdt_property *prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-base-spi", 16, NULL); 
+    if(prop) {
+      GIC_DEBUG("Found MSI Base SPI in FDT\n");
+      __gic.msi_frame.spi_base = bswap_32(*(uint32_t*)prop->data);
+    } else {
+      GIC_WARN("Failed to find MSI Base SPI in the device tree\n");
+      msi_info_not_found = 1;
+    }
+    prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-num-spis", 16, NULL); 
+    if(prop) {
+      GIC_DEBUG("Found MSI SPI Number in FDT\n");
+      __gic.msi_frame.spi_num = bswap_32(*(uint32_t*)prop->data);
+    } else {
+      GIC_WARN("Failed to find MSI SPI Number in the device tree\n");
+      msi_info_not_found = 1;
+    }
+    
+    if(msi_info_not_found) {
+      
+      // If the device tree doesn't say, look at the MSI_TYPER
+      // (Finding documentation on GICv2m is awful, so we're trusting 
+      //  the linux implementation)
+      GIC_DEBUG("Could not find all MSI info in the device tree so checking MMIO MSI registers\n");
+
+      msi_type_reg_t msi_type;
+      msi_type.raw = LOAD_MSI_REG(__gic, MSI_TYPER_OFFSET);
+      GIC_DEBUG("MSI_TYPER = 0x%08x\n", msi_type.raw);
+      
+      __gic.msi_frame.spi_base = msi_type.first_int_id;
+      __gic.msi_frame.spi_num = msi_type.spi_num;
+      GIC_DEBUG("MSI SPI Range : [%u - %u]\n", __gic.msi_frame.spi_base, __gic.msi_frame.spi_base+__gic.msi_frame.spi_num-1);
+      if(!__gic.msi_frame.spi_base || !__gic.msi_frame.spi_num) {
+        GIC_DEBUG("Invalid MSI_TYPER: spi base = 0x%x, spid num = 0x%x\n",
+          msi_type.first_int_id, msi_type.spi_num);
+        GIC_ERROR("Failed to get MSI Information!\n");
+        return -1;
+      }
+    }
+
+    msi_offset = fdt_node_offset_by_compatible((void*)dtb, msi_offset, "arm,gic-v2m-frame");
+  }
 
   GIC_PRINT("inited globally\n");
 

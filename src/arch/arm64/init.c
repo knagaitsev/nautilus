@@ -26,6 +26,7 @@
 #include<nautilus/idle.h>
 #include<nautilus/barrier.h>
 #include<nautilus/smp.h>
+//#include<nautilus/vc.h>
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/gic.h>
@@ -299,11 +300,17 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   arch_enable_ints(); 
 
   INIT_PRINT("Interrupts are now enabled\n");
-   
+ 
   //enable the timer
   percpu_timer_init();
 
   arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
+
+  //nk_vc_init();
+
+//#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
+//  nk_vc_start_chardev_console(NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME);
+//#endif
 
 #ifdef NAUT_CONFIG_VIRTIO_PCI
   virtio_pci_init(&nautilus_info);
@@ -313,7 +320,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   e1000_pci_init(&nautilus_info);
 #endif
 
-  execute_threading(NULL);
+  nk_launch_shell("root-shell",0,0,0);
 
   INIT_PRINT("BSP Idling forever\n");
   idle(NULL,NULL);
