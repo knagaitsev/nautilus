@@ -401,7 +401,7 @@ idt_get_entry (ulong_t entry, ulong_t *handler_addr, ulong_t *state_addr)
     return 0;
 }
 
-
+#ifndef NAUT_CONFIG_ARCH_ARM64
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first)
 {
   ulong_t h, s;
@@ -442,7 +442,11 @@ int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first)
 
   return -1;
 }
-
+#else
+int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first) {
+  return arch_irq_find_and_reserve_range(numentries, aligned, first);
+}
+#endif
 
 #ifdef NAUT_CONFIG_ARCH_X86
 extern void early_irq_handlers(void);

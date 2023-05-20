@@ -224,7 +224,7 @@ config DEBUG_E1000_PCI
 
 config E1000E_PCI
     bool "E1000E PCI NIC Driver"
-    depends on X86_64_HOST
+    depends on X86_64_HOST || ARM64_GENERIC
     default n
     help
       Adds the basic E1000E PCI network interface driver

@@ -67,7 +67,7 @@ pci_cfg_readw (uint8_t bus,
     ret = inl(PCI_CFG_DATA_PORT);
     return (ret >> ((off & 0x2) * 8)) & 0xffff;
 #else
-    uint16_t read = *(uint16_t*)(pci_ecam_base_addr + (void*)addr);
+    uint16_t read = *(volatile uint16_t*)(pci_ecam_base_addr + (void*)addr);
 //    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
     return read;
 #endif
@@ -96,7 +96,7 @@ pci_cfg_readl (uint8_t bus,
     return inl(PCI_CFG_DATA_PORT);
 #else
     uint32_t read;
-    read = *(uint32_t*)(pci_ecam_base_addr + (void*)addr);
+    read = *(volatile uint32_t*)(pci_ecam_base_addr + (void*)addr);
 //    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
     return read;
 #endif
@@ -126,7 +126,7 @@ pci_cfg_writew (uint8_t bus,
     outl(addr, PCI_CFG_ADDR_PORT);
     outw(val,PCI_CFG_DATA_PORT);
 #else
-    *(uint16_t*)(pci_ecam_base_addr + (void*)addr) = val;
+    *(volatile uint16_t*)(pci_ecam_base_addr + (void*)addr) = val;
 #endif
 }
 
@@ -153,10 +153,23 @@ pci_cfg_writel (uint8_t bus,
     outl(addr, PCI_CFG_ADDR_PORT);
     outl(val, PCI_CFG_DATA_PORT);
 #else
-    *(uint32_t*)(pci_ecam_base_addr + (void*)addr) = val;
+    *(volatile uint32_t*)(pci_ecam_base_addr + (void*)addr) = val;
 #endif
 }
 
+static inline void 
+pci_dump_cfg_raw(struct pci_dev *d) {
+  int i,j;
+  uint32_t v;
+  for (i=0;i<256;i+=32) {
+      printk("%02x:", i);
+      for (j=0;j<8;j++) {
+          v = pci_cfg_readl(d->bus->num,d->num,d->fun,i+j*4);
+          printk(" %08x",v);
+      } 
+      printk("\n");
+  }
+}
 
 static inline uint16_t
 pci_dev_valid (uint8_t bus, uint8_t slot, uint8_t fun)
@@ -324,20 +337,13 @@ static void pci_msi_x_detect(struct pci_dev *d)
   void *table_start = pci_msi_x_get_bar_start(d,table_bar_num);
   void *pba_start = pci_msi_x_get_bar_start(d,pba_bar_num);
 
-  PCI_DEBUG("table_start=%p pba_start=%p\n",table_start,pba_start);
+  uint64_t table_size = pci_dev_get_bar_size(d, table_bar_num);
+  uint64_t pba_size = pci_dev_get_bar_size(d, pba_bar_num);
+
+  PCI_DEBUG("table_start=%p, table_size=0x%x, pba_start=%p, pba_size=0x%x\n",table_start,table_size,pba_start,pba_size);
 
   if (!table_start || !pba_start) {
     PCI_ERROR("relevant bars have invalid starting address (table_start=%p, pba_start=%p)\n", table_start,pba_start);
-    int i,j;
-    uint32_t v;
-    for (i=0;i<256;i+=32) {
-            printk("%02x:", i);
-            for (j=0;j<8;j++) {
-                v = pci_cfg_readl(d->bus->num,d->num,d->fun,i+j*4);
-                printk(" %08x",v);
-            } 
-            printk("\n");
-        }
     return;
   }
 
@@ -415,6 +421,34 @@ pci_dev_create (struct pci_bus * bus, uint32_t num, uint8_t func )
 
     dev->num = num;
     dev->fun = func;
+ 
+#ifdef NAUT_CONFIG_ARCH_ARM64
+/*
+    uint8_t hdr_type = pci_get_hdr_type(bus->num, num, func);
+    uint8_t num_bars = hdr_type == 0 ? 6 : hdr_type == 1 ? 2 : 0;
+
+    for(uint8_t i = 0; i < num_bars; i++) {
+      pci_bar_type_t bar_type = pci_dev_get_bar_type(dev, i);
+      uint64_t bar_addr;
+      uint64_t bar_size;
+      switch(bar_type) {
+        case PCI_BAR_MEM:
+          bar_addr = pci_dev_get_bar_addr(dev, i);
+          bar_size = pci_dev_get_bar_size(dev, i);
+          PCI_DEBUG("mem bar %u - addr = 0x%x, size = 0x%x\n", i, bar_addr, bar_size);
+          break;
+        case PCI_BAR_IO:
+          bar_size = pci_dev_get_bar_size(dev, i);
+          bar_addr = pci_dev_get_bar_addr(dev, i);
+          PCI_DEBUG("io bar %u - addr = 0x%x, size = 0x%x\n", i, bar_addr, bar_size);
+          break;
+        default:
+          PCI_DEBUG("no bar?\n");
+          break;
+      }
+    }
+  */
+#endif   
 
     pci_copy_cfg_space(dev,bus);
 
@@ -487,9 +521,12 @@ static void pci_func_probe (struct pci_bus * bus, uint8_t dev, uint8_t fun, int 
 
 
     /* create a logical representation of the device */
-    if (pci_dev_create(bus,dev,fun) == NULL) {
+    struct pci_dev *d = pci_dev_create(bus,dev,fun); 
+    if (d == NULL) {
         PCI_ERROR("Could not create PCI device\n");
         return;
+    } else {
+      pci_dump_cfg_raw(d);
     }
 
     // If it's a PCI<->PCI bridge, we need to recurse into the child bus
@@ -725,18 +762,22 @@ pci_dev_get_bar_next (struct pci_dev * d, uint8_t barnum)
 static uint32_t
 __get_bar_size_32 (struct pci_dev * d, uint32_t offset)
 {
+    PCI_DEBUG("\t__get_bar_size32\n");
     uint32_t baddr = pci_dev_cfg_readl(d, offset);
+    PCI_DEBUG("\tbaddr = 0x%x\n", baddr);
     uint32_t size  = 0;
 
-    if (!baddr) {
-        return 0;
-    }
+    //if (!baddr) {
+    //    return 0;
+    //}
 
     pci_dev_cfg_writel(d, offset, PCI_BAR_SIZE_MAGIC);
 
     size = pci_dev_cfg_readl(d, offset);
 
+    PCI_DEBUG("\tread size = 0x%x\n", size);
     size &= (baddr & 0x1) ? PCI_BAR_IO_MASK : PCI_BAR_MEM_MASK;
+    PCI_DEBUG("\tcomputed size = 0x%x\n", size);
 
     // restore original
     pci_dev_cfg_writel(d, offset, baddr);
@@ -1207,7 +1248,6 @@ int pci_dump_device(struct pci_dev *d)
     nk_vc_printf("No further info for this type\n");
   }
 
-    
   return 0;
 }  
 
@@ -1612,10 +1652,16 @@ int pci_dev_is_pending_msi(struct pci_dev *dev, int vec)
 #define WRITEQ(p,v) __asm__ __volatile__ ("movq %0, (%1)" : : "r"(v), "r"(p) : "memory")
 #define READQ(p,v) __asm__ __volatile__ ("movq (%1), %0" : "=r"(v) :"r"(p) : "memory")
 #elif NAUT_CONFIG_ARCH_ARM64
-#define WRITEL(p,v) __asm__ __volatile__ ("strh %w0, [%x1]" : : "r"(v), "r"(p) : "memory")
+#define WRITEL(p,v) *(uint32_t*)p = v
+#define READL(p,v) v = *(uint32_t*)p
+#define WRITEQ(p,v) *(uint64_t*)p = v
+#define READQ(p,v) v = *(uint32_t*)p
+/*
+#define WRITEL(p,v) __asm__ __volatile__ ("strh %w[_v], [%x[_p]]" : : [_v] "r" (v), [_p] "r"(p) : "memory")
 #define READL(p,v) __asm__ __volatile__ ("ldrh %w0, [%x1]" : "=r"(v) :"r"(p) : "memory")
 #define WRITEQ(p,v) __asm__ __volatile__ ("str %x0, [%x1]" : : "r"(v), "r"(p) : "memory")
 #define READQ(p,v) __asm__ __volatile__ ("ldr %x0, [%x1]" : "=r"(v) :"r"(p) : "memory")
+*/
 #elif NAUT_CONFIG_ARCH_RISCV
 #error "RISC-V Does not support PCI yet!"
 #else
@@ -1626,6 +1672,8 @@ int pci_dev_set_msi_x_entry(struct pci_dev *dev, int num, int vec, int target_cp
 {
   struct pci_msi_x_info *m = &dev->msix;
   pci_msi_x_table_entry_t *t = m->table + num;
+
+  PCI_DEBUG("Setting MSI-X Table Entry at Address %p, Entry %u\n", t, num);
 
   if (dev->msix.type!=PCI_MSI_X) {
     PCI_DEBUG("MSI-X not available\n");
@@ -1652,7 +1700,6 @@ int pci_dev_set_msi_x_entry(struct pci_dev *dev, int num, int vec, int target_cp
   // We use LEV=0 because we don't care and are using edge
   // We use TM=0 to get edge
 
-  // now we write the entry
   WRITEL(&t->msg_addr_lo, mar_low);
   WRITEL(&t->msg_addr_hi,0);
   WRITEL(&t->msg_data,mdr);
@@ -1707,7 +1754,6 @@ static int pci_dev_mask_unmask_msi_x_entry(struct pci_dev *dev, int num, int val
     PCI_DEBUG("num=%d is out of range\n",num);
     return -1;
   }
-
 
   READL(&t->vector_control,old);
   if (val) {

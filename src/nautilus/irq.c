@@ -82,7 +82,11 @@ register_int_handler (uint16_t int_vec,
         return -1;
     }
 
+#ifdef NAUT_CONFIG_ARCH_X86
     idt_assign_entry(int_vec, (ulong_t)handler, (ulong_t)priv_data);
+#else
+    arch_irq_install(int_vec, handler, priv_data);
+#endif
 
     return 0;
 }
@@ -105,9 +109,13 @@ register_irq_handler (uint16_t irq,
         return -1;
     }
 
+#ifdef NAUT_CONFIG_ARCH_X86
     int_vector = irq_to_vec(irq);
 
     idt_assign_entry(int_vector, (ulong_t)handler, (ulong_t)priv_data);
+#else
+    arch_irq_install(irq, handler, priv_data);
+#endif
 
     return 0;
 }

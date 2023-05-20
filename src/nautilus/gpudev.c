@@ -254,7 +254,7 @@ void                 nk_gpu_dev_font_destroy(nk_gpu_dev_font_t *font)
 		 (m)->mouse_cursor_width, (m)->mouse_cursor_height)
 
 
-static int handle_gputest (char * buf, void * priv)
+int handle_gputest (char * buf, void * priv)
 {
     char name[32];
     struct nk_gpu_dev *d;
@@ -418,7 +418,6 @@ static int handle_gputest (char * buf, void * priv)
     nk_vc_printf("moved boxes\n");
 
     nk_sleep(5000000000UL); // five seconds
-
 
     nk_vc_printf("reseting to original mode\n");
 

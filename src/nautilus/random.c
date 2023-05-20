@@ -103,6 +103,8 @@ get_rand_byte (void)
     }
 
     return b + b2;
+#elif NAUT_CONFIG_ARCH_ARM64
+    return (char)(arch_read_timestamp() * (uint64_t)(-59));
 #else
     return 0;
 #endif

@@ -122,7 +122,7 @@ uint64_t arch_read_timestamp(void) {
 int percpu_timer_init(void) {
 
   // install the handler
-  arch_irq_install(30, arch_timer_handler);
+  arch_irq_install(30, arch_timer_handler, NULL);
 
   print_timer_regs();
 

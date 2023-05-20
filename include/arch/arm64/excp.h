@@ -40,6 +40,18 @@ struct __attribute__((packed)) excp_entry_info {
 typedef int(*irq_handler_t)(excp_entry_t *excp, ulong_t vec, void *state);
 typedef int(*excp_handler_t)(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state);
 
+typedef struct irq_handler_desc {
+  irq_handler_t handler;
+  void *state;
+} irq_handler_desc_t;
+extern irq_handler_desc_t *irq_handler_desc_table;
+
+typedef struct excp_handler_desc {
+  excp_handler_t handler;
+  void *state;
+} excp_handler_desc_t;
+extern excp_handler_desc_t *excp_handler_desc_table;
+
 // Requires boot mem allocator
 int excp_init(void);
 
@@ -50,5 +62,7 @@ void *excp_remove_irq_handler(int irq);
 
 void excp_assign_excp_handler(uint32_t syndrome, excp_handler_t handler, void *state);
 void *excp_remove_excp_handler(uint32_t syndrome);
+
+int unhandled_irq_handler(excp_entry_t *entry, excp_vec_t vec, void *state);
 
 #endif

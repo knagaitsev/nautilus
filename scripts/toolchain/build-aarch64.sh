@@ -34,8 +34,6 @@ GCCDIR="${WORKDIR}/gcc-${GCC_VERSION}"
 BINOBJDIR="${WORKDIR}/bin-obj"
 OBJDIR="${WORKDIR}/gcc-obj"
 
-if false; then
-
 echo ">>> Downloading tarballs"
 
 if [ ! -f "${BINUTILS}" ]; then
@@ -81,8 +79,6 @@ ${BINUTILSDIR}/configure "--target=${TARGET}" "--prefix=${PREFIX}" "--program-pr
 check_error $? "Error configuring binutils."
 make all install
 check_error $? "Error compiling/installing binutils."
-
-fi
 
 echo ">>> Compiling and installing GCC"
 cd "${OBJDIR}"

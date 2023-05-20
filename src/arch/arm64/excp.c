@@ -20,27 +20,10 @@
 #define EXCP_ERROR(fmt, args...) ERROR_PRINT("excp: " fmt, ##args)
 #define EXCP_WARN(fmt, args...) WARN_PRINT("excp: " fmt, ##args)
 
-typedef struct irq_handler_desc {
-  irq_handler_t handler;
-  void *state;
-} irq_handler_desc_t;
-
 irq_handler_desc_t *irq_handler_desc_table;
-
-typedef struct excp_handler_desc {
-  excp_handler_t handler;
-  void *state;
-} excp_handler_desc_t;
-
 excp_handler_desc_t *excp_handler_desc_table;
 
-static int unhandled_irq_handler(excp_entry_t *entry, excp_vec_t vec, void *state) {
-  EXCP_PRINT("--- UNHANDLED INTERRUPT ---\n");
-  EXCP_PRINT("\texcp_vec = %x\n", vec);
-  return 1;
-}
-
-static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state) {
+int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state) {
   if(el_from == 0) {
     EXCP_PRINT("--- UNKNOWN USERMODE EXCEPTION ---\n"); 
   }
@@ -48,7 +31,8 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
     EXCP_PRINT("--- UNKNOWN KERNEL EXCEPTION ---\n");
   }
   else {
-    EXCP_PRINT("--- UNKNOWN EL LEVEL %u EXCEPTION---\n", el_from);
+    EXCP_PRINT("--- UNKNOWN EL LEVEL %u EXCEPTION ---\n", el_from);
+    EXCP_PRINT("--- THIS SHOULD NOT BE POSSIBLE! ---\n");
   }
   EXCP_PRINT("\tELR = 0x%x\n", info->elr);
   EXCP_PRINT("\tESR = 0x%x\n", info->esr.raw);
@@ -61,9 +45,7 @@ static int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *
   } else {
     EXCP_PRINT("\t16bit Instruction\n");
   }
-  #ifdef NAUT_CONFIG_DEBUG_EXCPS
-    arch_print_regs(regs);
-  #endif
+  arch_print_regs(regs);
   return 0;
 }
 

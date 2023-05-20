@@ -61,6 +61,9 @@ static spinlock_t pl011_lock;
 static inline void pl011_write_reg(struct pl011_uart *p, uint32_t reg, uint32_t val) {
   *(volatile uint32_t*)(p->mmio_base + reg) = val;
 }
+static inline void pl011_read_reg(struct pl011_uart *p, uint32_t reg, uint32_t *val) {
+  *val = *(volatile uint32_t*)(p->mmio_base + reg);
+}
 static inline void pl011_and_reg(struct pl011_uart *p, uint32_t reg, uint32_t val) {
   *(volatile uint32_t*)(p->mmio_base + reg) &= val;
 }
@@ -75,13 +78,23 @@ static inline void pl011_disable(struct pl011_uart *p) {
   pl011_and_reg(p, UART_CTRL, ~UART_CTRL_ENABLE_BITMASK);
 }
 
-static inline int pl011_busy_or_full(struct pl011_uart *p) {
+static inline int pl011_busy_or_write_full(struct pl011_uart *p) {
   return *((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_BSY
        ||*((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_TRANS_FIFO_FULL;
 }
+static inline int pl011_busy_or_read_empty(struct pl011_uart *p) {
+  return *((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_BSY
+       ||*((volatile uint32_t*)(p->mmio_base + UART_FLAG)) & UART_FLAG_RECV_FIFO_EMPTY;
+}
 
-static void pl011_wait(struct pl011_uart *p) {
-  while(pl011_busy_or_full(p)){
+
+static void pl011_wait_write(struct pl011_uart *p) {
+  while(pl011_busy_or_write_full(p)){
+    // Loop while the busy bit is set or the fifo is full
+  }
+}
+static void pl011_wait_read(struct pl011_uart *p) {
+  while(pl011_busy_or_read_empty(p)){
     // Loop while the busy bit is set or the fifo is full
   }
 }
@@ -100,7 +113,7 @@ static inline void pl011_configure(struct pl011_uart *p) {
   pl011_disable(p);
 
   // Wait for any transmission to complete
-  pl011_wait(p);
+  pl011_wait_write(p);
 
   // Flushes the fifo queues
   pl011_disable_fifo(p);
@@ -122,7 +135,7 @@ static inline void pl011_configure(struct pl011_uart *p) {
   pl011_write_reg(p, UART_MASK_INT, 0x3FF);
 
   // Disable receiving
-  pl011_and_reg(p, UART_CTRL, ~UART_CTRL_RECV_ENABLE_BITMASK);
+  pl011_or_reg(p, UART_CTRL, UART_CTRL_RECV_ENABLE_BITMASK);
 
   // Re-enable the PL011
   pl011_enable(p);
@@ -160,8 +173,13 @@ void pl011_uart_early_init(struct pl011_uart *p, uint64_t dtb) {
 }
 
 static inline void __pl011_uart_putchar(struct pl011_uart *p, unsigned char c) { 
-  pl011_wait(p);
+  pl011_wait_write(p);
   pl011_write_reg(p, UART_DATA, (uint32_t)c);
+}
+
+static inline void __pl011_uart_getchar(struct pl011_uart *p, unsigned char *c) { 
+  pl011_wait_read(p);
+  pl011_read_reg(p, UART_DATA, (uint32_t*)c);
 }
 
 void pl011_uart_putchar(struct pl011_uart *p, unsigned char c) {
@@ -175,8 +193,6 @@ void pl011_uart_puts(struct pl011_uart *p, const char *data) {
     i++;
   }
 }
-
-
 
 void pl011_uart_write(struct pl011_uart *p, const char *data, size_t n) {
   spin_lock(&p->output_lock);
@@ -198,11 +214,11 @@ static int pl011_uart_dev_read(void *state, uint8_t *dest) {
   int rc = -1;
   int flags = spin_lock_irq_save(&p->input_lock);
 
-  if(1) { // TODO: check if we're empty
+  if(pl011_busy_or_read_empty(p)) { // TODO: check if we're empty
     rc = 0;
   }
   else {
-    *dest = 0; // TODO: read input
+    __pl011_uart_getchar(p, dest);
     rc = 1;
   }
 
@@ -217,7 +233,7 @@ static int pl011_uart_dev_write(void *state, uint8_t *src) {
   int wc = -1;
   int flags = spin_lock_irq_save(&p->output_lock);
 
-  if(pl011_busy_or_full(p)) {
+  if(pl011_busy_or_write_full(p)) {
     wc = 0;
   } else {
     __pl011_uart_putchar(p, *src);
@@ -239,7 +255,7 @@ static int pl011_uart_dev_status(void *state) {
   spin_unlock_irq_restore(&p->input_lock, flags);
 
   flags = spin_lock_irq_save(&p->output_lock);
-  if (!pl011_busy_or_full(p)) {
+  if (!pl011_busy_or_write_full(p)) {
     ret |= NK_CHARDEV_WRITEABLE;
   }
   spin_unlock_irq_restore(&p->output_lock, flags);

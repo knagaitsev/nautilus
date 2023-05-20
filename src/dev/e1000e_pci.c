@@ -1185,9 +1185,9 @@ int e1000e_pci_init(struct naut_info * naut)
           uint32_t size;
           DEBUG("bar %d: 0x%0x\n",i, bar);
           // go through until the last one, and get out of the loop
-          if (bar==0) {
-            break;
-          }
+          //if (bar==0) {
+          //  break;
+          //}
           // get the last bit and if it is zero, it is the memory
           // " -------------------------"  one, it is the io
           if (!(bar & 0x1)) {

@@ -9,6 +9,7 @@
 
 .EXTERN secondary_init
  
+//.globl uboot_hdr
 .globl nautilus_entry
 # Entry point for the kernel. Registers:
 # x0 -> 32 bit pointer to DTB in memory (primary core only) / 0 (secondary cores)

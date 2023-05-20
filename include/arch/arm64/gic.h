@@ -17,6 +17,9 @@ void gic_end_of_int(gic_int_info_t *int_info);
 
 uint16_t gic_max_irq(void);
 
+uint32_t gic_num_msi_irq(void);
+uint32_t gic_base_msi_irq(void);
+
 int gic_enable_int(uint_t irq);
 int gic_disable_int(uint_t irq);
 int gic_int_enabled(uint_t irq);

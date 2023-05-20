@@ -41,9 +41,11 @@
 #ifdef NAUT_CONFIG_VIRTIO_PCI
 #include<dev/virtio_pci.h>
 #endif
-
 #ifdef NAUT_CONFIG_E1000_PCI
 #include<dev/e1000_pci.h>
+#endif
+#ifdef NAUT_CONFIG_E1000E_PCI
+#include <dev/e1000e_pci.h>
 #endif
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
@@ -120,6 +122,8 @@ void secondary_init(uint64_t context_id) {
     return;
   }
   INIT_PRINT("Initialized the GIC!\n", my_cpu_id());
+
+  nk_rand_init(nautilus_info.sys.cpus[0]);
 
   nk_sched_init_ap(&sched_cfg);
 
@@ -315,57 +319,33 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 #ifdef NAUT_CONFIG_VIRTIO_PCI
   virtio_pci_init(&nautilus_info);
 #endif
-
 #ifdef NAUT_CONFIG_E1000_PCI
   e1000_pci_init(&nautilus_info);
 #endif
+#ifdef NAUT_CONFIG_E1000E_PCI
+  e1000e_pci_init(&nautilus_info);
+#endif
 
-  nk_launch_shell("root-shell",0,0,0);
+//  nk_launch_shell("root-shell",0,0,0);
+
+  execute_threading(NULL);
 
   INIT_PRINT("BSP Idling forever\n");
   idle(NULL,NULL);
 }
 
-
-volatile static uint64_t count;
-
-static void print_ones(void*, void**)
+static void gpu_test(void*, void**)
 {
-    while (count) {
-      printk("1\n");
-      //nk_yield();
-    }
-
-    INIT_PRINT("End of print_ones\n");
-}
-
-static void print_twos(void*, void**)
-{
-  while(count){
-    printk("2\n");
-    //nk_yield();
-  }
-  INIT_PRINT("End of print_twos\n");
+  handle_gputest("gputest virtio-gpu0", 0);
 }
 
 int execute_threading(char command[])
 {
     nk_thread_id_t a, b;
 
-    nk_thread_start((nk_thread_fun_t)print_ones, 0, 0, 0, 0, &a, -1);
-    nk_thread_start((nk_thread_fun_t)print_twos, 0, 0, 0, 0, &b, -1);
+    nk_thread_start((nk_thread_fun_t)gpu_test, 0, 0, 0, 0, &a, -1);
 
-    nk_thread_name(a, "print_ones");
-    nk_thread_name(b, "print_twos");
-
-    count = 10;
-    while (count > 0) {
-        count--;
-        nk_yield();
-    }
-    INIT_PRINT("\n");
-    nk_join(a, NULL);
-    nk_join(b, NULL);
+    nk_thread_name(a, "gpu_test");
 
     return 0;
 }

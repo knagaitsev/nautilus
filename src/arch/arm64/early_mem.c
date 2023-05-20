@@ -122,7 +122,7 @@ int fdt_dev_handle_memory_node(const void *fdt, int offset, int depth) {
       BMM_PRINT("Splitting the region as possible\n");
 
       if(start < &kernel_start) {
-        insert_free_region_into_memory_map(memory_map, mm_info, start, end <= &kernel_start ? end : &kernel_start);
+        //insert_free_region_into_memory_map(memory_map, mm_info, start, end <= &kernel_start ? end : &kernel_start);
       }
       if(&kernel_end < end) {
         insert_free_region_into_memory_map(memory_map, mm_info, start > &kernel_end ? start : &kernel_end, end);

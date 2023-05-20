@@ -393,6 +393,14 @@ int gic_int_active(uint_t irq) {
   return GICD_BITMAP_READ(__gic, irq, GICD_ISACTIVER_0_OFFSET);
 }
 
+uint32_t gic_num_msi_irq(void) {
+  return __gic.msi_frame.spi_num;
+}
+
+uint32_t gic_base_msi_irq(void) {
+  return __gic.msi_frame.spi_base;
+}
+
 void gic_dump_state(void) {
 
   gicd_ctl_reg_t ctl_reg;
