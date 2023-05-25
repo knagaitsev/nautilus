@@ -1152,12 +1152,18 @@ c-------------------------------------------------------------------*/
 	    }
 	}
     }
-    
-    if (*class != 'U') {
+
+	if (*verified) {
 	printf("Result verification successful\n");
     } else {
 	printf("Result verification failed\n");
     }
+    
+    // if (*class != 'U') {
+	// printf("Result verification successful\n");
+    // } else {
+	// printf("Result verification failed\n");
+    // }
     printf("class = %1c\n", *class);
 }
 

@@ -26,7 +26,7 @@
 #include <dev/sifive.h>
 #include <arch/riscv/plic.h>
 #include <nautilus/nautilus.h>
-
+#include <arch/riscv/npb.h>
 
 #define ITERATIONS 100
 #define NUM_READINGS 100.0
@@ -677,6 +677,29 @@ static int execute_plic_bench(char command[]) {
   return 0;
 }
 
+static int execute_FT(char command[]) {
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_FT(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+}
+
 static int execute_time_test(char command[]) {
   
   sbi_set_timer(read_csr(time) + 10000000);
@@ -705,6 +728,10 @@ static int execute_potential_command(char command[])
   else if (my_strcmp(word, "paging") == 0)
   {
     quit = execute_paging(command);
+  }
+  else if (my_strcmp(word, "FT") == 0)
+  {
+    quit = execute_FT(command);
   }
   else if (my_strcmp(word, "pf") == 0)
   {
