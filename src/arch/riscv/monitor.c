@@ -677,6 +677,30 @@ static int execute_plic_bench(char command[]) {
   return 0;
 }
 
+static int execute_BT(char command[]) {
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_BT_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  return 0;
+}
+
 static int execute_FT(char command[]) {
   program_FT(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
@@ -698,6 +722,151 @@ static int execute_FT(char command[]) {
   sifive_gpio_print_ints_received_and_reset();
   program_FT(NULL, NULL);
   sifive_gpio_print_ints_received_and_reset();
+  return 0;
+}
+
+static int execute_EP(char command[]) {
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_EP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  return 0;
+}
+
+static int execute_MG(char command[]) {
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_MG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  return 0;
+}
+
+static int execute_LU(char command[]) {
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_LU_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  return 0;
+}
+
+static int execute_SP(char command[]) {
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_SP_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  return 0;
+}
+
+static int execute_IS(char command[]) {
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_IS_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  return 0;
+}
+
+static int execute_CG(char command[]) {
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  program_CG_profile(NULL, NULL);
+  sifive_gpio_print_ints_received_and_reset();
+  return 0;
 }
 
 static int execute_time_test(char command[]) {
@@ -729,9 +898,37 @@ static int execute_potential_command(char command[])
   {
     quit = execute_paging(command);
   }
+  else if (my_strcmp(word, "BT") == 0)
+  {
+    quit = execute_BT(command);
+  }
   else if (my_strcmp(word, "FT") == 0)
   {
     quit = execute_FT(command);
+  }
+  else if (my_strcmp(word, "EP") == 0)
+  {
+    quit = execute_EP(command);
+  }
+  else if (my_strcmp(word, "MG") == 0)
+  {
+    quit = execute_MG(command);
+  }
+  else if (my_strcmp(word, "LU") == 0)
+  {
+    quit = execute_LU(command);
+  }
+  else if (my_strcmp(word, "SP") == 0)
+  {
+    quit = execute_SP(command);
+  }
+  else if (my_strcmp(word, "IS") == 0)
+  {
+    quit = execute_IS(command);
+  }
+  else if (my_strcmp(word, "CG") == 0)
+  {
+    quit = execute_CG(command);
   }
   else if (my_strcmp(word, "pf") == 0)
   {
