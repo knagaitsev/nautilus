@@ -203,7 +203,7 @@ int global_init_gic(uint64_t dtb) {
 
   memset(&__gic, 0, sizeof(gic_t));
 
-  // Search by name because compatible list is so long
+  // Find node with "interrupt-controller" property
   int offset = fdt_node_offset_by_prop_value((void*)dtb, -1, "interrupt-controller", NULL, NULL);
 
   while(offset >= 0) { 
