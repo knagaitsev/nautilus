@@ -104,7 +104,9 @@ get_rand_byte (void)
 
     return b + b2;
 #elif NAUT_CONFIG_ARCH_ARM64
-    return (char)(arch_read_timestamp() * (uint64_t)(-59));
+    // This 100% not pseudo-random I just need something
+    // that could potentially return any value 0x00-0xff
+    return (char)(arch_read_timestamp());
 #else
     return 0;
 #endif

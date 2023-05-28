@@ -302,14 +302,14 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
     }
 #elif NAUT_CONFIG_ARCH_ARM64
     #define GPR_SAVE_SIZE 0x120
-    #define GPR_RDI_OFFSET (GPR_SAVE_SIZE - 0x70 - 0x00)
+    #define GPR_X0_OFFSET (GPR_SAVE_SIZE - 0x70 - 0x00)
     #define GPR_LR_OFFSET (GPR_SAVE_SIZE - 0x70 - 0xa0)
     #define INTERRUPT_RETURN_OFFSET (GPR_SAVE_SIZE - 0x50)
 
     if (fun) {
         thread_push(t, (uint64_t)thread_cleanup);
         thread_push(t, (uint64_t)fun);
-        *(uint64_t*)(t->rsp-GPR_RDI_OFFSET) = (uint64_t)arg;
+        *(uint64_t*)(t->rsp-GPR_X0_OFFSET) = (uint64_t)arg;
         *(uint64_t*)(t->rsp-GPR_LR_OFFSET)  = (uint64_t)nk_thread_entry;
         *(uint64_t*)(t->rsp-INTERRUPT_RETURN_OFFSET) = (uint64_t)0;
     }

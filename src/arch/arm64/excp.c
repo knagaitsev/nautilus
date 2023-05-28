@@ -9,13 +9,15 @@
 
 #define EXCP_SYNDROME_BITS 6
 
+//#define NAUT_CONFIG_DEBUG_EXCPS
+
 // This doesn't exist yet
 #ifndef NAUT_CONFIG_DEBUG_EXCPS
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define EXCP_PRINT(fmt, args...) printk("excp: " fmt, ##args)
+#define EXCP_PRINT(fmt, args...) INFO_PRINT("excp: " fmt, ##args)
 #define EXCP_DEBUG(fmt, args...) DEBUG_PRINT("excp: " fmt, ##args)
 #define EXCP_ERROR(fmt, args...) ERROR_PRINT("excp: " fmt, ##args)
 #define EXCP_WARN(fmt, args...) WARN_PRINT("excp: " fmt, ##args)
@@ -34,6 +36,15 @@ int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, u
     EXCP_PRINT("--- UNKNOWN EL LEVEL %u EXCEPTION ---\n", el_from);
     EXCP_PRINT("--- THIS SHOULD NOT BE POSSIBLE! ---\n");
   }
+  EXCP_PRINT("\tCPU = %u\n", my_cpu_id());
+  EXCP_PRINT("\tTHREAD = %p\n", get_cur_thread());
+  EXCP_PRINT("\tTHREAD_NAME = %s\n", get_cur_thread()->name);
+  EXCP_PRINT("\tTHREAD_BOUND_CPU = %u\n", get_cur_thread()->bound_cpu);
+  EXCP_PRINT("\tTHREAD_PLACEMENT_CPU = %u\n", get_cur_thread()->placement_cpu);
+  EXCP_PRINT("\tTHREAD_CURRENT_CPU = %u\n", get_cur_thread()->current_cpu);
+  EXCP_PRINT("\tTHREAD_IS_IDLE = %u\n", get_cur_thread()->is_idle);
+  EXCP_PRINT("\tTHREAD_FUNC = %p\n", get_cur_thread()->fun);
+  EXCP_PRINT("\tTHREAD_VIRTUAL_CONSOLE = %p\n", get_cur_thread()->vc);
   EXCP_PRINT("\tELR = 0x%x\n", info->elr);
   EXCP_PRINT("\tESR = 0x%x\n", info->esr.raw);
   EXCP_PRINT("\tFAR = %p\n", (void*)info->far);

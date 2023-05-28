@@ -162,7 +162,7 @@ pci_dump_cfg_raw(struct pci_dev *d) {
   int i,j;
   uint32_t v;
   for (i=0;i<256;i+=32) {
-      printk("%02x:", i);
+      PCI_DEBUG("%02x:", i);
       for (j=0;j<8;j++) {
           v = pci_cfg_readl(d->bus->num,d->num,d->fun,i+j*4);
           printk(" %08x",v);

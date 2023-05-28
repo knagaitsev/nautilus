@@ -113,7 +113,7 @@ int nk_vc_handle_mouse(nk_mouse_event_t *mouse);
 int nk_vc_init(void);
 int nk_vc_is_active(void);
 
-int nk_vc_start_chardev_console(char *chardev);
+int nk_vc_start_chardev_console(const char *chardev);
 int nk_vc_stop_chardev_console(char *chardev);
 
 int nk_vc_deinit(void);

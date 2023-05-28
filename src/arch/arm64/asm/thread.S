@@ -3,15 +3,15 @@
 
 nk_thread_entry:
 
-  ldr x0, [sp, 0x0]
+  ldr x19, [sp, 0x0]
   
-  blr x0
+  blr x19
 
-  ldr x0, [sp, 0x8]
+  ldr x19, [sp, 0x8]
 
   add sp, sp, 0x10
 
-  br x0
+  br x19
 
 .GLOBAL nk_thread_switch
 .GLOBAL nk_thread_switch_intr_entry

@@ -2286,7 +2286,7 @@ INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched
     // We might be switching away from a thread that is 
     // attempting a special case, for example going to sleep
 
-    DEBUG("need_resched (cur=%d, sleep=%d, exit=%d, changing=%d)\n", c->tid, going_to_sleep,going_to_exit, changing);
+    DEBUG("need_resched (cur=%d, sleep=%d, exit=%d, changing=%d)\n", c->tid, going_to_sleep, going_to_exit, changing);
 
     rt_c->resched_count++;
 

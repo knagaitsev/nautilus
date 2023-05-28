@@ -124,7 +124,9 @@ int percpu_timer_init(void) {
   // install the handler
   arch_irq_install(30, arch_timer_handler, NULL);
 
+#ifdef NAUT_CONFIG_DEBUG_TIMERS
   print_timer_regs();
+#endif
 
   // Enable the timer
   asm volatile ("mrs x0, CNTP_CTL_EL0; orr x0, x0, 1; msr CNTP_CTL_EL0, x0" ::: "x0");

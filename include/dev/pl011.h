@@ -18,9 +18,12 @@ struct pl011_uart {
 };
 
 void pl011_uart_early_init(struct pl011_uart*, uint64_t dtb);
-int pl011_uart_dev_init(char *name, struct pl011_uart*);
-void pl011_uart_putchar(struct pl011_uart*, unsigned char);
-void pl011_uart_puts(struct pl011_uart*, const char*);
-void pl011_uart_write(struct pl011_uart*, const char*, size_t);
+int pl011_uart_dev_init(const char *name, struct pl011_uart*);
+
+int pl011_uart_dev_write(void*, uint8_t *src);
+int pl011_uart_dev_read(void*, uint8_t *dest);
+
+void pl011_uart_putchar_blocking(struct pl011_uart*, const char c);
+void pl011_uart_puts_blocking(struct pl011_uart*, const char *s);
 
 #endif

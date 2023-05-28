@@ -26,7 +26,7 @@
 #include<nautilus/idle.h>
 #include<nautilus/barrier.h>
 #include<nautilus/smp.h>
-//#include<nautilus/vc.h>
+#include<nautilus/vc.h>
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/gic.h>
@@ -150,7 +150,6 @@ void secondary_init(uint64_t context_id) {
 }
 
 extern void secondary_start(void);
-void *__secondary_stack = NULL;
 
 static int start_secondaries(struct sys_info *sys) {
   INIT_PRINT("Starting secondary processors\n");
@@ -158,8 +157,6 @@ static int start_secondaries(struct sys_info *sys) {
   for(uint64_t i = 1; i < sys->num_cpus; i++) {
     __secondary_init_finish = 0;
     // Initialize the stack
-    __secondary_stack = (uint8_t*)malloc(2 * PAGE_SIZE_4KB);
-    __secondary_stack += 2*PAGE_SIZE_4KB;
 
     INIT_PRINT("Trying to start secondary core: %u\n", i);
     if(psci_cpu_on(i, (void*)secondary_start, i)) {
@@ -195,6 +192,10 @@ vga_make_entry (char c, uint8_t color)
 extern void *_bssEnd;
 extern void *_bssStart;
 
+extern spinlock_t printk_lock;
+
+static volatile const char *chardev_name = "serial0";
+
 void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x3) {
 
   // Zero out .bss
@@ -215,6 +216,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Enable printk by handing it the uart
   extern struct pl011_uart *printk_uart;
   printk_uart = &_main_pl011_uart;
+
+  spinlock_init(&printk_lock);
 
   printk(NAUT_WELCOME);
 
@@ -267,7 +270,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Now we should be able to install irq handlers
 
-  pl011_uart_dev_init("serial0", &_main_pl011_uart);
+  pl011_uart_dev_init(chardev_name, &_main_pl011_uart);
 
   nk_wait_queue_init();
   nk_future_init();
@@ -287,12 +290,10 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
 
   nk_thread_name(get_cur_thread(), "init");
-  INIT_PRINT("Swapped to new stack\n");
 
   psci_init();
 
   pci_init(&nautilus_info);
-
   pci_dump_device_list();
   
   start_secondaries(&(nautilus_info.sys));
@@ -310,11 +311,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
 
-  //nk_vc_init();
+  nk_vc_init();
 
-//#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
-//  nk_vc_start_chardev_console(NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME);
-//#endif
+#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
+  nk_vc_start_chardev_console(chardev_name);
+#endif
 
 #ifdef NAUT_CONFIG_VIRTIO_PCI
   virtio_pci_init(&nautilus_info);
@@ -326,16 +327,17 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   e1000e_pci_init(&nautilus_info);
 #endif
 
-//  nk_launch_shell("root-shell",0,0,0);
+  nk_launch_shell("root-shell",0,0,0);
 
-  execute_threading(NULL);
+  //execute_threading(NULL);
 
-  INIT_PRINT("BSP Idling forever\n");
+  nk_vc_printf_wrap("Promoting init thread to idle\n");
   idle(NULL,NULL);
 }
 
 static void gpu_test(void*, void**)
 {
+  INIT_PRINT("GPU TEST START\n");
   handle_gputest("gputest virtio-gpu0", 0);
 }
 

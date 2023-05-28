@@ -872,11 +872,10 @@ ifdef NAUT_CONFIG_ARCH_ARM64
 		-d Image uImage
 endif
 
-#QEMU_GDB_FLAGS := -s -S
-QEMU_GDB_FLAGS :=
+QEMU_GDB_FLAGS := #-s -S
 QEMU_DEVICES := -netdev socket,id=mynet0,listen=:1234 -device e1000e,netdev=mynet0 -device virtio-gpu-pci
 
-QEMU_MACHINE_FLAGS = virt
+QEMU_MACHINE_FLAGS = virt#,dumpdtb=virt.dtb
 ifdef NAUT_CONFIG_GIC_VERSION_2
 	QEMU_MACHINE_FLAGS := $(QEMU_MACHINE_FLAGS),gic-version=2
 endif
@@ -902,6 +901,19 @@ ifdef NAUT_CONFIG_ARCH_ARM64
 		-numa node,cpus=1,memdev=m1 \
 		-object memory-backend-ram,id=m0,size=1G \
 		-object memory-backend-ram,id=m1,size=1G \
+		-m 2G
+endif
+
+qemu-up: uImage
+ifdef NAUT_CONFIG_ARCH_ARM64
+	qemu-system-aarch64 \
+		--cpu cortex-a72 \
+		-serial stdio \
+		--machine $(QEMU_MACHINE_FLAGS) \
+		-bios $(UBOOT_BIN) \
+		-kernel uImage \
+		$(QEMU_GDB_FLAGS) \
+		$(QEMU_DEVICES) \
 		-m 2G
 endif
 

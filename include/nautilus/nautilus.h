@@ -34,8 +34,6 @@ typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
 #include <nautilus/thread.h>
 #include <nautilus/vc.h>
 
-//#define DEBUG_PRINT_PREEMPTIBLE
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,7 +51,7 @@ do {									\
 		       _t ? _t->tid : 0,				\
 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
 		       ##args);						\
-	preempt_enable();					\
+	preempt_enable();				                \
     } else {								\
 	int _p=preempt_is_disabled();					\
 	preempt_disable();						\

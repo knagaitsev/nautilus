@@ -2,6 +2,15 @@
 #include<nautilus/arch.h>
 
 #include<arch/arm64/sys_reg.h>
+#include<arch/arm64/unimpl.h>
+
+// Double checking some macros
+#ifndef NAUT_CONFIG_ARCH_ARM64
+#error "NAUT_CONFIG_ARCH_ARM64 is not defined yet arm64 objects are being compiled!"
+#endif
+#ifdef NAUT_CONFIG_HOST_X86_64
+#error "NAUT_CONFIG_HOST_X86_64 is defined for arm64!"
+#endif
 
 void arch_enable_ints(void) {
   __asm__ __volatile__ ("msr DAIFClr, 0xF; isb");
@@ -47,10 +56,9 @@ void arch_print_regs(struct nk_regs *r) {
 void *arch_read_sp(void) {
   void *stack_ptr;
   __asm__ __volatile__ (
-      "mov sp, %0"
+      "mov %0, sp"
       : "=r" (stack_ptr)
       :
-      : "memory"
       );
   return stack_ptr;
 }

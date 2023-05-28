@@ -122,6 +122,9 @@ int fdt_dev_handle_memory_node(const void *fdt, int offset, int depth) {
       BMM_PRINT("Splitting the region as possible\n");
 
       if(start < &kernel_start) {
+        // Don't do this until we add support for reserving device
+        // tree regions (this protects the main dtb when booting with
+        // uboot)
         //insert_free_region_into_memory_map(memory_map, mm_info, start, end <= &kernel_start ? end : &kernel_start);
       }
       if(&kernel_end < end) {

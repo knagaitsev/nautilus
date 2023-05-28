@@ -11,7 +11,7 @@
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define GIC_PRINT(fmt, args...) INFO_PRINT("[GICv2] " fmt, ##args)
+#define GIC_PRINT(fmt, args...) printk("[GICv2] " fmt, ##args)
 #define GIC_DEBUG(fmt, args...) DEBUG_PRINT("[GICv2] " fmt, ##args)
 #define GIC_ERROR(fmt, args...) ERROR_PRINT("[GICv2] " fmt, ##args)
 #define GIC_WARN(fmt, args...) WARN_PRINT("[GICv2] " fmt, ##args)
@@ -97,6 +97,12 @@ static gic_t __gic;
 #define GICD_BITMAP_READ(gic, num, offset) \
   (!!(*(((volatile uint32_t*)((gic).dist_base + offset))+(num >> 5)) & (1<<(num&(0x1F)))))
 
+#define GICD_DUALBITMAP_READ(gic, num, offset) \
+  (*(((volatile uint8_t*)((gic).dist_base + offset))+(num >> 4)) & (0x3<<((num&0xF)<<4)))
+
+#define GICD_BYTEMAP_READ(gic, num, offset) \
+  (*(((volatile uint8_t*)((gic).dist_base + offset))+(num >> 2)) & (0xFF<<((num&0x3)<<3)))
+
 #define LOAD_GICC_REG(gic, offset) *(volatile uint32_t*)((gic).cpu_base + offset)
 #define STORE_GICC_REG(gic, offset, val) (*(volatile uint32_t*)((gic).cpu_base + offset)) = val
 
@@ -107,7 +113,7 @@ typedef union gicd_ctl_reg {
   uint32_t raw;
   struct {
     uint_t grp0_en : 1;
-    uint_t grp1_en : 1;
+    // uint_t grp1_en : 1; // Secure Mode Only
     // Rest Reserved
   };
 } gicd_ctl_reg_t;
@@ -247,7 +253,6 @@ int global_init_gic(uint64_t dtb) {
   gicd_ctl_reg_t d_ctl_reg;
   d_ctl_reg.raw = LOAD_GICD_REG(__gic, GICD_CTLR_OFFSET);
   d_ctl_reg.grp0_en = 1;
-  d_ctl_reg.grp1_en = 1;
   STORE_GICD_REG(__gic, GICD_CTLR_OFFSET, d_ctl_reg.raw);
 
   GIC_DEBUG("Looking for MSI(-X) Support\n");
@@ -393,6 +398,16 @@ int gic_int_active(uint_t irq) {
   return GICD_BITMAP_READ(__gic, irq, GICD_ISACTIVER_0_OFFSET);
 }
 
+static int gic_int_group(uint_t irq) {
+  return GICD_BITMAP_READ(__gic, irq, GICD_IGROUPR_0_OFFSET);
+}
+static uint8_t gic_int_target(uint_t irq) {
+  return GICD_BYTEMAP_READ(__gic, irq, GICD_ITARGETSR_0_OFFSET);
+}
+static int gic_int_is_edge_triggered(uint_t irq) {
+  return 0b10 & GICD_DUALBITMAP_READ(__gic, irq, GICD_ICFGR_0_OFFSET);
+}
+
 uint32_t gic_num_msi_irq(void) {
   return __gic.msi_frame.spi_num;
 }
@@ -408,30 +423,14 @@ void gic_dump_state(void) {
   GIC_PRINT("Distributor Control Register\n");
   GIC_PRINT("\traw = 0x%08x\n", ctl_reg.raw);
 
-  GIC_PRINT("Distributor Enabled Interrupts:\n");
   for(uint_t i = 0; i < __gic.max_irq; i++) {
-    if(gic_int_enabled(i)) {
-      GIC_PRINT("\tINTERRUPT %u: ENABLED\n", i);
-    } else {
- //     GIC_PRINT("\tINTERRUPT %u: DISABLED\n", i);
-    }
-  }
-
-  GIC_PRINT("Distributor Pending Interrupts:\n");
-  for(uint_t i = 0; i < __gic.max_irq; i++) {
-    if(gic_int_pending(i)) {
-      GIC_PRINT("\tINTERRUPT %u: PENDING\n", i);
-    } else {
- //     GIC_PRINT("\tINTERRUPT %u: NOT PENDING\n", i);
-    }
-  }
-
-  GIC_PRINT("Distributor Active Interrupts:\n");
-  for(uint_t i = 0; i < __gic.max_irq; i++) {
-    if(gic_int_active(i)) {
-      GIC_PRINT("\tINTERRUPT %u: ACTIVE\n", i);
-    } else {
-//      GIC_PRINT("\tINTERRUPT %u: INACTIVE\n", i);
-    }
+    GIC_PRINT("Int (%u) : %s%s%s(group %u) (target 0x%02x) (%s)\n", i,
+      gic_int_enabled(i) ? "enabled " : "",
+      gic_int_pending(i) ? "pending " : "",
+      gic_int_active(i) ? "active " : "",
+      gic_int_group(i),
+      gic_int_target(i),
+      gic_int_is_edge_triggered(i) ? "edge triggered" : "level sensitive"
+      );
   }
 }

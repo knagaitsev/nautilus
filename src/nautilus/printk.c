@@ -58,8 +58,8 @@
 // All output is handled via PL011 UART
 #include<dev/pl011.h>
 struct pl011_uart *printk_uart;
-#define do_putchar(x) do { pl011_uart_putchar(printk_uart, x); } while (0)
-#define do_puts(x) do { pl011_uart_puts(printk_uart, x); pl011_uart_putchar(printk_uart, '\n'); } while (0)
+#define do_putchar(x) do { pl011_uart_putchar_blocking(printk_uart, x); } while (0)
+#define do_puts(x) do { pl011_uart_puts_blocking(printk_uart, x); pl011_uart_putchar_blocking(printk_uart, '\n'); } while (0)
 #else
 #error "Unknown Architecture"
 #endif

@@ -390,6 +390,7 @@ INTERRUPT static int _vc_scrollup_specific(struct nk_virtual_console *vc)
   }
 #endif
 
+#ifdef NAUT_CONFIG_ARCH_X86
   for (i=0;
        i<VGA_WIDTH*(VGA_HEIGHT-1);
        i++) {
@@ -401,6 +402,7 @@ INTERRUPT static int _vc_scrollup_specific(struct nk_virtual_console *vc)
        i++) {
     vc->BUF[i] = vga_make_entry(' ', vc->fill_attr);
   }
+#endif
 
   if(vc == cur_vc) {
     copy_vc_to_display(vc);
@@ -833,7 +835,6 @@ int nk_vc_print(char *s)
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_SERIAL_MIRROR_ALL
   serial_write(s);
 #endif
-
 
   return 0;
 }
@@ -1369,7 +1370,7 @@ static void list(void *in, void **out)
     ERROR("No virtual console for list..\n");
     return;
   }
-
+    
   if (nk_thread_name(get_cur_thread(),"vc-list")) {
     ERROR_PRINT("Cannot name vc-list's thread\n");
     return;
@@ -1427,7 +1428,7 @@ static int start_list()
                       1,
                       PAGE_SIZE_4KB,
                       &list_tid,
-#ifdef NAUT_CONFIG_ARCH_RISCV
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
                       my_cpu_id()
 #else
                       0
@@ -1435,6 +1436,8 @@ static int start_list()
       )) {
     ERROR("Failed to launch VC list\n");
     return -1;
+  } else {
+    DEBUG("Launched VC list\n");
   }
 
   while (!__sync_fetch_and_add(&vc_list_inited,0)) {
@@ -1581,6 +1584,7 @@ static void chardev_console(void *in, void **out)
 
     struct chardev_console *c = (struct chardev_console *)in;
 
+    DEBUG("Trying to find chardev: %s\n", c->name);
     c->dev = nk_char_dev_find(c->name);
 
     if (!c->dev) {
@@ -1733,7 +1737,7 @@ static void chardev_console(void *in, void **out)
 
 
 
-int nk_vc_start_chardev_console(char *chardev)
+int nk_vc_start_chardev_console(const char *chardev)
 {
     struct chardev_console *c = malloc(sizeof(*c));
 
@@ -1840,10 +1844,14 @@ int nk_vc_init()
   if (start_list()) {
     ERROR("Cannot create vc list thread\n");
     return -1;
+  } else {
+    DEBUG("Created vc list thread\n");
   }
 
   cur_vc = default_vc;
   copy_display_to_vc(cur_vc);
+
+  DEBUG("Copied display to vc\n");
 
 #ifdef NAUT_CONFIG_X86_64_HOST
   vga_get_cursor(&(cur_vc->cur_x),&(cur_vc->cur_y));
@@ -1857,6 +1865,7 @@ int nk_vc_init()
 
   up=1;
 
+  DEBUG("End nk_vc_init\n");
   return 0;
 }
 

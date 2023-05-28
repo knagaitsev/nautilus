@@ -67,12 +67,10 @@ nautilus_entry:
     b .
 
 
-.EXTERN __secondary_stack
 .GLOBAL secondary_start
 secondary_start:
     
-    ldr x1, =__secondary_stack
-    ldr x1, [x1]
+    ldr x1, =boot_stack_end
     mov sp, x1
 
     bl __install_iv_tables
