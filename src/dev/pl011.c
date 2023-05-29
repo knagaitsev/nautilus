@@ -118,6 +118,8 @@ static inline void pl011_configure(struct pl011_uart *p) {
 
   // Set the word size to 8 bits
   pl011_or_reg(p, UART_LINE_CTRL_H, UART_LINE_CTRL_WORD_LENGTH_BITMASK);
+  pl011_and_reg(p, UART_LINE_CTRL_H, ~UART_LINE_CTRL_PARITY_ENABLE_BITMASK);
+  pl011_and_reg(p, UART_LINE_CTRL_H, ~UART_LINE_CTRL_TWO_STP_BITMASK);
   
   // Enable receiving
   pl011_or_reg(p, UART_CTRL, UART_CTRL_RECV_ENABLE_BITMASK | UART_CTRL_TRANS_ENABLE_BITMASK);
@@ -168,12 +170,15 @@ static int pl011_uart_dev_get_characteristics(void *state, struct nk_char_dev_ch
   return 0;
 }
 
-static uint32_t __pl011_uart_getchar(struct pl011_uart *p) {
-  return (uint32_t)pl011_read_reg(p, UART_DATA);
-  
-}
 static void __pl011_uart_putchar(struct pl011_uart *p, uint8_t src) {
   pl011_write_reg(p, UART_DATA, (uint32_t)src);
+}
+static uint32_t __pl011_uart_getchar(struct pl011_uart *p) {
+  uint32_t c = (uint32_t)pl011_read_reg(p, UART_DATA);
+  if((c&0xFF) == '\r') {
+    c = (c & ~0xFF) | '\n';
+  }
+  return c;
 }
 
 // Non-blocking
@@ -190,10 +195,10 @@ int pl011_uart_dev_read(void *state, uint8_t *dest) {
     }
     else {
       uint32_t val = __pl011_uart_getchar(p);
-      if(val & ~0xFF != 0) {
+      if(val & ~0xFF) {
+        // One of the error bits was set
         rc = -1;
-      }
-      else {
+      } else {
         *dest = val;
         rc = 1;
       }
@@ -260,23 +265,17 @@ static struct nk_char_dev_int pl011_uart_char_dev_ops = {
   .status = pl011_uart_dev_status
 };
 
-__attribute__((noinline)) void debug_test_int_mask(uint32_t m) {
-  asm volatile ("mov x20, %0" ::"r" (m) : "x20");
-}
-
 static int pl011_interrupt_handler(excp_entry_t *excp, ulong_t vec, void *state) {
 
   struct pl011_uart *p = (struct pl011_uart*)state;
 
   uint32_t int_status = pl011_read_reg(p, UART_MASK_INT_STAT);
-  debug_test_int_mask(int_status);
 
   nk_dev_signal(p->dev);
 
   pl011_write_reg(p, UART_INT_CLR, int_status);
 
   int_status = pl011_read_reg(p, UART_MASK_INT_STAT);
-  debug_test_int_mask(int_status);
 
   return 0;
 }

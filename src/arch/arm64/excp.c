@@ -17,7 +17,7 @@
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define EXCP_PRINT(fmt, args...) INFO_PRINT("excp: " fmt, ##args)
+#define EXCP_PRINT(fmt, args...) printk("excp: " fmt, ##args)
 #define EXCP_DEBUG(fmt, args...) DEBUG_PRINT("excp: " fmt, ##args)
 #define EXCP_ERROR(fmt, args...) ERROR_PRINT("excp: " fmt, ##args)
 #define EXCP_WARN(fmt, args...) WARN_PRINT("excp: " fmt, ##args)

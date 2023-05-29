@@ -69,6 +69,8 @@
   " Kyle C. Hale (c) 2014 | Northwestern University   \n" \
   "+===============================================+  \n\n"
 
+void arm64_paging_init(struct nk_mem_info *mm_info, void *fdt);
+
 struct pl011_uart _main_pl011_uart;
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
@@ -175,7 +177,6 @@ static int start_secondaries(struct sys_info *sys) {
   INIT_PRINT("All CPU's are initialized!\n");
 }
 
-
 /* Faking some vc stuff */
 
 uint16_t
@@ -216,7 +217,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Enable printk by handing it the uart
   extern struct pl011_uart *printk_uart;
   printk_uart = &_main_pl011_uart;
-
   spinlock_init(&printk_lock);
 
   printk(NAUT_WELCOME);
