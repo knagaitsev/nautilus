@@ -26,6 +26,8 @@ int gic_int_enabled(uint_t irq);
 
 int gic_clear_int_pending(uint_t irq);
 
+void gic_set_target_all(uint_t irq);
+
 void gic_dump_state(void);
 
 #endif

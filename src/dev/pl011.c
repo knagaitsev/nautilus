@@ -175,9 +175,18 @@ static void __pl011_uart_putchar(struct pl011_uart *p, uint8_t src) {
 }
 static uint32_t __pl011_uart_getchar(struct pl011_uart *p) {
   uint32_t c = (uint32_t)pl011_read_reg(p, UART_DATA);
+
+  // Right now the enter key is returning '\r',
+  // but chardev consoles ignore that, so we just 
+  // force it to '\n'
   if((c&0xFF) == '\r') {
     c = (c & ~0xFF) | '\n';
   }
+  // Convert DEL into Backspace
+  else if((c&0xFF) == 0x7F) {
+    c = (c & ~0xFF) | 0x08;
+  }
+
   return c;
 }
 

@@ -92,6 +92,7 @@ static gic_t __gic;
 
 #define LOAD_GICD_REG(gic, offset) *(volatile uint32_t*)((gic).dist_base + offset)
 #define STORE_GICD_REG(gic, offset, val) (*(volatile uint32_t*)((gic).dist_base + offset)) = val
+
 #define GICD_BITMAP_SET(gic, num, offset) \
   *(((volatile uint32_t*)((gic).dist_base + offset))+(num >> 5)) |= (1<<(num&(0x1F)))
 #define GICD_BITMAP_READ(gic, num, offset) \
@@ -101,7 +102,9 @@ static gic_t __gic;
   (*(((volatile uint8_t*)((gic).dist_base + offset))+(num >> 4)) & (0x3<<((num&0xF)<<4)))
 
 #define GICD_BYTEMAP_READ(gic, num, offset) \
-  (*(((volatile uint8_t*)((gic).dist_base + offset))+(num >> 2)) & (0xFF<<((num&0x3)<<3)))
+  (*(volatile uint8_t*)((gic).dist_base + offset + num))
+#define GICD_BYTEMAP_WRITE(gic, num, offset, val) \
+  *((volatile uint8_t*)((gic).dist_base + offset + num)) = (uint8_t)val
 
 #define LOAD_GICC_REG(gic, offset) *(volatile uint32_t*)((gic).cpu_base + offset)
 #define STORE_GICC_REG(gic, offset, val) (*(volatile uint32_t*)((gic).cpu_base + offset)) = val
@@ -401,9 +404,15 @@ int gic_int_active(uint_t irq) {
 static int gic_int_group(uint_t irq) {
   return GICD_BITMAP_READ(__gic, irq, GICD_IGROUPR_0_OFFSET);
 }
+
 static uint8_t gic_int_target(uint_t irq) {
   return GICD_BYTEMAP_READ(__gic, irq, GICD_ITARGETSR_0_OFFSET);
 }
+void gic_set_target_all(uint_t irq) {
+  uint8_t mask = (1 << __gic.cpu_num) - 1;
+  GICD_BYTEMAP_WRITE(__gic, irq, GICD_ITARGETSR_0_OFFSET, mask);
+}
+
 static int gic_int_is_edge_triggered(uint_t irq) {
   return 0b10 & GICD_DUALBITMAP_READ(__gic, irq, GICD_ICFGR_0_OFFSET);
 }

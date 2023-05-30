@@ -1196,7 +1196,7 @@ int nk_vc_getchar_extended(int wait)
       continue;
       break;
     default: {
-      int c = key&0xff;
+      int c = key & 0xff;
       if (c=='\r') {
 	c='\n';
       }

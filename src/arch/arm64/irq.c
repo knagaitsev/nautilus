@@ -6,6 +6,7 @@
 #include<arch/arm64/excp.h>
 
 void arch_irq_enable(int irq) {
+  gic_set_target_all(irq);
   gic_enable_int(irq);
 }
 void arch_irq_disable(int irq) {
