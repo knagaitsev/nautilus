@@ -69,7 +69,7 @@
   " Kyle C. Hale (c) 2014 | Northwestern University   \n" \
   "+===============================================+  \n\n"
 
-void arm64_paging_init(struct nk_mem_info *mm_info, void *fdt);
+int arch_paging_init(struct nk_mem_info *mm_info, void *fdt);
 
 struct pl011_uart _main_pl011_uart;
 
@@ -267,6 +267,10 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   //mm_dump_page_map();
   nk_kmem_init();
   mm_boot_kmem_init();
+
+  if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
+    INIT_ERROR("Failed to initialize paging!\n");
+  }
 
   // Now we should be able to install irq handlers
 

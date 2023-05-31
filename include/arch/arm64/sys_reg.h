@@ -11,6 +11,34 @@
   __asm__ __volatile__ (\
       "msr "#name", %0" :: "r" (raw) :)
 
+typedef union sys_ctrl_reg {
+  uint64_t raw;
+  struct {
+    uint_t mmu_en : 1;
+    uint_t align_check_en : 1;
+    uint_t data_cacheability_ctrl : 1;
+    uint_t sp_align_check_en : 1;
+    uint_t sp_align_check_el0_en : 1;
+    uint_t sys_instr_mem_barrier_en : 1;
+    uint_t unaligned_acc_en : 1;
+    uint_t el0_it_disable : 1;
+    uint_t el0_setend_disable_el0 : 1;
+    uint_t el0_int_mask_acc_en : 1;
+    uint_t el0_cfp_en : 1;
+    uint_t excp_exit_is_ctx_sync : 1;
+    uint_t instr_cacheability_ctrl : 1;
+    uint_t pointer_auth_en : 1;
+    uint_t trap_el0_dczva_disable : 1;
+    uint_t trap_el0_ctr_disable : 1;
+    uint_t trap_el0_wfi_disable : 1;
+    uint_t __res0_0 : 1;
+    uint_t trap_el0_wfe_disable : 1;
+    uint_t write_exec_never : 1;
+    uint_t trap_el0_acc_scxtnum : 1;
+    // There are more but this is already more than we need for now
+  };
+} sys_ctrl_reg_t;
+
 typedef union feat_acc_ctrl_reg {
   uint64_t raw;
   struct {

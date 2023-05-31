@@ -10,6 +10,7 @@ obj-y += asm/ \
 	smp.o \
 	timer.o \
 	psci.o \
+	paging.o \
 
 obj-$(NAUT_CONFIG_GIC_VERSION_2) += gicv2.o
 
