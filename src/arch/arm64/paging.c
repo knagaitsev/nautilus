@@ -5,6 +5,9 @@
 
 #include<nautilus/naut_types.h>
 #include<nautilus/nautilus.h>
+#include<nautilus/fdt.h>
+#include<nautilus/macros.h>
+
 #include<arch/arm64/sys_reg.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
@@ -62,10 +65,11 @@ typedef union page_table_descriptor {
     uint_t desc_type : 2;
     uint_t mair_index : 3;
     uint_t security : 1;
-    uint_t access_permission : 2;
-    uint_t writeable : 1;
+    uint_t el0_access : 1;
+    uint_t readonly : 1;
     uint_t shareable_attr : 2;
-    uint_t accessed : 1;
+    uint_t access_flag : 1;
+    uint_t __res0_0 : 1;
 
     uint64_t __address_data : 40;
 
@@ -77,6 +81,24 @@ typedef union page_table_descriptor {
 } page_table_descriptor_t;
 
 _Static_assert(sizeof(page_table_descriptor_t) == 8, "Page table descriptor structure is not 8 bytes wide!\n");
+
+#define TABLE_DESC_PTR(table) (page_table_descriptor_t*)((table).raw & 0x0000FFFFFFFFFF000)
+
+#define L0_INDEX_4KB(addr) ((((uint64_t)addr) >> 39) & 0x1FF)
+#define L1_INDEX_4KB(addr) ((((uint64_t)addr) >> 30) & 0x1FF)
+#define L2_INDEX_4KB(addr) ((((uint64_t)addr) >> 21) & 0x1FF)
+#define L3_INDEX_4KB(addr) ((((uint64_t)addr) >> 12) & 0x1FF)
+#define PAGE_OFFSET_4KB(addr) ((uint64_t)addr) & ((1<<12) - 1))
+#define PAGE_OFFSET_2MB(addr) ((uint64_t)addr) & ((1<<21) - 1))
+#define PAGE_OFFSET_1GB(addr) ((uint64_t)addr) & ((1<<30) - 1))
+
+#define ALIGNED_4KB(addr) ((((uint64_t)addr) & ((1<<12) - 1)) == 0)
+#define ALIGNED_2MB(addr) ((((uint64_t)addr) & ((1<<21) - 1)) == 0)
+#define ALIGNED_1GB(addr) ((((uint64_t)addr) & ((1<<30) - 1)) == 0)
+
+#define L1_BLOCK_SIZE_4KB (1<<30) //1 GB
+#define L2_BLOCK_SIZE_4KB (1<<21) //2 MB
+#define L3_BLOCK_SIZE_4KB (1<<12) //4 KB
 
 // These are some common ones
 #define MAIR_ATTR_DEVICE_nGnRnE 0b00000000
@@ -92,6 +114,167 @@ typedef union mair_reg {
 } mair_reg_t;
 
 _Static_assert(sizeof(mair_reg_t) == 8, "MAIR Register Structure is not 8 bytes wide!");
+
+static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t table_level) {
+
+  if(table_level == 3) {
+    return -1;
+  }
+
+  uint64_t paddr = (uint64_t)TABLE_DESC_PTR(*block_desc);
+
+  uint64_t new_block_size;
+  switch(table_level) {
+    case 0:
+      new_block_size = L1_BLOCK_SIZE_4KB;
+    case 1:
+      new_block_size = L2_BLOCK_SIZE_4KB;
+    case 2:
+      new_block_size = L3_BLOCK_SIZE_4KB;
+    default:
+      new_block_size = 0;
+  }
+
+  if(block_desc->desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ||
+     block_desc->desc_type == PAGE_TABLE_DESC_TYPE_INVALID) {
+    
+    page_table_descriptor_t *new_table = malloc(sizeof(page_table_descriptor_t) * 512);
+
+    if(new_table == NULL) {
+      return -1;
+    } else if(!ALIGNED_4KB(new_table)) {
+      free(new_table);
+      return -1;
+    }
+
+    for(uint32_t i = 0; i < 512; i++) {
+
+      new_table[i].raw = block_desc->raw;
+
+      if(block_desc->desc_type == PAGE_TABLE_DESC_TYPE_BLOCK) {
+        new_table[i].__address_data = 0;
+        new_table[i].raw |= ((uint64_t)TABLE_DESC_PTR(*block_desc) + (new_block_size * i));
+      }
+    }
+
+    block_desc->desc_type == PAGE_TABLE_DESC_TYPE_TABLE;
+    block_desc->__address_data = 0;
+    block_desc->raw |= (uint64_t)new_table;
+  }
+
+  return 0;
+}
+
+static inline page_table_descriptor_t *drill_page_4kb(page_table_descriptor_t *table, void *vaddr)
+{
+  table += L0_INDEX_4KB(vaddr);
+
+  if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    block_to_table(table, 0);
+  }
+
+  table = TABLE_DESC_PTR(*table);
+  table += L1_INDEX_4KB(vaddr);
+
+  if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    block_to_table(table, 1);
+  }
+
+  table = TABLE_DESC_PTR(*table);
+  table += L2_INDEX_4KB(vaddr);
+
+  if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    block_to_table(table, 2);
+  }
+
+  table = TABLE_DESC_PTR(*table);
+  table += L3_INDEX_4KB(vaddr);
+
+  return table;
+}
+
+static inline page_table_descriptor_t *drill_page_2mb(page_table_descriptor_t *table, void *vaddr)
+{
+  table += L0_INDEX_4KB(vaddr);
+
+  if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    block_to_table(table, 0);
+  }
+
+  table = TABLE_DESC_PTR(*table);
+  table += L1_INDEX_4KB(vaddr);
+
+  if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    block_to_table(table, 1);
+  }
+
+  table = TABLE_DESC_PTR(*table);
+  table += L2_INDEX_4KB(vaddr);
+
+  return table;
+}
+
+static inline page_table_descriptor_t *drill_page_1gb(page_table_descriptor_t *table, void *vaddr)
+{
+  table += L0_INDEX_4KB(vaddr);
+
+  if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    block_to_table(table, 0);
+  }
+
+  table = TABLE_DESC_PTR(*table);
+  table += L1_INDEX_4KB(vaddr);
+
+ return table;
+}
+
+#define VADDR_L0_4KB(i0) (i0 << 39)
+#define VADDR_L1_4KB(i0, i1) (i0 << 39 | i1 << 30)
+#define VADDR_L2_4KB(i0, i1, i2) (i0 << 39 | i1 << 30 | i2 << 21)
+#define VADDR_L3_4KB(i0, i1, i2, i3) (i0 << 39 | i1 << 30 | i2 << 21 | i3 << 12)
+
+static void dump_page_table(page_table_descriptor_t *l0_table) {
+  for(uint64_t i0 = 0; i0 < 512; i0++) {
+    if(l0_table[i0].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
+      page_table_descriptor_t *l1_table = TABLE_DESC_PTR(*l0_table);
+      for(uint64_t i1 = 0; i1 < 512; i1++) {
+        if(l1_table[i1].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
+          page_table_descriptor_t *l2_table = TABLE_DESC_PTR(*l1_table);
+          for(uint64_t i2 = 0; i2 < 512; i2++) {
+            if(l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
+              page_table_descriptor_t *l3_table = TABLE_DESC_PTR(*l2_table);
+              for(uint64_t i3 = 0; i3 < 512; i3++) {
+                PAGING_PRINT("\t\t\t[0x%016x - 0x%016x] 4KB %s\n",
+                    VADDR_L3_4KB(i0, i1, i2, i3),
+                    VADDR_L3_4KB(i0, i1, i2, i3)+PAGE_SIZE_4KB,
+                    l3_table[i3].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ? 
+                    (l3_table[i3].mair_index == MAIR_DEVICE_INDEX ? "Device" : "Normal") 
+                      : "Invalid");
+              }
+            } else {
+              PAGING_PRINT("\t\t[0x%016x - 0x%016x] 2MB %s\n",
+                  VADDR_L2_4KB(i0, i1, i2),
+                  VADDR_L2_4KB(i0, i1, i2)+PAGE_SIZE_2MB,
+                  l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ? 
+                  (l2_table[i2].mair_index == MAIR_DEVICE_INDEX ? "Device" : "Normal") 
+                    : "Invalid");
+            }
+          }
+        } else {
+          PAGING_PRINT("\t[0x%016x - 0x%016x] 1GB %s\n", 
+              VADDR_L1_4KB(i0, i1), 
+              VADDR_L1_4KB(i0, i1)+PAGE_SIZE_1GB,
+              l1_table[i1].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ?
+              (l1_table[i1].mair_index == MAIR_DEVICE_INDEX ? "Device" : "Normal") 
+                : "Invalid");
+        }
+      }
+    }
+    else {
+      PAGING_PRINT("[0x%016x - 0x%016x] 512GB Invalid\n", VADDR_L0_4KB(i0), VADDR_L0_4KB(i0)+((1<<39) - 1));
+    }
+  }
+}
 
 static page_table_descriptor_t *generate_invalid_page_table(void) {
 
@@ -151,11 +334,12 @@ static page_table_descriptor_t *generate_minimal_page_table(void) {
   for(uint64_t i = 0; i < 512; i++) {
     l1_table[i].desc_type = PAGE_TABLE_DESC_TYPE_BLOCK;
     l1_table[i].mair_index = MAIR_DEVICE_INDEX;
-    l1_table[i].access_permission = 0;
-    l1_table[i].writeable = 1;
+    l1_table[i].el0_access = 0;
+    l1_table[i].readonly = 0;
     l1_table[i].shareable_attr = 0b11;
     l1_table[i].priv_exec_never = 0;
     l1_table[i].unpriv_exec_never = 0;
+    l1_table[i].access_flag = 1;
     
     l1_table[i].__address_data = 0;
     l1_table[i].raw |= (i<<30);
@@ -169,6 +353,71 @@ err_exit_l0:
   free(l0_table);
 err_exit_nalloc:
   return NULL;
+}
+
+static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fdt) {
+
+  int offset = fdt_node_offset_by_prop_value(fdt, -1, "device_type", "memory", 7); 
+
+  while(offset != -FDT_ERR_NOTFOUND) {
+    fdt_reg_t reg = {.address = 0, .size = 0};
+    int getreg_result = fdt_getreg(fdt, offset, &reg);
+
+    if(getreg_result == 0) {
+
+      uint32_t block_size = PAGE_SIZE_4KB;
+
+      page_table_descriptor_t*(*drill_func)(page_table_descriptor_t*, void*) = NULL;
+
+      if(ALIGNED_1GB(reg.address) &&
+         ALIGNED_1GB(reg.address + reg.size)) {
+
+        block_size = PAGE_SIZE_1GB;
+        drill_func = drill_page_1gb;
+
+      } else if(ALIGNED_2MB(reg.address) &&
+            ALIGNED_2MB(reg.address + reg.size)) {
+
+        block_size = PAGE_SIZE_2MB;
+        drill_func = drill_page_2mb;
+
+      } else {
+
+        reg.size = round_down(reg.address + reg.size, PAGE_SIZE_4KB);
+        reg.address = round_up(reg.address, PAGE_SIZE_4KB);
+        block_size = PAGE_SIZE_4KB;
+        drill_func = drill_page_4kb;
+
+      }
+      
+      uint64_t start = reg.address;
+      uint64_t end = reg.address + reg.size;
+
+      for(; start < end; start += block_size) {
+        page_table_descriptor_t *desc;
+        desc = (*drill_func)(table, (void*)start);
+
+        if(desc == NULL) {
+          PAGING_WARN("Failed to drill page for normal memory!\n");
+        }
+
+        desc->desc_type = PAGE_TABLE_DESC_TYPE_BLOCK;
+        desc->mair_index = MAIR_NORMAL_INDEX;
+        desc->el0_access = 0;
+        desc->readonly = 0;
+        desc->shareable_attr = 0b11;
+        desc->priv_exec_never = 0;
+        desc->unpriv_exec_never = 0;
+        desc->access_flag = 1; 
+
+        // We assume the entry is still an identity mapping
+      }
+    }
+
+    offset = fdt_node_offset_by_prop_value(fdt, offset, "device_type", "memory", 7);
+  }
+
+  return 0;
 }
 
 int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
@@ -188,6 +437,10 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
     return -1;
   }
 
+  if(handle_normal_memory_regions(low_mem_table, fdt)) {
+    PAGING_WARN("Failed to handle normal page regions! (All memory is device memory)\n");
+  }
+
   page_table_descriptor_t *high_mem_table = generate_invalid_page_table();
 
   if(high_mem_table == NULL) {
@@ -199,6 +452,8 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
   STORE_SYS_REG(TTBR1_EL1, (uint64_t)high_mem_table);
 
   PAGING_DEBUG("Set Low and High Mem Page Tables: TTBR0_EL1 = 0x%x, TTBR1_EL1 = 0x%x\n", (uint64_t)low_mem_table, (uint64_t)high_mem_table);
+
+  //dump_page_table(low_mem_table);
 
   tc_reg_t tcr;
 
