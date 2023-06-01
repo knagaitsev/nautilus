@@ -64,7 +64,7 @@ void *arch_read_sp(void) {
 }
 
 void arch_relax(void) {
-  // NOP (correct but bad for power)
+  __asm__ __volatile__ ("yield");
 }
 void arch_halt(void) {
   __asm__ __volatile__ ("wfi");

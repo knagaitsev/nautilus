@@ -27,6 +27,7 @@
 #include<nautilus/barrier.h>
 #include<nautilus/smp.h>
 #include<nautilus/vc.h>
+#include<nautilus/fs.h>
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/gic.h>
@@ -331,27 +332,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   e1000e_pci_init(&nautilus_info);
 #endif
 
-  nk_launch_shell("root-shell",0,0,0);
+  nk_fs_init();
 
-  //execute_threading(NULL);
+  nk_launch_shell("root-shell",0,0,0);
 
   nk_vc_printf_wrap("Promoting init thread to idle\n");
   idle(NULL,NULL);
 }
 
-static void gpu_test(void*, void**)
-{
-  INIT_PRINT("GPU TEST START\n");
-  handle_gputest("gputest virtio-gpu0", 0);
-}
-
-int execute_threading(char command[])
-{
-    nk_thread_id_t a, b;
-
-    nk_thread_start((nk_thread_fun_t)gpu_test, 0, 0, 0, 0, &a, -1);
-
-    nk_thread_name(a, "gpu_test");
-
-    return 0;
-}

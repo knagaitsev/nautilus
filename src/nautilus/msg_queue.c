@@ -205,13 +205,21 @@ void nk_msg_queue_dump_queues()
     struct list_head *cur;
     struct nk_msg_queue *q=0;
 
+    int num_dumped = 0;
+
     STATE_LOCK_CONF;
     STATE_LOCK();
     list_for_each(cur,&queue_list) {
 	q = list_entry(cur,struct nk_msg_queue, node);
 	nk_vc_printf("%s : refcount=%lu cur_count=%lu cur_push=%lu cur_pull=%lu\n",
 		     q->name, q->refcount, q->cur_count, q->cur_push, q->cur_pull);
+        num_dumped += 1;
     }
+
+    if(num_dumped == 0) {
+      nk_vc_printf("No Message Queues\n");
+    }
+
     STATE_UNLOCK();
 }
 

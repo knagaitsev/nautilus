@@ -272,6 +272,7 @@ static struct shell_cmd_impl regs_impl = {
 };
 nk_register_shell_cmd(regs_impl);
 
+#ifdef NAUT_CONFIG_ARCH_X86
 static int
 handle_in (char * buf, void * priv)
 {
@@ -361,5 +362,5 @@ static struct shell_cmd_impl out_impl = {
 };
 nk_register_shell_cmd(out_impl);
 
-
+#endif /* NAUT_CONFIG_ARCH_X86 */
 

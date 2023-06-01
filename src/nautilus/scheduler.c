@@ -778,6 +778,23 @@ void nk_sched_dump_threads(int cpu)
     GLOBAL_UNLOCK();
 }
 
+#elif NAUT_CONFIG_ARCH_ARM64
+
+void nk_sched_dump_threads(int cpu) {
+
+    GLOBAL_LOCK_CONF;
+    struct sys_info *sys = per_cpu_get(system);
+
+    GLOBAL_LOCK();
+
+    rt_list_map(global_sched_state.thread_list,print_thread,(void*)(long)cpu);
+
+    GLOBAL_UNLOCK();
+}
+
+void nk_sched_dump_cores(int cpu) {}
+void nk_sched_dump_time(int cpu) {}
+
 #else
 
 // RISCV HACK
