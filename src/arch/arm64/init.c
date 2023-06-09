@@ -196,6 +196,7 @@ extern void *_bssStart;
 
 extern spinlock_t printk_lock;
 
+// The stack switch which happens halfway through "init" makes this needed
 static volatile const char *chardev_name = "serial0";
 
 void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x3) {

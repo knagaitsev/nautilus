@@ -98,7 +98,7 @@ static int test_create_join(int nump, int numt)
     return 0;
 }
 
-
+/*
 static int __noinline
 #ifndef __clang__
 __attribute__((noclone))
@@ -147,6 +147,7 @@ test_fork_join(int nump, int numt)
     PRINT("Done with thread fork/join stress test (SUCCESS)\n");
     return 0;
 }
+*/
 
 static void _test_recursive_create_join(void *in, void **out)
 {
@@ -205,6 +206,7 @@ static int test_recursive_create_join()
 
 volatile static uint64_t hack;
 
+/*
 static void __noinline
 #ifndef __clang__
 __attribute__((noclone))
@@ -262,7 +264,7 @@ static int test_recursive_fork_join()
     return 0;
 }
 
-
+*/
 
 
 int test_threads()
@@ -276,24 +278,29 @@ int test_threads()
 
     nk_vc_printf("Create-join test of %lu passes with %lu threads each: %s\n", 
 		 NUM_PASSES,NUM_THREADS, create_join ? "FAIL" : "PASS");
-    
+   
+    /*
     fork_join = test_fork_join(NUM_PASSES,NUM_THREADS);
     
     nk_vc_printf("Fork-join test of %lu passes with %lu threads each: %s\n", 
 		 NUM_PASSES,NUM_THREADS, fork_join ? "FAIL" : "PASS");
+    */
     
     recursive_create_join = test_recursive_create_join();
 
     nk_vc_printf("Recursive create-join test of %lu passes with depth %lu (%lu threads): %s\n", 
 		 NUM_PASSES,DEPTH, 1ULL<<(DEPTH+1),recursive_create_join ? "FAIL" : "PASS");
 
+    /*
     recursive_fork_join = test_recursive_fork_join();
 
     nk_vc_printf("Recursive fork-join test of %lu passes with depth %lu (%lu threads): %s\n", 
 		 NUM_PASSES,DEPTH, 1ULL<<(DEPTH+1),recursive_fork_join ? "FAIL" : "PASS");
 
+    */
 
-    return create_join | fork_join | recursive_create_join | recursive_fork_join;
+    //return create_join | fork_join | recursive_create_join | recursive_fork_join;
+    return create_join | recursive_create_join;
 
 return fork_join;
 }

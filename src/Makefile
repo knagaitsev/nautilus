@@ -20,7 +20,8 @@ obj-$(NAUT_CONFIG_ARCH_ARM64) += \
 	nautilus/ \
 	arch/ \
 	compat/ \
-	dev/
+	dev/ \
+	test/
 
 
 obj-$(NAUT_CONFIG_CXX_SUPPORT) += cxx/

@@ -28,6 +28,7 @@
 #include <nautilus/acpi.h>
 #include <nautilus/list.h>
 #include <nautilus/multiboot2.h>
+#include<nautilus/fdt.h>
 
 #define u8  uint8_t
 #define u16 uint16_t
@@ -85,53 +86,14 @@ nk_numa_domain_create (struct sys_info * sys, unsigned id)
     return d;
 }
 
-/* 
- * Assumes that nk_acpi_init() has 
- * already been called 
- *
- */
 int 
 arch_numa_init (struct sys_info * sys)
 {
-    NUMA_PRINT("Parsing FTB NUMA information...\n");
+    NUMA_PRINT("Parsing DTB NUMA information...\n");
 
-    // /* SLIT: System Locality Information Table */
-    // if (acpi_table_parse(ACPI_SIG_SLIT, acpi_parse_slit, &(sys->locality_info))) { 
-    //     NUMA_DEBUG("Unable to parse SLIT\n");
-    // }
-
-    // /* SRAT: Static Resource Affinity Table */
-    // if (!acpi_table_parse(ACPI_SIG_SRAT, acpi_parse_srat, &(sys->locality_info))) {
-
-    //     NUMA_DEBUG("Parsing SRAT_MEMORY_AFFINITY table...\n");
-
-    //     if (acpi_table_parse_srat(ACPI_SRAT_MEMORY_AFFINITY,
-    //                 acpi_parse_memory_affinity, NAUT_CONFIG_MAX_CPUS * 2) < 0) {
-    //         NUMA_ERROR("Unable to parse memory affinity\n");
-    //     }
-
-    //     NUMA_DEBUG("DONE.\n");
-
-    //     NUMA_DEBUG("Parsing SRAT_TYPE_X2APIC_CPU_AFFINITY table...\n");
-
-    //     if (acpi_table_parse_srat(ACPI_SRAT_X2APIC_CPU_AFFINITY,
-    //                 acpi_parse_x2apic_affinity, NAUT_CONFIG_MAX_CPUS) < 0)	    {
-    //         NUMA_ERROR("Unable to parse x2apic table\n");
-    //     }
-
-    //     NUMA_DEBUG("DONE.\n");
-
-    //     NUMA_DEBUG("Parsing SRAT_PROCESSOR_AFFINITY table...\n");
-
-    //     if (acpi_table_parse_srat(ACPI_SRAT_PROCESSOR_AFFINITY,
-    //                 acpi_parse_processor_affinity,
-    //                 NAUT_CONFIG_MAX_CPUS) < 0) { 
-    //         NUMA_ERROR("Unable to parse processor affinity\n");
-    //     }
-
-    //     NUMA_DEBUG("DONE.\n");
-
-    // }
+    for(uint32_t i = 0; i < NAUT_CONFIG_MAX_CPUS; i++) {
+      
+    }
 
     NUMA_WARN("Faking domain 0\n");
     uint32_t i, domain_id = 0;

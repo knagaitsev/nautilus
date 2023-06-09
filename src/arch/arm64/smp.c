@@ -21,11 +21,12 @@ static struct sys_info * sys;
 
 static int
 configure_cpu (unsigned long fdt, int offset) {
+
     off_t reg_addr = fdt_getreg_address(fdt, offset);
     int lenp = 0;
     char *status = fdt_getprop(fdt, offset, "status", &lenp);
     int enabled = 1;
-    // sifive disables 1 CPU and indicates it with this property
+
     if (status && !strcmp(status, "disabled")) {
         enabled = 0;
     }
@@ -61,6 +62,7 @@ configure_cpu (unsigned long fdt, int offset) {
     sys->cpus[new_cpu->id] = new_cpu;
     sys->num_cpus++;
 
+
     return 0;
 }
 
@@ -77,7 +79,11 @@ int fdt_node_get_cpu(const void *fdt, int offset, int depth) {
 }
 
 void parse_cpus(unsigned long fdt) {
-    fdt_walk_devices(fdt, fdt_node_get_cpu);
+  uint64_t offset = fdt_node_offset_by_prop_value(fdt, -1, "device_type", "cpu", 4);
+  while(offset != -FDT_ERR_NOTFOUND) {
+    configure_cpu(fdt, offset);
+    offset = fdt_node_offset_by_prop_value(fdt, offset, "device_type", "cpu", 4);
+  }
 }
 
 static int __early_init_dtb(struct naut_info * naut) {
