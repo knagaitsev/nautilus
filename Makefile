@@ -181,7 +181,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 ARCH		?= $(SUBARCH)
 
-CROSS_COMPILE ?= /opt/toolchain/aarch64/bin/aarch64-linux-gnu-
+CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
 #CROSS_COMPILE ?= /opt/toolchain/riscv/bin/
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 
@@ -857,7 +857,7 @@ $(SEC_NAME): $(BIN_NAME)
 
 nautilus: $(BIN_NAME) $(SYM_NAME) $(SEC_NAME)
 
-UBOOT_BIN = ../u-boot/u-boot.bin
+UBOOT_BIN = ../u-boot.bin
 
 uImage: $(BIN_NAME)
 	$(OBJCOPY) -O binary $(BIN_NAME) Image
@@ -872,8 +872,19 @@ ifdef NAUT_CONFIG_ARCH_ARM64
 		-d Image uImage
 endif
 
+ifdef NAUT_CONFIG_ARCH_ARM64
+QEMU_FLASH = ./setups/arm64/flash.img
+endif
+
+.PHONY: qemu-flash
+qemu-flash: $(QEMU_FLASH)
+$(QEMU_FLASH):
+	qemu-img create -f raw $(QEMU_FLASH) 64M
+
 QEMU_GDB_FLAGS := #-s -S
-QEMU_DEVICES := -netdev socket,id=mynet0,listen=:1234 -device e1000e,netdev=mynet0 -device virtio-gpu-pci
+QEMU_DEVICES := -display none 
+QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
+QEMU_DEVICES += -netdev socket,id=net0,listen=localhost:1234 -device e1000e,netdev=net0,mac=00:11:22:33:44:55  -device virtio-gpu-pci
 
 QEMU_MACHINE_FLAGS = virt#,dumpdtb=virt.dtb
 ifdef NAUT_CONFIG_GIC_VERSION_2
@@ -889,7 +900,7 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
 	qemu-system-aarch64 \
-		-smp cpus=2 \
+		-smp cpus=4 \
 		--cpu cortex-a72 \
 		-serial stdio \
 		--machine $(QEMU_MACHINE_FLAGS) \
@@ -897,11 +908,11 @@ ifdef NAUT_CONFIG_ARCH_ARM64
 		-kernel uImage \
 		$(QEMU_GDB_FLAGS) \
 		$(QEMU_DEVICES) \
-		-numa node,cpus=0,memdev=m0 \
-		-numa node,cpus=1,memdev=m1 \
-		-object memory-backend-ram,id=m0,size=1G \
-		-object memory-backend-ram,id=m1,size=1G \
-		-m 2G
+		-numa node,cpus=0-1,memdev=m0 \
+		-numa node,cpus=2-3,memdev=m1 \
+		-object memory-backend-ram,id=m0,size=2G \
+		-object memory-backend-ram,id=m1,size=2G \
+		-m 4G
 endif
 
 qemu-up: uImage
