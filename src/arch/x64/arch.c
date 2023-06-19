@@ -106,3 +106,7 @@ void arch_halt(void) {
     asm volatile ("hlt");
 }
 
+int arch_little_endian(void) {
+  return 1;
+}
+

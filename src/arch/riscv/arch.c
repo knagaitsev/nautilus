@@ -117,3 +117,8 @@ void arch_halt(void) {
     // asm volatile ("hlt");
 }
 
+void arch_little_endian(void) {
+  // TODO: actually check the architecture endianness
+  return 1;
+}
+

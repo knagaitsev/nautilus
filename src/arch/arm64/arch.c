@@ -70,3 +70,10 @@ void arch_halt(void) {
   __asm__ __volatile__ ("wfi");
 }
 
+int arch_little_endian(void) {
+  // Technically only refers to data accesses not instruction but that's good enough
+  sys_ctrl_reg_t ctlr;
+  LOAD_SYS_REG(SCTLR_EL1, ctlr.raw);
+  return !ctlr.el1_big_endian;
+}
+

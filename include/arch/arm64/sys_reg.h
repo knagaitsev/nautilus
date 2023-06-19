@@ -2,6 +2,7 @@
 #define __ARM64_CTRL_REG_H__
 
 #include<nautilus/naut_types.h>
+#include<nautilus/printk.h>
 
 #define LOAD_SYS_REG(name, raw) \
   __asm__ __volatile__ (\
@@ -35,9 +36,56 @@ typedef union sys_ctrl_reg {
     uint_t trap_el0_wfe_disable : 1;
     uint_t write_exec_never : 1;
     uint_t trap_el0_acc_scxtnum : 1;
+    uint_t implicit_err_sync_event_en : 1;
+    uint_t excp_entry_is_ctx_sync : 1;
+    uint_t no_priv_change_on_el1_excp : 1;
+    uint_t el0_big_endian : 1;
+    uint_t el1_big_endian : 1;
+    uint_t trap_el0_cache_maint : 1;
+    uint_t el0_and_el1_pointer_auth_en : 1;
     // There are more but this is already more than we need for now
   };
 } sys_ctrl_reg_t;
+
+static inline void dump_sys_ctrl_reg(void) {
+  sys_ctrl_reg_t ctrl;
+  LOAD_SYS_REG(SCTLR_EL1, ctrl.raw);
+
+  printk("\n");
+
+#define PF(x) printk("\tSCTLR.%s = %u\n", #x, ctrl.x)
+
+  PF(mmu_en);
+  PF(align_check_en);
+  PF(data_cacheability_ctrl);
+  PF(sp_align_check_en);
+  PF(sp_align_check_el0_en);
+  PF(sys_instr_mem_barrier_en);
+  PF(unaligned_acc_en);
+  PF(el0_it_disable);
+  PF(el0_setend_disable_el0);
+  PF(el0_int_mask_acc_en);
+  PF(el0_cfp_en);
+  PF(excp_exit_is_ctx_sync);
+  PF(instr_cacheability_ctrl);
+  PF(pointer_auth_en);
+  PF(trap_el0_dczva_disable);
+  PF(trap_el0_ctr_disable);
+  PF(trap_el0_wfi_disable);
+  PF(__res0_0);
+  PF(trap_el0_wfe_disable);
+  PF(write_exec_never);
+  PF(trap_el0_acc_scxtnum);
+  PF(implicit_err_sync_event_en);
+  PF(excp_entry_is_ctx_sync);
+  PF(no_priv_change_on_el1_excp);
+  PF(el0_big_endian);
+  PF(el1_big_endian);
+  PF(trap_el0_cache_maint);
+  PF(el0_and_el1_pointer_auth_en);
+#undef PF
+  printk("\n");
+}
 
 typedef union feat_acc_ctrl_reg {
   uint64_t raw;
