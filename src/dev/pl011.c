@@ -152,7 +152,7 @@ void pl011_uart_early_init(struct pl011_uart *p, uint64_t dtb) {
   }
   
 
-  // TODO: Still need to use the fdt toread the clock speed but it's less clear which field to read
+  // TODO: Still need to use the fdt to read the clock speed but it's less clear which field to read
 
   // The chardev system isn't initialized yet
   p->dev = NULL;

@@ -1,15 +1,24 @@
 
 
-# start.S - Boot level functionality for ChariotOS on arm64
+# start.S - Boot level functionality for Nautilus on arm64 (modified from ChariotOS)
 
 # AArch64 mode
- 
+
 # To keep this in the first portion of the binary.
 .section .boot
 
-.EXTERN secondary_init
- 
-//.globl uboot_hdr
+linux_header:
+b nautilus_entry
+b nautilus_entry
+.quad 0 // Offset
+.quad 0 // Size
+.quad 0xB // Flags
+.quad 0 // RES
+.quad 0 // RES
+.quad 0 // RES
+.word 0x644d5241 // Magic
+.word 0 // RES
+
 .globl nautilus_entry
 # Entry point for the kernel. Registers:
 # x0 -> 32 bit pointer to DTB in memory (primary core only) / 0 (secondary cores)
@@ -70,8 +79,8 @@ nautilus_entry:
 .GLOBAL secondary_start
 secondary_start:
     
-    ldr x1, =boot_stack_end
-    mov sp, x1
+    ldr x29, =boot_stack_end
+    mov sp, x29
 
     bl __install_iv_tables
 

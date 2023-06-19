@@ -17,7 +17,7 @@
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define EXCP_PRINT(fmt, args...) printk("excp: " fmt, ##args)
+#define EXCP_PRINT(fmt, args...) INFO_PRINT("excp: " fmt, ##args)
 #define EXCP_DEBUG(fmt, args...) DEBUG_PRINT("excp: " fmt, ##args)
 #define EXCP_ERROR(fmt, args...) ERROR_PRINT("excp: " fmt, ##args)
 #define EXCP_WARN(fmt, args...) WARN_PRINT("excp: " fmt, ##args)
@@ -113,10 +113,6 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
     EXCP_DEBUG("\tEL = %u\n", el);
     EXCP_DEBUG("\tINT ID = %u\n", int_info.int_id);
     EXCP_DEBUG("\tELR = 0x%x\n", excp_info->elr);
-
-#ifdef NAUT_CONFIG_DEBUG_EXCPS
-    arch_print_regs(regs);
-#endif
   }
   
   int(*handler)(excp_entry_t*, excp_vec_t, void*);

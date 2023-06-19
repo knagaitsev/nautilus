@@ -110,7 +110,7 @@ static inline int init_core_barrier(struct sys_info *sys) {
 
 volatile static uint8_t __secondary_init_finish;
 
-void secondary_init(uint64_t context_id) {
+void secondary_init(void) {
 
   fpu_init(&nautilus_info, 1);
 
@@ -141,6 +141,8 @@ void secondary_init(uint64_t context_id) {
 
   nk_sched_start();
   
+  per_cpu_paging_init();
+
   // Enable interrupts
   arch_enable_ints(); 
 
@@ -270,9 +272,13 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nk_kmem_init();
   mm_boot_kmem_init();
 
+  dump_sys_ctrl_reg();
+
   if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
     INIT_ERROR("Failed to initialize paging!\n");
   }
+
+  per_cpu_paging_init();
 
   // Now we should be able to install irq handlers
 

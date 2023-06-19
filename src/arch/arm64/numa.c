@@ -46,6 +46,7 @@ static int srat_rev;
 #define NUMA_ERROR(fmt, args...) ERROR_PRINT("NUMA: " fmt, ##args)
 #define NUMA_WARN(fmt, args...)  WARN_PRINT("NUMA: " fmt, ##args)
 
+#define NUMA_GLOBAL_DOMAIN 0
 
 static inline int
 domain_exists (struct sys_info * sys, unsigned id)
@@ -86,22 +87,137 @@ nk_numa_domain_create (struct sys_info * sys, unsigned id)
     return d;
 }
 
-int 
-arch_numa_init (struct sys_info * sys)
-{
+static int
+numa_dtb_find_domains(struct sys_info * sys) {
+
     NUMA_PRINT("Parsing DTB NUMA information...\n");
 
-    for(uint32_t i = 0; i < NAUT_CONFIG_MAX_CPUS; i++) {
-      
-    }
+    uint64_t offset = fdt_node_offset_by_prop_value(sys->dtb, -1, "device_type", "memory", 7);
 
-    NUMA_WARN("Faking domain 0\n");
-    uint32_t i, domain_id = 0;
-	struct numa_domain *n = nk_numa_domain_create(sys, domain_id);
-	if (!n) {
-	    NUMA_ERROR("Cannot allocate fake domain 0\n");
-	    return -1;
+    while(offset != -FDT_ERR_NOTFOUND) {
+
+      fdt_reg_t reg = { .address = 0, .size = 0 };
+      int getreg_result = fdt_getreg(sys->dtb, offset, &reg);
+
+      if(getreg_result != 0) {
+        NUMA_WARN("Found \"%s\" node in DTB with missing REG property! Skipping...\n", fdt_get_name(sys->dtb, offset, NULL));
+        goto err_continue;
+      }
+
+      int lenp;
+      uint32_t *numa_id_ptr = fdt_getprop(sys->dtb, offset, "numa-node-id", &lenp);
+
+      if(numa_id_ptr == NULL) {
+        NUMA_WARN("Found \"%s\" node in DTB without numa-node-id property! Switching to Identity NUMA Mapping!\n", fdt_get_name(sys->dtb, offset, NULL));
+        return -1;
+      }
+
+      uint64_t id = *(uint32_t*)(numa_id_ptr);
+
+      if(arch_little_endian()) {
+        id = __builtin_bswap32(id);
+      }
+
+      struct mem_region *mem = mm_boot_alloc(sizeof(struct mem_region));
+      if (!mem) {
+        ERROR_PRINT("Could not allocate mem region\n");
+        return -1;
+      }
+      memset(mem, 0, sizeof(struct mem_region));
+        
+      mem->domain_id     = id;
+      mem->base_addr     = reg.address;
+      mem->len           = reg.size;
+      mem->enabled       = 1; 
+   
+      struct numa_domain *numa_domain = NULL;
+      if(!domain_exists(sys, id)) {
+        numa_domain = nk_numa_domain_create(sys, id);
+	if(numa_domain == NULL) {
+          NUMA_ERROR("Failed to allocate NUMA domain %u structure!\n", id);
+	  goto err_continue;
 	}
+      } else {
+        numa_domain = get_domain(sys, id);
+      }
+
+      numa_domain->num_regions++;
+      numa_domain->addr_space_size += mem->len;
+     
+      if (list_empty(&numa_domain->regions)) {
+          list_add(&mem->entry, &numa_domain->regions);
+      } else {
+          list_add_tail(&mem->entry, &numa_domain->regions);
+      }
+
+      NUMA_DEBUG("Found NUMA region in domain %u: [%p - %p]\n", id, reg.address, reg.address + reg.size);
+
+err_continue:
+      offset = fdt_node_offset_by_prop_value(sys->dtb, offset, "device_type", "memory", 7);
+    }
+  return 0;
+}
+
+static int
+numa_dtb_assign_cpus(struct sys_info * sys) {
+
+    NUMA_DEBUG("Assigning CPU's to NUMA Domains...\n");
+
+    uint32_t offset = fdt_node_offset_by_prop_value(sys->dtb, -1, "device_type", "cpu", 4);
+
+    while(offset != -FDT_ERR_NOTFOUND) {
+
+      fdt_reg_t reg = { .address = 0, .size = 0 };
+      int getreg_result = fdt_getreg(sys->dtb, offset, &reg);
+
+      if(getreg_result != 0) {
+        NUMA_WARN("Found \"%s\" CPU node in DTB with missing REG property!\n", fdt_get_name(sys->dtb, offset, NULL));
+	goto cpu_err_continue;
+      }
+
+      int lenp;
+      void *numa_id_ptr = fdt_getprop(sys->dtb, offset, "numa-node-id", &lenp);
+
+      if(numa_id_ptr == NULL) {
+        NUMA_ERROR("Found \"%s\" CPU node in DTB without numa-node-id property!\n", fdt_get_name(sys->dtb, offset, NULL));
+        NUMA_ERROR("Assigning CPU %u to domain %u (PROBABLY WON'T WORK BUT THE ALTERNATIVE IS GOING TO CRASH ANYWAYS)\n", reg.address, NUMA_GLOBAL_DOMAIN);
+        sys->cpus[reg.address]->domain = NUMA_GLOBAL_DOMAIN;
+	goto cpu_err_continue;
+      }
+
+      uint64_t id = *(uint32_t*)(numa_id_ptr);
+
+      if(arch_little_endian()) {
+        id = __builtin_bswap32(id);
+      }
+
+      struct numa_domain *domain = get_domain(sys, id);
+
+      if(domain == NULL) {
+        NUMA_WARN("CPU %u has NUMA Domain of %u, which doesn't exist!\n", reg.address, id);
+        goto cpu_err_continue;
+      }
+
+      sys->cpus[reg.address]->domain = domain;
+
+      NUMA_DEBUG("Assigned CPU %u to NUMA Domain %u\n", reg.address, id);
+
+cpu_err_continue:
+      offset = fdt_node_offset_by_prop_value(sys->dtb, offset, "device_type", "cpu", 4);
+    }
+  return 0;
+}
+
+static int
+numa_init_fake(struct sys_info * sys) {
+    
+    NUMA_WARN("Faking domain %u\n", NUMA_GLOBAL_DOMAIN);
+
+    struct numa_domain *n = nk_numa_domain_create(sys, NUMA_GLOBAL_DOMAIN);
+    if (!n) {
+        NUMA_ERROR("Cannot allocate fake domain %u\n", NUMA_GLOBAL_DOMAIN);
+        return -1;
+    }
 
     for(uint_t i = 0; i < mm_boot_num_regions(); i++) {
         mem_map_entry_t *mm_entry = mm_boot_get_region(i);
@@ -112,12 +228,13 @@ arch_numa_init (struct sys_info * sys)
 
         struct mem_region *mem = mm_boot_alloc(sizeof(struct mem_region));
         if (!mem) {
-            ERROR_PRINT("Could not allocate mem region\n");
+            NUMA_ERROR("Could not allocate mem region\n");
             return -1;
         }
         memset(mem, 0, sizeof(struct mem_region));
         
-        mem->domain_id     = domain_id;
+        mem->domain_id     = NUMA_GLOBAL_DOMAIN;
+
         mem->base_addr     = mm_entry->addr;
         mem->len           = mm_entry->len;
         mem->enabled       = 1;
@@ -133,10 +250,45 @@ arch_numa_init (struct sys_info * sys)
         }
     }
 
-    NUMA_DEBUG("Domain %u now has 0x%lx regions and size 0x%lx\n", n->id, n->num_regions, n->addr_space_size);
-    for (i = 0; i < sys->num_cpus; i++) {
-        sys->cpus[i]->domain = get_domain(sys, domain_id);
+    NUMA_PRINT("Assigning all CPU's to Fake Domain %u\n", NUMA_GLOBAL_DOMAIN);
+    for (uint_t i = 0; i < sys->num_cpus; i++) {
+        sys->cpus[i]->domain = get_domain(sys, NUMA_GLOBAL_DOMAIN);
     }
+
+    return 0;
+}
+
+int 
+arch_numa_init (struct sys_info * sys)
+{
+
+//#define NAUT_CONFIG_IDENTITY_NUMA
+
+#ifdef NAUT_CONFIG_IDENTITY_NUMA
+  numa_init_fake(sys);
+#else
+    if(!numa_dtb_find_domains(sys)) {
+
+      numa_dtb_assign_cpus(sys); 
+
+    } else {
+      // Error utilizing the DTB to find Domains, so we fake a Domain 0 containing all of memory
+
+      numa_init_fake(sys);
+
+    }
+#endif
+
+    /* Final Sanity-Check/Debug-Log of the Domains */
+    for(uint32_t i = 0; i < sys->locality_info.num_domains; i++) {
+      struct numa_domain *numa_domain = get_domain(sys, i);
+      if(numa_domain == NULL) {
+        NUMA_ERROR("Missing NUMA Domain: %u, (num_domains = %u)\n", i, sys->locality_info.num_domains);
+        continue;
+      }
+      NUMA_DEBUG("Domain %u now has 0x%lx regions and size 0x%lx\n", numa_domain->id, numa_domain->num_regions, numa_domain->addr_space_size);
+    }
+
 
     NUMA_PRINT("DONE.\n");
 

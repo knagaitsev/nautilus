@@ -10,7 +10,7 @@
 
 #include<arch/arm64/sys_reg.h>
 
-#ifndef NAUT_CONFIG_DEBUG_PRINTS
+#ifndef NAUT_CONFIG_DEBUG_PAGING
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
 #endif
@@ -244,29 +244,41 @@ static void dump_page_table(page_table_descriptor_t *l0_table) {
             if(l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
               page_table_descriptor_t *l3_table = TABLE_DESC_PTR(*l2_table);
               for(uint64_t i3 = 0; i3 < 512; i3++) {
-                PAGING_PRINT("\t\t\t[0x%016x - 0x%016x] 4KB %s\n",
+                PAGING_PRINT("\t\t\t[0x%016x - 0x%016x] 4KB%s%s%s%s%s\n",
                     VADDR_L3_4KB(i0, i1, i2, i3),
                     VADDR_L3_4KB(i0, i1, i2, i3)+PAGE_SIZE_4KB,
                     l3_table[i3].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ? 
-                    (l3_table[i3].mair_index == MAIR_DEVICE_INDEX ? "Device" : "Normal") 
-                      : "Invalid");
+                    (l3_table[i3].mair_index == MAIR_DEVICE_INDEX ? " Device" : " Normal") : " Invalid",
+                    l3_table[i3].priv_exec_never ? " PXN" : "",
+                    l3_table[i3].unpriv_exec_never ? " UXN" : "",
+                    l3_table[i3].readonly ? " RD_ONLY" : "",
+                    l3_table[i3].access_flag ? " ACCESS" : ""
+                    );
               }
             } else {
-              PAGING_PRINT("\t\t[0x%016x - 0x%016x] 2MB %s\n",
+              PAGING_PRINT("\t\t[0x%016x - 0x%016x] 2MB%s%s%s%s%s\n",
                   VADDR_L2_4KB(i0, i1, i2),
                   VADDR_L2_4KB(i0, i1, i2)+PAGE_SIZE_2MB,
                   l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ? 
-                  (l2_table[i2].mair_index == MAIR_DEVICE_INDEX ? "Device" : "Normal") 
-                    : "Invalid");
+                  (l2_table[i2].mair_index == MAIR_DEVICE_INDEX ? " Device" : " Normal") : " Invalid",
+                  l2_table[i2].priv_exec_never ? " PXN " : "",
+                  l2_table[i2].unpriv_exec_never ? " UXN " : "",
+                  l2_table[i2].readonly ? " RD_ONLY" : "",
+                  l2_table[i2].access_flag ? " ACCESS" : ""
+                  );
             }
           }
         } else {
-          PAGING_PRINT("\t[0x%016x - 0x%016x] 1GB %s\n", 
+          PAGING_PRINT("\t[0x%016x - 0x%016x] 1GB%s%s%s%s%s\n", 
               VADDR_L1_4KB(i0, i1), 
               VADDR_L1_4KB(i0, i1)+PAGE_SIZE_1GB,
               l1_table[i1].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ?
-              (l1_table[i1].mair_index == MAIR_DEVICE_INDEX ? "Device" : "Normal") 
-                : "Invalid");
+              (l1_table[i1].mair_index == MAIR_DEVICE_INDEX ? " Device" : " Normal") : " Invalid",
+              l1_table[i1].priv_exec_never ? " PXN" : "",
+              l1_table[i1].unpriv_exec_never ? " UXN" : "",
+              l1_table[i1].readonly ? " RD_ONLY" : "",
+              l1_table[i1].access_flag ? " ACCESS" : ""
+              );
         }
       }
     }
@@ -420,7 +432,12 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
   return 0;
 }
 
+static page_table_descriptor_t *low_mem_table;
+static page_table_descriptor_t *high_mem_table;
+
 int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
+
+  return -1;
  
   mair_reg_t mair;
   LOAD_SYS_REG(MAIR_EL1, mair.raw);
@@ -430,7 +447,7 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
 
   PAGING_DEBUG("Configured MAIR register: MAIR_EL1 = 0x%x\n", mair.raw);
 
-  page_table_descriptor_t *low_mem_table = generate_minimal_page_table();
+  low_mem_table = generate_minimal_page_table();
 
   if(low_mem_table == NULL) {
     PAGING_ERROR("Could not create low mem page table!\n");
@@ -441,19 +458,24 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
     PAGING_WARN("Failed to handle normal page regions! (All memory is device memory)\n");
   }
 
-  page_table_descriptor_t *high_mem_table = generate_invalid_page_table();
+  high_mem_table = generate_invalid_page_table();
 
   if(high_mem_table == NULL) {
     PAGING_ERROR("Could not create high mem page table!\n");
     return -1;
   }
 
+  return 0;
+}
+
+int per_cpu_paging_init(void) {
+
+  return -1;
+
   STORE_SYS_REG(TTBR0_EL1, (uint64_t)low_mem_table);
   STORE_SYS_REG(TTBR1_EL1, (uint64_t)high_mem_table);
 
   PAGING_DEBUG("Set Low and High Mem Page Tables: TTBR0_EL1 = 0x%x, TTBR1_EL1 = 0x%x\n", (uint64_t)low_mem_table, (uint64_t)high_mem_table);
-
-  //dump_page_table(low_mem_table);
 
   tc_reg_t tcr;
 
@@ -485,7 +507,7 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
   PAGING_DEBUG("Set TCR_EL1 = 0x%x\n", tcr.raw);
 
   // Instruction barrier
-  asm volatile ("isb");
+  asm volatile ("tlbi VMALLE1; isb");
 
   PAGING_DEBUG("Enabling the MMU\n");
 
@@ -498,7 +520,7 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
 
   STORE_SYS_REG(SCTLR_EL1, sys_ctrl_reg.raw);
 
-  asm volatile ("isb");
+  asm volatile ("tlbi VMALLE1; isb");
 
   PAGING_DEBUG("MMU Enabled\n");
 
