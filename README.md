@@ -32,6 +32,7 @@ The concept of CARAT CAKE is to replace paging with a system that can operate us
 - [Using Gem5](#using-gem5)
 - [Rapid Development](#rapid-development)
 - [RISC-V Development](#risc-v-development)
+- [ARM64 Development](#arm64-development)
 - [Resources](#resources)
 - [Maintainers](#maintainers)
 - [License](#license)
@@ -341,6 +342,39 @@ $> qemu-system-riscv64 -kernel nautilus.bin \
                        -nographic \
                        -gdb tcp::1234 \
 ```
+
+## ARM64 Development
+
+To get Nautilus running in an emulated ARM64 environment we will first need a full ARM64 cross compiler toolchain, a script for this purpose can be found at `/scripts/toolchains/build-aarch64.sh`.
+Running this script will build a full GNU compiler toolchain and install it at `/opt/toolchains/aarch64/bin`, this does not include `libgcc` though.
+Because you will also need to compile U-Boot (https://github.com/u-boot/u-boot) which requires `libgcc`, you will either need to compile it yourself or find a pre-built toolchain through a package manager.
+
+Once you have a working compiler toolchain, you will need to set the `CROSS_COMPILE` prefix variable in the root Makefile accordingly.
+And you will also need to build U-Boot for your platform and set the `UBOOT_BIN` variable to the U-Boot binary.
+
+Then run:
+```Shell
+$> make menuconfig
+```
+
+And set the "Platform and Target" to "Generic ARM64 host", save the config and run:
+
+```Shell
+$> make defconfig
+$> make qemu-flash
+$> make qemu -j
+```
+
+This will compile Nautilus for ARM64 and present you with the U-Boot shell.
+Run the following commands to configure U-Boot to automatically boot Nautilus.
+
+```Shell
+u-boot> setenv bootcmd "bootflow scan -lb; bootm start 0x40400000 - 0x40000000; bootm loados; bootm go"
+u-boot> saveenv
+u-boot> boot
+```
+
+These commands will be saved to `./setup/arm64/flash.img` so U-Boot will automatically boot Nautilus from then on.
 
 ## Resources
 
