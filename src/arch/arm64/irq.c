@@ -18,8 +18,6 @@ void arch_irq_install(int irq,
                                      ulong_t vector,
                                      void *state),
                       void *state) {
-  // Why do these function not pass the state?
-  // (I changed it -Kevin)
   excp_assign_irq_handler(irq, handler, state); 
   arch_irq_enable(irq);
 }
@@ -29,7 +27,7 @@ void arch_irq_uninstall(int irq) {
   excp_remove_irq_handler(irq);
 }
 
-// I don't know what  this function is meant to do
+// I don't know what this function is meant to do (why is it different than enable?)
 void
 nk_unmask_irq (uint8_t irq)
 {

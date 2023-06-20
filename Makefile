@@ -882,7 +882,7 @@ $(QEMU_FLASH):
 	qemu-img create -f raw $(QEMU_FLASH) 64M
 
 QEMU_GDB_FLAGS := #-s -S
-QEMU_DEVICES := -display none 
+QEMU_DEVICES := #-display none 
 QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
 QEMU_DEVICES += -netdev socket,id=net0,listen=localhost:1234 -device e1000e,netdev=net0,mac=00:11:22:33:44:55  -device virtio-gpu-pci
 
@@ -906,6 +906,23 @@ ifdef NAUT_CONFIG_ARCH_ARM64
 		--machine $(QEMU_MACHINE_FLAGS) \
 		-bios $(UBOOT_BIN) \
 		-kernel uImage \
+		$(QEMU_GDB_FLAGS) \
+		$(QEMU_DEVICES) \
+		-numa node,cpus=0-1,memdev=m0 \
+		-numa node,cpus=2-3,memdev=m1 \
+		-object memory-backend-ram,id=m0,size=2G \
+		-object memory-backend-ram,id=m1,size=2G \
+		-m 4G
+endif
+
+qemu-raw: $(BIN_NAME)
+ifdef NAUT_CONFIG_ARCH_ARM64
+	qemu-system-aarch64 \
+		-smp cpus=4 \
+		--cpu cortex-a72 \
+		-serial stdio \
+		--machine $(QEMU_MACHINE_FLAGS) \
+		-kernel $(BIN_NAME) \
 		$(QEMU_GDB_FLAGS) \
 		$(QEMU_DEVICES) \
 		-numa node,cpus=0-1,memdev=m0 \

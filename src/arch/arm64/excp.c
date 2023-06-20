@@ -17,7 +17,7 @@
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define EXCP_PRINT(fmt, args...) INFO_PRINT("excp: " fmt, ##args)
+#define EXCP_PRINT(fmt, args...) printk("excp: " fmt, ##args)
 #define EXCP_DEBUG(fmt, args...) DEBUG_PRINT("excp: " fmt, ##args)
 #define EXCP_ERROR(fmt, args...) ERROR_PRINT("excp: " fmt, ##args)
 #define EXCP_WARN(fmt, args...) WARN_PRINT("excp: " fmt, ##args)
@@ -25,7 +25,7 @@
 irq_handler_desc_t *irq_handler_desc_table;
 excp_handler_desc_t *excp_handler_desc_table;
 
-int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state) {
+int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, uint8_t sync, void *state) {
   if(el_from == 0) {
     EXCP_PRINT("--- UNKNOWN USERMODE EXCEPTION ---\n"); 
   }
@@ -36,6 +36,7 @@ int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, u
     EXCP_PRINT("--- UNKNOWN EL LEVEL %u EXCEPTION ---\n", el_from);
     EXCP_PRINT("--- THIS SHOULD NOT BE POSSIBLE! ---\n");
   }
+  EXCP_PRINT("TYPE = %s\n", sync ? "Synchronous" : "SError");
   EXCP_PRINT("\tCPU = %u\n", my_cpu_id());
   EXCP_PRINT("\tTHREAD = %p\n", get_cur_thread());
   EXCP_PRINT("\tTHREAD_NAME = %s\n", get_cur_thread()->name);
@@ -45,8 +46,8 @@ int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, u
   EXCP_PRINT("\tTHREAD_IS_IDLE = %u\n", get_cur_thread()->is_idle);
   EXCP_PRINT("\tTHREAD_FUNC = %p\n", get_cur_thread()->fun);
   EXCP_PRINT("\tTHREAD_VIRTUAL_CONSOLE = %p\n", get_cur_thread()->vc);
-  EXCP_PRINT("\tELR = 0x%x\n", info->elr);
-  EXCP_PRINT("\tESR = 0x%x\n", info->esr.raw);
+  EXCP_PRINT("\tELR = %p\n", info->elr);
+  EXCP_PRINT("\tESR = %p\n", info->esr.raw);
   EXCP_PRINT("\tFAR = %p\n", (void*)info->far);
   EXCP_PRINT("\t\tCLS = 0x%x\n", info->esr.syndrome);
   EXCP_PRINT("\t\tISS = 0x%x\n", info->esr.iss);
@@ -100,7 +101,10 @@ void *excp_remove_excp_handler(uint32_t syndrome) {
 void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, uint8_t el) {
 
   gic_int_info_t int_info;
-  gic_ack_int(&int_info);
+  if(gic_ack_int(&int_info)) {
+    // This was spurrious
+    return NULL;
+  }
 
   if(int_info.int_id < 16) {
     EXCP_DEBUG("--- Software Generated Interrupt ---\n"); 
@@ -127,6 +131,10 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
     .rsp = regs->frame_ptr
   };
 
+  if(unlikely(handler == NULL)) {
+    EXCP_ERROR("NULL INTERRUPT HANDLER! ID = %u\n", int_info.int_id);
+  }
+
   int status = (*handler)(&entry, int_info.int_id, state);
 
   void *thread = NULL;
@@ -142,9 +150,9 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
   return thread;
 }
 
-void route_exception(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el) {
-  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, void*) = excp_handler_desc_table[info->esr.syndrome].handler;
-  int ret = (*handler)(regs, info, 1, excp_handler_desc_table[info->esr.syndrome].state);
+void route_exception(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el, uint8_t sync) {
+  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, uint8_t, void*) = excp_handler_desc_table[info->esr.syndrome].handler;
+  int ret = (*handler)(regs, info, el, sync, excp_handler_desc_table[info->esr.syndrome].state);
   if(ret) {
     EXCP_ERROR("Exception handler returned error code: %u\n", ret);
   }

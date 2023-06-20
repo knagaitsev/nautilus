@@ -8,8 +8,15 @@
 #ifndef NAUT_CONFIG_ARCH_ARM64
 #error "NAUT_CONFIG_ARCH_ARM64 is not defined yet arm64 objects are being compiled!"
 #endif
+
 #ifdef NAUT_CONFIG_HOST_X86_64
 #error "NAUT_CONFIG_HOST_X86_64 is defined for arm64!"
+#endif
+#ifdef NAUT_CONFIG_ARCH_X86
+#error "NAUT_CONFIG_ARCH_X86 is defined for arm64!"
+#endif
+#ifdef NAUT_CONFIG_ARCH_RISCV
+#error "NAUT_CONFIG_ARCH_RISCV is defined for arm64!"
 #endif
 
 void arch_enable_ints(void) {
@@ -28,7 +35,6 @@ void arch_print_regs(struct nk_regs *r) {
 
 #define PRINT_REG(REG) printk("\t"#REG" = 0x%x = %u\n", r->REG, r->REG)
 
-  printk("--- Registers ---\n");
   PRINT_REG(x0);
   PRINT_REG(x1);
   PRINT_REG(x2);
@@ -50,7 +56,6 @@ void arch_print_regs(struct nk_regs *r) {
   PRINT_REG(x18);
   PRINT_REG(frame_ptr);
   PRINT_REG(link_ptr);
-  printk("--- End Registers ---\n");
 }
 
 void *arch_read_sp(void) {

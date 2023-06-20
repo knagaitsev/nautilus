@@ -57,6 +57,23 @@ nk_thread_switch_intr_entry:
   // Save our stack ptr into the thread struct
   mrs x3, TPIDR_EL1
   ldr x3, [x3] // Thread field of CPU struct
+
+#ifdef NAUT_CONFIG_FPU_SAVE
+  // Get the offset of the FPU State
+  ldr x2, =__nk_thread_fpu_state_offset
+  ldr x2, [x2]
+
+  // Get a pointer to the FPU State
+  mov x4, x0
+  add x0, x3, x2
+
+  // Save the state
+  bl nk_fp_save
+
+  // Restore x0 back to pointing at the thread
+  mov x0, x4
+#endif
+
   mov x2, sp
   str x2, [x3] // RSP field of thread struct
 
@@ -73,6 +90,15 @@ nk_thread_switch_on_exit:
   // Load the stack ptr
   ldr x2, [x0]
   mov sp, x2
+
+#ifdef NAUT_CONFIG_FPU_SAVE
+  ldr x2, =__nk_thread_fpu_state_offset
+  ldr x2, [x2]
+
+  add x0, x0, x2
+  bl nk_fp_restore
+  sub x0, x0, x2
+#endif
 
   ldp x20, x21, [sp, 0x00]
   ldp x22, x23, [sp, 0x10]
@@ -91,7 +117,7 @@ nk_thread_switch_on_exit:
   add sp, sp, 0x70
 
   cbz x30, 1f // If lr is 0 then we shouldn't return early, because we didn't enter 
-             // through an interrupt
+              // through an interrupt
   ret
 1:
 
@@ -117,10 +143,10 @@ nk_thread_switch_exit_helper:
   mrs x3, TPIDR_EL1
 
   // Reset the interrupt nesting level
-  strh wzr, [x3, 8]
+  str wzr, [x3, 8]
 
   // Reset preemption disable level
-  strh wzr, [x3, 12]
+  str wzr, [x3, 12]
   
   // Change our status as the arguments tell us to
   str x2, [x1]

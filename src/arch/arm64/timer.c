@@ -52,7 +52,7 @@ uint64_t arch_cycles_to_realtime(uint64_t cycles) {
 }
 
 void arch_update_timer(uint32_t ticks, nk_timer_condition_t cond) {
-    TIMER_DEBUG("arch_update_timer(%u, %u)\n", ticks, cond);
+    //TIMER_DEBUG("arch_update_timer(%u, %u)\n", ticks, cond);
     if (!timer_set) {
       arch_set_timer(ticks);
     } else {
@@ -73,7 +73,7 @@ void arch_update_timer(uint32_t ticks, nk_timer_condition_t cond) {
 }
 
 void arch_set_timer(uint32_t ticks) {
-    TIMER_DEBUG("arch_set_timer(%u) current_timer = %u\n", ticks, arch_read_timer());
+    //TIMER_DEBUG("arch_set_timer(%u) current_timer = %u\n", ticks, arch_read_timer());
    
     asm volatile("msr CNTP_TVAL_EL0, %0" :: "r" ((int)ticks));
 
@@ -90,7 +90,7 @@ int arch_read_timer(void) {
 
 int arch_timer_handler(excp_entry_t *excp, ulong_t vec, void *state) { 
 
-    TIMER_DEBUG("Interrupt\n");
+    //TIMER_DEBUG("Interrupt\n");
 
     uint64_t time_to_next_ns;
 
@@ -102,7 +102,7 @@ int arch_timer_handler(excp_entry_t *excp, ulong_t vec, void *state) {
 
     time_to_next_ns = nk_timer_handler();
 
-    TIMER_DEBUG("time_to_next_ns = %llu, ticks = %llu\n", time_to_next_ns, arch_realtime_to_ticks(time_to_next_ns));
+    //TIMER_DEBUG("time_to_next_ns = %llu, ticks = %llu\n", time_to_next_ns, arch_realtime_to_ticks(time_to_next_ns));
 
     if (time_to_next_ns == 0) {
       arch_set_timer(-1);

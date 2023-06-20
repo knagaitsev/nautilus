@@ -55,6 +55,12 @@ choice
 
 endchoice
 
+config DEBUG_PL011_UART
+    bool "Debug PL011 UART"
+    depends on ARM64_GENERIC
+    default n
+    help
+      Turn on debug prints for the PL011 UART Serial Port
 
 config APIC_FORCE_XAPIC_MODE
     bool "Force APIC to use XAPIC mode"

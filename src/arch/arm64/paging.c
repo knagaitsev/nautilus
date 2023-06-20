@@ -88,9 +88,9 @@ _Static_assert(sizeof(page_table_descriptor_t) == 8, "Page table descriptor stru
 #define L1_INDEX_4KB(addr) ((((uint64_t)addr) >> 30) & 0x1FF)
 #define L2_INDEX_4KB(addr) ((((uint64_t)addr) >> 21) & 0x1FF)
 #define L3_INDEX_4KB(addr) ((((uint64_t)addr) >> 12) & 0x1FF)
-#define PAGE_OFFSET_4KB(addr) ((uint64_t)addr) & ((1<<12) - 1))
-#define PAGE_OFFSET_2MB(addr) ((uint64_t)addr) & ((1<<21) - 1))
-#define PAGE_OFFSET_1GB(addr) ((uint64_t)addr) & ((1<<30) - 1))
+#define PAGE_OFFSET_4KB(addr) ((uint64_t)addr) & ((1<<12) - 1)
+#define PAGE_OFFSET_2MB(addr) ((uint64_t)addr) & ((1<<21) - 1)
+#define PAGE_OFFSET_1GB(addr) ((uint64_t)addr) & ((1<<30) - 1)
 
 #define ALIGNED_4KB(addr) ((((uint64_t)addr) & ((1<<12) - 1)) == 0)
 #define ALIGNED_2MB(addr) ((((uint64_t)addr) & ((1<<21) - 1)) == 0)

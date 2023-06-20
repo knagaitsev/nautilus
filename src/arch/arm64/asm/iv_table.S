@@ -44,9 +44,9 @@ __el1_stack_iv_entrances:
 .align 7
   b el1_to_el1_interrupt_entry
 .align 7
-  b el1_to_el1_interrupt_entry
+  b el1_to_el1_fast_interrupt_entry
 .align 7
-  b el1_to_el1_exception_entry
+  b el1_to_el1_serror_entry
 
 # From EL0 (aarch64)
 __from_el0_iv_entrances:
@@ -55,9 +55,9 @@ __from_el0_iv_entrances:
 .align 7
   b el0_to_el1_interrupt_entry
 .align 7
-  b el0_to_el1_interrupt_entry
+  b el0_to_el1_fast_interrupt_entry
 .align 7
-  b el0_to_el1_exception_entry
+  b el0_to_el1_serror_entry
 
 # From EL0 (aarch32)
 __from_el0_in_aarch32_iv_entrances:

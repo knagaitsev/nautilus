@@ -84,7 +84,9 @@
 .EXTERN nk_thread_switch_intr_entry
 
 .GLOBAL el0_to_el1_interrupt_entry
+.GLOBAL el0_to_el1_fast_interrupt_entry
 el0_to_el1_interrupt_entry:
+el0_to_el1_fast_interrupt_entry:
   SAVE_GPRS 
   NESTABLE_EXCP_ENTRY 
 
@@ -102,6 +104,8 @@ el0_to_el1_interrupt_entry:
   eret
 
 .GLOBAL el1_to_el1_interrupt_entry
+.GLOBAL el1_to_el1_fast_interrupt_entry
+el1_to_el1_fast_interrupt_entry:
 el1_to_el1_interrupt_entry:
   SAVE_GPRS
   NESTABLE_EXCP_ENTRY
@@ -122,12 +126,20 @@ el1_to_el1_interrupt_end:
 
 .EXTERN route_exception
 
+.GLOBAL el0_to_el1_serror_entry
 .GLOBAL el0_to_el1_exception_entry
+el0_to_el1_serror_entry:
+  SAVE_GPRS
+  NESTABLE_EXCP_ENTRY
+  mov x3, 0
+  b __el0_to_el1_excp_entry_common
 el0_to_el1_exception_entry:
   SAVE_GPRS
   NESTABLE_EXCP_ENTRY
+  mov x3, 1
 
-  mov x3, 0
+__el0_to_el1_excp_entry_common:
+  mov x2, 0
   bl route_exception
 
   DEC_EXCP_DEPTH
@@ -137,12 +149,20 @@ el0_to_el1_exception_entry:
   b .
   eret
 
+.GLOBAL el1_to_el1_serror_entry
 .GLOBAL el1_to_el1_exception_entry
+el1_to_el1_serror_entry:
+  SAVE_GPRS
+  NESTABLE_EXCP_ENTRY
+  mov x3, 0
+  b __el1_to_el1_excp_entry_common
 el1_to_el1_exception_entry:
   SAVE_GPRS
   NESTABLE_EXCP_ENTRY
-
   mov x3, 1
+
+__el1_to_el1_excp_entry_common:
+  mov x2, 1
   bl route_exception
 
   DEC_EXCP_DEPTH

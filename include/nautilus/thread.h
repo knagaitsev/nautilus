@@ -163,8 +163,13 @@ int nk_tls_set(nk_tls_key_t key, const void * val);
 #define FXSAVE_SIZE 512           // per Intel docs
 #define FXSAVE_ALIGN 16           // per Intel docs
 
+#ifdef NAUT_CONFIG_ARCH_X86
 #define FPSTATE_SIZE (XSAVE_SIZE>FXSAVE_SIZE ? XSAVE_SIZE : FXSAVE_SIZE)
 #define FPSTATE_ALIGN (XSAVE_ALIGN>FXSAVE_ALIGN ? XSAVE_ALIGN : FXSAVE_ALIGN)
+#else
+#define FPSTATE_SIZE 4096
+#define FPSTATE_ALIGN 2
+#endif
 
 #define MAX_THREAD_NAME 32
 

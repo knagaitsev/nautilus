@@ -38,7 +38,7 @@ struct __attribute__((packed)) excp_entry_info {
 };
 
 typedef int(*irq_handler_t)(excp_entry_t *excp, ulong_t vec, void *state);
-typedef int(*excp_handler_t)(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, void *state);
+typedef int(*excp_handler_t)(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, uint8_t sync, void *state);
 
 typedef struct irq_handler_desc {
   irq_handler_t handler;

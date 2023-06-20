@@ -56,6 +56,16 @@
 #define UART_CTRL_TRANS_ENABLE_BITMASK (1<<8)
 #define UART_CTRL_RECV_ENABLE_BITMASK (1<<9)
 
+#ifndef NAUT_CONFIG_DEBUG_PL011_UART
+#undef DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...)
+#endif
+
+#define PRINT(fmt, args...) INFO_PRINT("[pl011] " fmt, ##args)
+#define DEBUG(fmt, args...) DEBUG_PRINT("[pl011] " fmt, ##args)
+#define ERROR(fmt, args...) ERROR_PRINT("[pl011] " fmt, ##args)
+#define WARN(fmt, args...) WARN_PRINT("[pl011] " fmt, ##args)
+
 static inline void pl011_write_reg(struct pl011_uart *p, uint32_t reg, uint32_t val) {
   *(volatile uint32_t*)(p->mmio_base + reg) = val;
 }
@@ -278,13 +288,19 @@ static int pl011_interrupt_handler(excp_entry_t *excp, ulong_t vec, void *state)
 
   struct pl011_uart *p = (struct pl011_uart*)state;
 
+  if(p == NULL) {
+    ERROR("null UART in interrupt handler!\n");
+  }
+
   uint32_t int_status = pl011_read_reg(p, UART_MASK_INT_STAT);
+
+  if(p->dev == NULL) {
+    ERROR("null UART Device in interrupt handler!\n");
+  }
 
   nk_dev_signal(p->dev);
 
   pl011_write_reg(p, UART_INT_CLR, int_status);
-
-  int_status = pl011_read_reg(p, UART_MASK_INT_STAT);
 
   return 0;
 }

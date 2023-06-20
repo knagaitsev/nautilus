@@ -325,21 +325,28 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_vc_init();
 
+  INIT_DEBUG("VC inited!\n");
+
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
   nk_vc_start_chardev_console(chardev_name);
+  INIT_DEBUG("chardev console inited!\n");
 #endif
 
 #ifdef NAUT_CONFIG_VIRTIO_PCI
   virtio_pci_init(&nautilus_info);
+  INIT_DEBUG("virtio pci inited!\n");
 #endif
 #ifdef NAUT_CONFIG_E1000_PCI
   e1000_pci_init(&nautilus_info);
+  INIT_DEBUG("e1000 pci inited!\n");
 #endif
 #ifdef NAUT_CONFIG_E1000E_PCI
   e1000e_pci_init(&nautilus_info);
+  INIT_DEBUG("e1000e pci inited!\n");
 #endif
 
   nk_fs_init();
+  INIT_DEBUG("FS inited!\n");
 
   nk_launch_shell("root-shell",0,0,0);
 

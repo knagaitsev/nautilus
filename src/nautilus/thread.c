@@ -210,6 +210,7 @@ _nk_thread_init (nk_thread_t * t,
     return 0;
 }
 
+uint64_t __nk_thread_fpu_state_offset = offsetof(struct nk_thread, fpu_state);
 
 static void
 thread_cleanup (void)
@@ -1154,6 +1155,12 @@ nk_get_parent_tid (void)
 nk_thread_id_t
 __thread_fork (void)
 {
+#ifdef NAUT_CONFIG_ARCH_ARM64
+#include<arch/arm64/unimpl.h>
+  ARM64_ERR_UNIMPL;
+  while(1) {}
+#endif
+
     nk_thread_t *parent = get_cur_thread();
     nk_thread_id_t  tid;
     nk_thread_t * t;

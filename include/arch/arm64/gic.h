@@ -12,7 +12,7 @@ typedef struct gic_int_info {
 int global_init_gic(uint64_t dtb);
 int per_cpu_init_gic(void);
 
-void gic_ack_int(gic_int_info_t *int_info);
+int gic_ack_int(gic_int_info_t *int_info);
 void gic_end_of_int(gic_int_info_t *int_info);
 
 uint16_t gic_max_irq(void);

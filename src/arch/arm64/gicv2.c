@@ -355,18 +355,20 @@ uint16_t gic_max_irq(void) {
   return __gic.max_irq;
 }
 
-void gic_ack_int(gic_int_info_t *info) {
+int gic_ack_int(gic_int_info_t *info) {
   gicc_int_info_reg_t info_reg;
   info_reg.raw = LOAD_GICC_REG(__gic, GICC_IAR_OFFSET);
 
   if(is_spurrious_int(info_reg.int_id)) {
     info->group = -1;
     GIC_WARN("Spurrious interrupt occurred!\n");
+    return -1;
   }
   else {
     info->group = 1;
   }
   info->int_id = info_reg.int_id;
+  return 0;
 }
 
 void gic_end_of_int(gic_int_info_t *info) {
