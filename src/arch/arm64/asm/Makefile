@@ -6,3 +6,4 @@ obj-y += \
 	setjmp.o \
 	iv_table.o \
 	excp_entry.o \
+	mmu.o \

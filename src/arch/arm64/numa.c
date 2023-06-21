@@ -262,7 +262,7 @@ int
 arch_numa_init (struct sys_info * sys)
 {
 
-#define NAUT_CONFIG_IDENTITY_NUMA
+//#define NAUT_CONFIG_IDENTITY_NUMA
 
 #ifdef NAUT_CONFIG_IDENTITY_NUMA
   numa_init_fake(sys);

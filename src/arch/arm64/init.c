@@ -272,8 +272,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nk_kmem_init();
   mm_boot_kmem_init();
 
-  dump_sys_ctrl_reg();
-
   if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
     INIT_ERROR("Failed to initialize paging!\n");
   }

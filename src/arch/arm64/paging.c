@@ -20,9 +20,13 @@
 #define PAGING_ERROR(fmt, args...) ERROR_PRINT("paging: " fmt, ##args)
 #define PAGING_WARN(fmt, args...) WARN_PRINT("paging: " fmt, ##args)
 
-#define TCR_GRANULE_SIZE_4KB 0b10
-#define TCR_GRANULE_SIZE_16KB 0b01
-#define TCR_GRANULE_SIZE_64KB 0b11
+#define TCR_TTBR0_GRANULE_SIZE_4KB 0b00
+#define TCR_TTBR0_GRANULE_SIZE_16KB 0b10
+#define TCR_TTBR0_GRANULE_SIZE_64KB 0b01
+
+#define TCR_TTBR1_GRANULE_SIZE_4KB 0b10
+#define TCR_TTBR1_GRANULE_SIZE_16KB 0b01
+#define TCR_TTBR1_GRANULE_SIZE_64KB 0b11
 
 #define TCR_DEFAULT_CACHEABILITY 0b11
 #define TCR_DEFAULT_SHAREABILITY 0b11
@@ -49,6 +53,10 @@ typedef union tc_reg {
     uint_t asid_16bit : 1;
     uint_t ttbr0_top_bit_ignored : 1;
     uint_t ttbr1_top_bit_ignored : 1;
+    uint_t hw_update_acc_flag : 1;
+    uint_t hw_update_dirty_bit : 1;
+    uint_t ttbr0_disable_hierarchy : 1;
+    uint_t ttbr1_disable_hierarchy : 1;
     // There are more fields but these are more than enough
   };
 } tc_reg_t;
@@ -64,25 +72,26 @@ typedef union page_table_descriptor {
   struct {
     uint_t desc_type : 2;
     uint_t mair_index : 3;
-    uint_t security : 1;
-    uint_t el0_access : 1;
-    uint_t readonly : 1;
+    uint_t non_secure : 1;
+    uint_t access_perm : 2;
     uint_t shareable_attr : 2;
     uint_t access_flag : 1;
-    uint_t __res0_0 : 1;
+    uint_t not_global : 1;
 
-    uint64_t __address_data : 40;
+    uint64_t address_data : 36;
+
+    uint_t __res0_1 : 4;
 
     uint_t priv_exec_never : 1;
     uint_t unpriv_exec_never : 1;
     uint_t extra_data : 4;
-    uint_t __res0_1 : 6;
+    uint_t __res0_2 : 6;
   };
 } page_table_descriptor_t;
 
 _Static_assert(sizeof(page_table_descriptor_t) == 8, "Page table descriptor structure is not 8 bytes wide!\n");
 
-#define TABLE_DESC_PTR(table) (page_table_descriptor_t*)((table).raw & 0x0000FFFFFFFFFF000)
+#define TABLE_DESC_PTR(table) (page_table_descriptor_t*)((table).raw & 0x0000FFFFFFFFF000)
 
 #define L0_INDEX_4KB(addr) ((((uint64_t)addr) >> 39) & 0x1FF)
 #define L1_INDEX_4KB(addr) ((((uint64_t)addr) >> 30) & 0x1FF)
@@ -139,10 +148,13 @@ static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t tab
      block_desc->desc_type == PAGE_TABLE_DESC_TYPE_INVALID) {
     
     page_table_descriptor_t *new_table = malloc(sizeof(page_table_descriptor_t) * 512);
-
+   
     if(new_table == NULL) {
       return -1;
-    } else if(!ALIGNED_4KB(new_table)) {
+    }
+
+    if((uint64_t)new_table & ((sizeof(page_table_descriptor_t) * 512)-1)) {
+      PAGING_ERROR("Block to Table Allocation Produced Unaligned Table!\n");
       free(new_table);
       return -1;
     }
@@ -152,13 +164,13 @@ static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t tab
       new_table[i].raw = block_desc->raw;
 
       if(block_desc->desc_type == PAGE_TABLE_DESC_TYPE_BLOCK) {
-        new_table[i].__address_data = 0;
+        new_table[i].address_data = 0;
         new_table[i].raw |= ((uint64_t)TABLE_DESC_PTR(*block_desc) + (new_block_size * i));
       }
     }
 
-    block_desc->desc_type == PAGE_TABLE_DESC_TYPE_TABLE;
-    block_desc->__address_data = 0;
+    block_desc->desc_type = PAGE_TABLE_DESC_TYPE_TABLE;
+    block_desc->address_data = 0;
     block_desc->raw |= (uint64_t)new_table;
   }
 
@@ -233,6 +245,36 @@ static inline page_table_descriptor_t *drill_page_1gb(page_table_descriptor_t *t
 #define VADDR_L2_4KB(i0, i1, i2) (i0 << 39 | i1 << 30 | i2 << 21)
 #define VADDR_L3_4KB(i0, i1, i2, i3) (i0 << 39 | i1 << 30 | i2 << 21 | i3 << 12)
 
+static void dump_tc_reg(tc_reg_t tc) {
+
+#define PF(field) PAGING_PRINT("TCR_EL1." #field " = 0x%x\n", tc.field) 
+
+    PF(low_mem_msb_mask);
+    PF(ttbr0_do_not_walk);
+    PF(ttbr0_table_inner_cacheability);
+    PF(ttbr0_table_outer_cacheability);
+    PF(ttbr0_table_shareability);
+    PF(ttbr0_granule_size);
+    PF(high_mem_msb_mask);
+    PF(high_mem_defines_asid);
+    PF(ttbr1_do_not_walk);
+    PF(ttbr1_table_inner_cacheability);
+    PF(ttbr1_table_outer_cacheability);
+    PF(ttbr1_table_shareability);
+    PF(ttbr1_granule_size);
+    PF(ips_size);
+    PF(asid_16bit);
+    PF(ttbr0_top_bit_ignored);
+    PF(ttbr1_top_bit_ignored);
+    PF(hw_update_acc_flag);
+    PF(hw_update_dirty_bit);
+    PF(ttbr0_disable_hierarchy);
+    PF(ttbr1_disable_hierarchy);
+
+#undef PF
+
+}
+
 static void dump_page_table(page_table_descriptor_t *l0_table) {
   for(uint64_t i0 = 0; i0 < 512; i0++) {
     if(l0_table[i0].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
@@ -244,46 +286,52 @@ static void dump_page_table(page_table_descriptor_t *l0_table) {
             if(l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
               page_table_descriptor_t *l3_table = TABLE_DESC_PTR(*l2_table);
               for(uint64_t i3 = 0; i3 < 512; i3++) {
-                PAGING_PRINT("\t\t\t[0x%016x - 0x%016x] 4KB%s%s%s%s%s\n",
+                PAGING_PRINT("\t\t\tVA[0x%016x - 0x%016x] -> PA[0x%016x - 0x%016x] 4KB%s%s%s%s%s\n",
                     VADDR_L3_4KB(i0, i1, i2, i3),
                     VADDR_L3_4KB(i0, i1, i2, i3)+PAGE_SIZE_4KB,
+                    (uint64_t)TABLE_DESC_PTR(l3_table[i3]),
+                    (uint64_t)TABLE_DESC_PTR(l3_table[i3])+PAGE_SIZE_4KB,
                     l3_table[i3].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ? 
                     (l3_table[i3].mair_index == MAIR_DEVICE_INDEX ? " Device" : " Normal") : " Invalid",
                     l3_table[i3].priv_exec_never ? " PXN" : "",
                     l3_table[i3].unpriv_exec_never ? " UXN" : "",
-                    l3_table[i3].readonly ? " RD_ONLY" : "",
+                    l3_table[i3].access_perm & 0b10 ? " RD_ONLY" : "",
                     l3_table[i3].access_flag ? " ACCESS" : ""
                     );
               }
             } else {
-              PAGING_PRINT("\t\t[0x%016x - 0x%016x] 2MB%s%s%s%s%s\n",
+              PAGING_PRINT("\t\tVA[0x%016x - 0x%016x] -> PA[0x%016x - 0x%016x] 2MB%s%s%s%s%s\n",
                   VADDR_L2_4KB(i0, i1, i2),
                   VADDR_L2_4KB(i0, i1, i2)+PAGE_SIZE_2MB,
+                  (uint64_t)TABLE_DESC_PTR(l2_table[i2]),
+                  (uint64_t)TABLE_DESC_PTR(l2_table[i2])+PAGE_SIZE_2MB,
                   l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ? 
                   (l2_table[i2].mair_index == MAIR_DEVICE_INDEX ? " Device" : " Normal") : " Invalid",
                   l2_table[i2].priv_exec_never ? " PXN " : "",
                   l2_table[i2].unpriv_exec_never ? " UXN " : "",
-                  l2_table[i2].readonly ? " RD_ONLY" : "",
+                  l2_table[i2].access_perm & 0b10 ? " RD_ONLY" : "",
                   l2_table[i2].access_flag ? " ACCESS" : ""
                   );
             }
           }
         } else {
-          PAGING_PRINT("\t[0x%016x - 0x%016x] 1GB%s%s%s%s%s\n", 
+          PAGING_PRINT("\t[0x%016x - 0x%016x] -> PA[0x%016x - 0x%016x] 1GB%s%s%s%s%s\n", 
               VADDR_L1_4KB(i0, i1), 
               VADDR_L1_4KB(i0, i1)+PAGE_SIZE_1GB,
+              (uint64_t)TABLE_DESC_PTR(l1_table[i1]),
+              (uint64_t)TABLE_DESC_PTR(l1_table[i1])+PAGE_SIZE_1GB,
               l1_table[i1].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ?
               (l1_table[i1].mair_index == MAIR_DEVICE_INDEX ? " Device" : " Normal") : " Invalid",
               l1_table[i1].priv_exec_never ? " PXN" : "",
               l1_table[i1].unpriv_exec_never ? " UXN" : "",
-              l1_table[i1].readonly ? " RD_ONLY" : "",
+              l1_table[i1].access_perm & 0b10 ? " RD_ONLY" : "",
               l1_table[i1].access_flag ? " ACCESS" : ""
               );
         }
       }
     }
     else {
-      PAGING_PRINT("[0x%016x - 0x%016x] 512GB Invalid\n", VADDR_L0_4KB(i0), VADDR_L0_4KB(i0)+((1<<39) - 1));
+      PAGING_PRINT("[0x%016x - 0x%016x] 512GB Invalid\n", VADDR_L0_4KB(i0), VADDR_L0_4KB(i0)+(((uint64_t)1<<39) - 1));
     }
   }
 }
@@ -312,6 +360,7 @@ err_exit_nalloc:
   return NULL;
 }
 
+// Creates a page table with the first 4TB identity mapped to nGnRnE device memory
 static page_table_descriptor_t *generate_minimal_page_table(void) {
 
   page_table_descriptor_t *l0_table = malloc(sizeof(page_table_descriptor_t) * 512);
@@ -320,7 +369,8 @@ static page_table_descriptor_t *generate_minimal_page_table(void) {
     goto err_exit_nalloc;
   }
 
-  if((uint64_t)l0_table & 0xFFF) {
+  if((uint64_t)l0_table & ((sizeof(page_table_descriptor_t)*512)-1)) {
+    PAGING_ERROR("L0 Page Table Allocation was Unaligned!\n");
     goto err_exit_l0;
   }
 
@@ -346,17 +396,17 @@ static page_table_descriptor_t *generate_minimal_page_table(void) {
   for(uint64_t i = 0; i < 512; i++) {
     l1_table[i].desc_type = PAGE_TABLE_DESC_TYPE_BLOCK;
     l1_table[i].mair_index = MAIR_DEVICE_INDEX;
-    l1_table[i].el0_access = 0;
-    l1_table[i].readonly = 0;
+    l1_table[i].access_perm = 0;
     l1_table[i].shareable_attr = 0b11;
     l1_table[i].priv_exec_never = 0;
     l1_table[i].unpriv_exec_never = 0;
     l1_table[i].access_flag = 1;
     
-    l1_table[i].__address_data = 0;
-    l1_table[i].raw |= (i<<30);
+    l1_table[i].address_data = 0;
+    l1_table[i].raw |= (i*PAGE_SIZE_1GB) & ~0xFFF;
   }
 
+good_exit:
   return l0_table;
 
 err_exit_l1:
@@ -367,6 +417,7 @@ err_exit_nalloc:
   return NULL;
 }
 
+// Drills pages for the normal memory regions in the map using 1GB pages
 static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fdt) {
 
   int offset = fdt_node_offset_by_prop_value(fdt, -1, "device_type", "memory", 7); 
@@ -415,8 +466,7 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
 
         desc->desc_type = PAGE_TABLE_DESC_TYPE_BLOCK;
         desc->mair_index = MAIR_NORMAL_INDEX;
-        desc->el0_access = 0;
-        desc->readonly = 0;
+        desc->access_perm = 0;
         desc->shareable_attr = 0b11;
         desc->priv_exec_never = 0;
         desc->unpriv_exec_never = 0;
@@ -436,8 +486,6 @@ static page_table_descriptor_t *low_mem_table;
 static page_table_descriptor_t *high_mem_table;
 
 int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
-
-  return -1;
  
   mair_reg_t mair;
   LOAD_SYS_REG(MAIR_EL1, mair.raw);
@@ -470,8 +518,6 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
 
 int per_cpu_paging_init(void) {
 
-  return -1;
-
   STORE_SYS_REG(TTBR0_EL1, (uint64_t)low_mem_table);
   STORE_SYS_REG(TTBR1_EL1, (uint64_t)high_mem_table);
 
@@ -485,42 +531,54 @@ int per_cpu_paging_init(void) {
   tcr.high_mem_msb_mask = 16;
 
   tcr.ttbr0_do_not_walk = 0;
-  tcr.ttbr0_granule_size = TCR_GRANULE_SIZE_4KB;
+  tcr.ttbr0_granule_size = TCR_TTBR0_GRANULE_SIZE_4KB;
   tcr.ttbr0_top_bit_ignored = 0;
   tcr.ttbr0_table_inner_cacheability = TCR_DEFAULT_CACHEABILITY;
   tcr.ttbr0_table_outer_cacheability = TCR_DEFAULT_CACHEABILITY;
   tcr.ttbr0_table_shareability = TCR_DEFAULT_SHAREABILITY;
+  tcr.ttbr0_disable_hierarchy = 1;
   
   tcr.ttbr1_do_not_walk = 0;
-  tcr.ttbr1_granule_size = TCR_GRANULE_SIZE_4KB;
+  tcr.ttbr1_granule_size = TCR_TTBR1_GRANULE_SIZE_4KB;
   tcr.ttbr1_top_bit_ignored = 0;
   tcr.ttbr1_table_inner_cacheability = TCR_DEFAULT_CACHEABILITY;
   tcr.ttbr1_table_outer_cacheability = TCR_DEFAULT_CACHEABILITY;
   tcr.ttbr1_table_shareability = TCR_DEFAULT_SHAREABILITY;
+  tcr.ttbr1_disable_hierarchy = 1;
 
   tcr.high_mem_defines_asid = 0;
   tcr.asid_16bit = 0;
   tcr.ips_size = 0b101; // 48 bits physical
+  tcr.hw_update_acc_flag = 0;
+  tcr.hw_update_dirty_bit = 0;
+
+#ifdef NAUT_CONFIG_DEBUG_PAGING
+  dump_tc_reg(tcr);
+#endif
 
   STORE_SYS_REG(TCR_EL1, tcr.raw);
 
-  PAGING_DEBUG("Set TCR_EL1 = 0x%x\n", tcr.raw);
-
-  // Instruction barrier
-  asm volatile ("tlbi VMALLE1; isb");
+#ifdef NAUT_CONFIG_DEBUG_PAGING
+  dump_page_table(low_mem_table);
+#endif
 
   PAGING_DEBUG("Enabling the MMU\n");
 
-  sys_ctrl_reg_t sys_ctrl_reg;
+  sys_ctrl_reg_t ctl;
 
-  LOAD_SYS_REG(SCTLR_EL1, sys_ctrl_reg.raw);
+  LOAD_SYS_REG(SCTLR_EL1, ctl.raw);
 
-  sys_ctrl_reg.mmu_en = 1;
-  sys_ctrl_reg.write_exec_never = 0;
+  ctl.instr_cacheability_ctrl = 1;
 
-  STORE_SYS_REG(SCTLR_EL1, sys_ctrl_reg.raw);
+  STORE_SYS_REG(SCTLR_EL1, ctl.raw);
 
-  asm volatile ("tlbi VMALLE1; isb");
+  asm volatile ("isb");
+
+  ctl.mmu_en = 1;
+  ctl.write_exec_never = 0;
+
+  extern void __mmu_enable(uint64_t sctlr);
+  __mmu_enable(ctl.raw);
 
   PAGING_DEBUG("MMU Enabled\n");
 

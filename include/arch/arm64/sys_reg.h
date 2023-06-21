@@ -47,11 +47,7 @@ typedef union sys_ctrl_reg {
   };
 } sys_ctrl_reg_t;
 
-static inline void dump_sys_ctrl_reg(void) {
-  sys_ctrl_reg_t ctrl;
-  LOAD_SYS_REG(SCTLR_EL1, ctrl.raw);
-
-  printk("\n");
+static inline void dump_sys_ctrl_reg(sys_ctrl_reg_t ctrl) {
 
 #define PF(x) printk("\tSCTLR.%s = %u\n", #x, ctrl.x)
 
