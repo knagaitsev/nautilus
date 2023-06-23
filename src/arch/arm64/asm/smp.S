@@ -1,4 +1,5 @@
 
+.section .text
 
 .GLOBAL init_smp_boot
 

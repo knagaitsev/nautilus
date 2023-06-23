@@ -1,6 +1,8 @@
 
 .GLOBAL __mmu_enable
 
+.section .text
+
 // We want this function to fit into one cache line
 // (And for instruction caches to be enabled without the MMU)
 .align 6

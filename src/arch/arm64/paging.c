@@ -67,6 +67,8 @@ _Static_assert(sizeof(tc_reg_t) == 8, "TCR structure is not exactly 8 bytes wide
 #define PAGE_TABLE_DESC_TYPE_BLOCK 0b01
 #define PAGE_TABLE_DESC_TYPE_TABLE 0b11
 
+#define PAGE_TABLE_DESC_TYPE_L3_VALID 0b11
+
 typedef union page_table_descriptor {
   uint64_t raw;
   struct {
@@ -126,27 +128,36 @@ _Static_assert(sizeof(mair_reg_t) == 8, "MAIR Register Structure is not 8 bytes 
 
 static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t table_level) {
 
+  PAGING_DEBUG("block_to_table\n");
   if(table_level == 3) {
+    PAGING_WARN("Trying to turn L3 block into a table!\n");
     return -1;
   }
-
-  uint64_t paddr = (uint64_t)TABLE_DESC_PTR(*block_desc);
 
   uint64_t new_block_size;
   switch(table_level) {
     case 0:
       new_block_size = L1_BLOCK_SIZE_4KB;
+      break;
     case 1:
       new_block_size = L2_BLOCK_SIZE_4KB;
+      break;
     case 2:
       new_block_size = L3_BLOCK_SIZE_4KB;
+      break;
     default:
       new_block_size = 0;
+      break;
   }
+
+  PAGING_DEBUG("\tNew Block Size = 0x%x\n", new_block_size);
 
   if(block_desc->desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ||
      block_desc->desc_type == PAGE_TABLE_DESC_TYPE_INVALID) {
-    
+   
+    uint64_t paddr = (uint64_t)TABLE_DESC_PTR(*block_desc);
+    PAGING_DEBUG("\tCurrent PADDR = %p\n", paddr);
+ 
     page_table_descriptor_t *new_table = malloc(sizeof(page_table_descriptor_t) * 512);
    
     if(new_table == NULL) {
@@ -163,15 +174,31 @@ static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t tab
 
       new_table[i].raw = block_desc->raw;
 
-      if(block_desc->desc_type == PAGE_TABLE_DESC_TYPE_BLOCK) {
-        new_table[i].address_data = 0;
-        new_table[i].raw |= ((uint64_t)TABLE_DESC_PTR(*block_desc) + (new_block_size * i));
+      if(table_level == 2) {
+        switch(block_desc->desc_type) {
+          case PAGE_TABLE_DESC_TYPE_INVALID:
+            new_table[i].desc_type = PAGE_TABLE_DESC_TYPE_INVALID;
+            break;
+          case PAGE_TABLE_DESC_TYPE_BLOCK:
+          default:
+            new_table[i].desc_type = PAGE_TABLE_DESC_TYPE_L3_VALID;
+            break;
+        }
       }
+
+      new_table[i].address_data = 0;
+      new_table[i].raw |= ((uint64_t)TABLE_DESC_PTR(*block_desc) + (new_block_size * i));
+
+      PAGING_DEBUG("\tDrilled new entry: PADDR = %p, RAW = 0x%016x\n", TABLE_DESC_PTR(new_table[i]), new_table[i].raw);
     }
+
+    PAGING_DEBUG("Original Block: PADDR = %p, RAW = 0x%016x\n", TABLE_DESC_PTR(*block_desc), block_desc->raw);
 
     block_desc->desc_type = PAGE_TABLE_DESC_TYPE_TABLE;
     block_desc->address_data = 0;
     block_desc->raw |= (uint64_t)new_table;
+
+    PAGING_DEBUG("TABLE PADDR = %p, DESC_PTR = %p, RAW = 0x%016x\n", new_table, TABLE_DESC_PTR(*block_desc), block_desc->raw);
   }
 
   return 0;
@@ -179,9 +206,11 @@ static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t tab
 
 static inline page_table_descriptor_t *drill_page_4kb(page_table_descriptor_t *table, void *vaddr)
 {
+  PAGING_DEBUG("drill_page_4kb\n");
   table += L0_INDEX_4KB(vaddr);
 
   if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    PAGING_DEBUG("\tneed to drill 1GB pages first\n");
     block_to_table(table, 0);
   }
 
@@ -189,6 +218,7 @@ static inline page_table_descriptor_t *drill_page_4kb(page_table_descriptor_t *t
   table += L1_INDEX_4KB(vaddr);
 
   if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    PAGING_DEBUG("\tneed to drill 2MB pages first\n");
     block_to_table(table, 1);
   }
 
@@ -196,7 +226,10 @@ static inline page_table_descriptor_t *drill_page_4kb(page_table_descriptor_t *t
   table += L2_INDEX_4KB(vaddr);
 
   if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    PAGING_DEBUG("\tneed to drill 4KB pages\n");
     block_to_table(table, 2);
+  } else {
+    PAGING_DEBUG("\tno drilling needed\n");
   }
 
   table = TABLE_DESC_PTR(*table);
@@ -207,9 +240,11 @@ static inline page_table_descriptor_t *drill_page_4kb(page_table_descriptor_t *t
 
 static inline page_table_descriptor_t *drill_page_2mb(page_table_descriptor_t *table, void *vaddr)
 {
+  PAGING_DEBUG("drill_page_2mb\n");
   table += L0_INDEX_4KB(vaddr);
 
   if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    PAGING_DEBUG("\tneed to drill 1GB pages first\n");
     block_to_table(table, 0);
   }
 
@@ -217,7 +252,10 @@ static inline page_table_descriptor_t *drill_page_2mb(page_table_descriptor_t *t
   table += L1_INDEX_4KB(vaddr);
 
   if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    PAGING_DEBUG("\tneed to drill 2MB pages\n");
     block_to_table(table, 1);
+  } else {
+    PAGING_DEBUG("\tno drilling needed\n");
   }
 
   table = TABLE_DESC_PTR(*table);
@@ -228,10 +266,14 @@ static inline page_table_descriptor_t *drill_page_2mb(page_table_descriptor_t *t
 
 static inline page_table_descriptor_t *drill_page_1gb(page_table_descriptor_t *table, void *vaddr)
 {
+  PAGING_DEBUG("drill_page_1gb\n");
   table += L0_INDEX_4KB(vaddr);
 
   if(table->desc_type != PAGE_TABLE_DESC_TYPE_TABLE) {
+    PAGING_DEBUG("\tneed to drill 1GB pages\n");
     block_to_table(table, 0);
+  } else {
+    PAGING_DEBUG("\tno drilling needed\n");
   }
 
   table = TABLE_DESC_PTR(*table);
@@ -278,20 +320,20 @@ static void dump_tc_reg(tc_reg_t tc) {
 static void dump_page_table(page_table_descriptor_t *l0_table) {
   for(uint64_t i0 = 0; i0 < 512; i0++) {
     if(l0_table[i0].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
-      page_table_descriptor_t *l1_table = TABLE_DESC_PTR(*l0_table);
+      page_table_descriptor_t *l1_table = TABLE_DESC_PTR(l0_table[i0]);
       for(uint64_t i1 = 0; i1 < 512; i1++) {
         if(l1_table[i1].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
-          page_table_descriptor_t *l2_table = TABLE_DESC_PTR(*l1_table);
+          page_table_descriptor_t *l2_table = TABLE_DESC_PTR(l1_table[i1]);
           for(uint64_t i2 = 0; i2 < 512; i2++) {
             if(l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
-              page_table_descriptor_t *l3_table = TABLE_DESC_PTR(*l2_table);
+              page_table_descriptor_t *l3_table = TABLE_DESC_PTR(l2_table[i2]);
               for(uint64_t i3 = 0; i3 < 512; i3++) {
                 PAGING_PRINT("\t\t\tVA[0x%016x - 0x%016x] -> PA[0x%016x - 0x%016x] 4KB%s%s%s%s%s\n",
                     VADDR_L3_4KB(i0, i1, i2, i3),
                     VADDR_L3_4KB(i0, i1, i2, i3)+PAGE_SIZE_4KB,
                     (uint64_t)TABLE_DESC_PTR(l3_table[i3]),
                     (uint64_t)TABLE_DESC_PTR(l3_table[i3])+PAGE_SIZE_4KB,
-                    l3_table[i3].desc_type == PAGE_TABLE_DESC_TYPE_BLOCK ? 
+                    l3_table[i3].desc_type == PAGE_TABLE_DESC_TYPE_L3_VALID ? 
                     (l3_table[i3].mair_index == MAIR_DEVICE_INDEX ? " Device" : " Normal") : " Invalid",
                     l3_table[i3].priv_exec_never ? " PXN" : "",
                     l3_table[i3].unpriv_exec_never ? " UXN" : "",
@@ -398,8 +440,8 @@ static page_table_descriptor_t *generate_minimal_page_table(void) {
     l1_table[i].mair_index = MAIR_DEVICE_INDEX;
     l1_table[i].access_perm = 0;
     l1_table[i].shareable_attr = 0b11;
-    l1_table[i].priv_exec_never = 0;
-    l1_table[i].unpriv_exec_never = 0;
+    l1_table[i].priv_exec_never = 1;
+    l1_table[i].unpriv_exec_never = 1;
     l1_table[i].access_flag = 1;
     
     l1_table[i].address_data = 0;
@@ -417,6 +459,36 @@ err_exit_nalloc:
   return NULL;
 }
 
+// Helper function to try and use the largest page sizes possible
+inline static void __efficient_drill_helper(uint64_t *start, uint64_t *end, void **drill_func, uint32_t *block_size) {
+
+    if(ALIGNED_1GB(*start) &&
+       ALIGNED_1GB(*end)) {
+
+      PAGING_DEBUG("selected page 1GB page size for drill\n");
+      *block_size = PAGE_SIZE_1GB;
+      *drill_func = drill_page_1gb;
+
+    } else if(ALIGNED_2MB(*start) &&
+          ALIGNED_2MB(*end)) {
+
+      PAGING_DEBUG("selected page 2MB page size for drill\n");
+      *block_size = PAGE_SIZE_2MB;
+      *drill_func = drill_page_2mb;
+
+    } else {
+
+      PAGING_DEBUG("selected page 4KB page size for drill\n");
+      // Conservative (shrink the drilled region if needed)
+      *end = round_down(*end, PAGE_SIZE_4KB);
+      *start = round_up(*start, PAGE_SIZE_4KB);
+
+      *block_size = PAGE_SIZE_4KB;
+      *drill_func = drill_page_4kb;
+
+    }
+}
+   
 // Drills pages for the normal memory regions in the map using 1GB pages
 static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fdt) {
 
@@ -431,30 +503,11 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
       uint32_t block_size = PAGE_SIZE_4KB;
 
       page_table_descriptor_t*(*drill_func)(page_table_descriptor_t*, void*) = NULL;
-
-      if(ALIGNED_1GB(reg.address) &&
-         ALIGNED_1GB(reg.address + reg.size)) {
-
-        block_size = PAGE_SIZE_1GB;
-        drill_func = drill_page_1gb;
-
-      } else if(ALIGNED_2MB(reg.address) &&
-            ALIGNED_2MB(reg.address + reg.size)) {
-
-        block_size = PAGE_SIZE_2MB;
-        drill_func = drill_page_2mb;
-
-      } else {
-
-        reg.size = round_down(reg.address + reg.size, PAGE_SIZE_4KB);
-        reg.address = round_up(reg.address, PAGE_SIZE_4KB);
-        block_size = PAGE_SIZE_4KB;
-        drill_func = drill_page_4kb;
-
-      }
-      
+   
       uint64_t start = reg.address;
       uint64_t end = reg.address + reg.size;
+
+      __efficient_drill_helper(&start, &end, &drill_func, &block_size);
 
       for(; start < end; start += block_size) {
         page_table_descriptor_t *desc;
@@ -464,12 +517,12 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
           PAGING_WARN("Failed to drill page for normal memory!\n");
         }
 
-        desc->desc_type = PAGE_TABLE_DESC_TYPE_BLOCK;
         desc->mair_index = MAIR_NORMAL_INDEX;
         desc->access_perm = 0;
         desc->shareable_attr = 0b11;
-        desc->priv_exec_never = 0;
-        desc->unpriv_exec_never = 0;
+        desc->priv_exec_never = 1;
+        desc->unpriv_exec_never = 1;
+
         desc->access_flag = 1; 
 
         // We assume the entry is still an identity mapping
@@ -480,6 +533,40 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
   }
 
   return 0;
+}
+
+static int handle_text_memory_regions(page_table_descriptor_t *table) {
+  extern int _textStart;
+  extern int _textEnd;
+
+  uint64_t start = &_textStart;
+  uint64_t end = &_textEnd;
+
+  uint32_t block_size = PAGE_SIZE_4KB;
+
+  page_table_descriptor_t*(*drill_func)(page_table_descriptor_t*, void*) = NULL;  
+
+  __efficient_drill_helper(&start, &end, &drill_func, &block_size);
+
+  for(; start < end; start += block_size) {
+    
+    page_table_descriptor_t *desc;
+    desc = (*drill_func)(table, (void*)start);
+
+    if(desc == NULL) {
+      // An actual error not just a warning
+      PAGING_ERROR("Failed to drill page for text memory!\n");
+      return -1;
+    }
+
+    desc->priv_exec_never = 0;
+    desc->unpriv_exec_never = 0;
+
+    // Don't modify identity mapping
+  }
+
+  return 0;
+
 }
 
 static page_table_descriptor_t *low_mem_table;
@@ -504,6 +591,11 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
 
   if(handle_normal_memory_regions(low_mem_table, fdt)) {
     PAGING_WARN("Failed to handle normal page regions! (All memory is device memory)\n");
+  }
+
+  if(handle_text_memory_regions(low_mem_table)) {
+    PAGING_ERROR("Failed to handle text page regions! (GOING TO CRASH IF WE CONTINUE ENABLING PAGING)\n");
+    return -1;
   }
 
   high_mem_table = generate_invalid_page_table();

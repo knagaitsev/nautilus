@@ -1,3 +1,5 @@
+.section .text
+
 .MACRO SAVE_GPRS
 
   sub sp, sp, 0xb0

@@ -1,4 +1,6 @@
 
+.section .text
+
 .GLOBAL nk_low_level_memset
 
 # x0 = void *dest

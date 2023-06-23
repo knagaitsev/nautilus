@@ -1,6 +1,8 @@
 
 .GLOBAL nk_thread_entry
 
+.section .text
+
 nk_thread_entry:
 
   ldr x19, [sp, 0x0]

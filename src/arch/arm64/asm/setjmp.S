@@ -1,6 +1,8 @@
 
 .GLOBAL low_level_setjmp
 
+.section .text
+
 low_level_setjmp:
   // TODO
   ret

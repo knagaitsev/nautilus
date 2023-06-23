@@ -882,7 +882,7 @@ $(QEMU_FLASH):
 	qemu-img create -f raw $(QEMU_FLASH) 64M
 
 QEMU_GDB_FLAGS := -gdb tcp::5060
-QEMU_DEVICES := #-display none 
+QEMU_DEVICES := -display none 
 QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
 QEMU_DEVICES += -netdev socket,id=net0,listen=localhost:1234 -device e1000e,netdev=net0,mac=00:11:22:33:44:55  -device virtio-gpu-pci
 
