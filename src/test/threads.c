@@ -27,7 +27,7 @@
 #include <nautilus/shell.h>
 #include <nautilus/vc.h>
 
-#define DO_PRINT       0
+#define DO_PRINT       1
 
 #if DO_PRINT
 #define PRINT(...) nk_vc_printf(__VA_ARGS__)
@@ -273,6 +273,8 @@ int test_threads()
     int fork_join;
     int recursive_create_join;
     int recursive_fork_join;
+
+    nk_vc_printf("Starting thread tests...\n");
 
     create_join = test_create_join(NUM_PASSES,NUM_THREADS);
 

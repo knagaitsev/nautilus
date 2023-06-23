@@ -353,9 +353,9 @@ int nk_delay(uint64_t ns) { return _sleep(ns,1); }
 uint64_t nk_timer_handler (void)
 {
     uint32_t my_cpu = my_cpu_id();
-#ifdef NAUT_CONFIG_ARCH_X86
+#if defined(NAUT_CONFIG_ARCH_X86) || defined(NAUT_CONFIG_ARCH_ARM64)
     if (my_cpu!=0) {
-	//DEBUG("update: cpu %d - ignored/infinity\n",my_cpu);
+	DEBUG("update: cpu %d - ignored/infinity\n",my_cpu);
 	return -1;  // infinitely far in the future
     }
 #endif
@@ -370,9 +370,9 @@ uint64_t nk_timer_handler (void)
     
     // first, find expired timers with lock held
     list_for_each_entry_safe(cur, temp, &active_timer_list, active_node) {
-	//DEBUG("considering %s\n",cur->name);
+	DEBUG("considering %s\n",cur->name);
 	if (now >= cur->time_ns) { 
-	    //DEBUG("found expired timer %s\n",cur->name);
+	    DEBUG("found expired timer %s\n",cur->name);
 	    cur->state = NK_TIMER_SIGNALLED;
 	    list_del_init(&cur->active_node);
 	    list_add_tail(&cur->active_node, &expired_list);
@@ -384,17 +384,17 @@ uint64_t nk_timer_handler (void)
     // now handle expired timers without holding the lock
     // so that callbacks/etc can restart the timer if desired
     list_for_each_entry_safe(cur, temp, &expired_list, active_node) {
-	//DEBUG("handle expired timer %s\n",cur->name);
+	DEBUG("handle expired timer %s\n",cur->name);
 	list_del_init(&cur->active_node);
 	
 	if (cur->flags & NK_TIMER_WAIT_ONE) {
 	    
-	    //DEBUG("waking one thread\n");
+	    DEBUG("waking one thread\n");
 	    nk_wait_queue_wake_one(cur->waitq);
 	    
 	} else if (cur->flags & NK_TIMER_WAIT_ALL) {
 	    
-	    //DEBUG("waking all threads\n");
+	    DEBUG("waking all threads\n");
 	    nk_wait_queue_wake_all(cur->waitq);
 	    
 	} else if (cur->flags & NK_TIMER_CALLBACK) {
@@ -422,7 +422,7 @@ uint64_t nk_timer_handler (void)
 		}
 	    }
 	} else {
-	    //ERROR("unsupported 0x%lx\n", cur->flags);
+	    ERROR("unsupported 0x%lx\n", cur->flags);
 	}
     }
 
@@ -430,19 +430,17 @@ uint64_t nk_timer_handler (void)
     // may have started new timers, with lock held
     ACTIVE_LOCK();
     list_for_each_entry_safe(cur, temp, &active_timer_list, active_node) {
-	//DEBUG("check timer %s\n",cur->name);
+	DEBUG("check timer %s\n",cur->name);
 	if (cur->time_ns < earliest) { 
 	    earliest = cur->time_ns;
 	}
     }
     ACTIVE_UNLOCK();
 
-    //DEBUG("update: earliest is %llu\n",earliest);
+    DEBUG("update: earliest is %llu\n",earliest);
 
     now = nk_sched_get_realtime();
 #ifdef NAUT_CONFIG_ARCH_RISCV
-    return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
-#elif NAUT_CONFIG_ARCH_ARM64
     return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
 #else
     return earliest > now ? earliest-now : 0;

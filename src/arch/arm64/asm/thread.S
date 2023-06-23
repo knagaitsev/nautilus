@@ -49,7 +49,7 @@ nk_thread_switch_intr_entry:
   stp x22, x23, [sp, 0x10]
   stp x24, x25, [sp, 0x20]
   stp x26, x27, [sp, 0x30]
-  stp x28, x29, [sp, 0x40]
+  stp x28, x19, [sp, 0x40]
 
   // Save the return address incase we entered through an interrupt
   stp x30, xzr, [sp, 0x50]
@@ -59,6 +59,7 @@ nk_thread_switch_intr_entry:
   ldr x3, [x3] // Thread field of CPU struct
 
 #ifdef NAUT_CONFIG_FPU_SAVE
+
   // Get the offset of the FPU State
   ldr x2, =__nk_thread_fpu_state_offset
   ldr x2, [x2]
@@ -72,6 +73,7 @@ nk_thread_switch_intr_entry:
 
   // Restore x0 back to pointing at the thread
   mov x0, x4
+
 #endif
 
   mov x2, sp
@@ -104,7 +106,7 @@ nk_thread_switch_on_exit:
   ldp x22, x23, [sp, 0x10]
   ldp x24, x25, [sp, 0x20]
   ldp x26, x27, [sp, 0x30]
-  ldp x28, x29, [sp, 0x40]
+  ldp x28, x19, [sp, 0x40]
 
   // Get whether or not we entered this via interrupt context or not
   ldp x30, xzr, [sp, 0x50]

@@ -26,7 +26,7 @@
 #include <nautilus/task.h>
 #include <nautilus/scheduler.h>
 
-#define DO_PRINT       0
+#define DO_PRINT       1
 
 #define DO_ARGS        0
 
@@ -222,6 +222,8 @@ int test_tasks()
 {
     int create_wait;
     int recursive_create_wait;
+
+    nk_vc_printf("Starting task tests...\n");
 
     create_wait = test_create_wait(NUM_PASSES,NUM_TASKS);
 

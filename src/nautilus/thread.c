@@ -1158,7 +1158,6 @@ __thread_fork (void)
 #ifdef NAUT_CONFIG_ARCH_ARM64
 #include<arch/arm64/unimpl.h>
   ARM64_ERR_UNIMPL;
-  while(1) {}
 #endif
 
     nk_thread_t *parent = get_cur_thread();

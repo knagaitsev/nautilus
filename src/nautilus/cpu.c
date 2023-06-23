@@ -246,6 +246,7 @@ handle_regs (char * buf, void * priv)
     #ifdef NAUT_CONFIG_ARCH_X86
     extern int nk_interrupt_like_trampoline(void (*)(struct nk_regs *));
     #endif
+
     uint64_t tid;
 
     if (sscanf(buf,"regs %lu",&tid) == 1) { 

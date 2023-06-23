@@ -73,3 +73,36 @@ int psci_init(void) {
 
   PSCI_PRINT("Initialized PSCI\n");
 }
+
+#include<nautilus/shell.h>
+
+static int
+reboot_handler(char *buf, void *priv) {
+  psci_system_reset();
+
+  // Returning from this is an error
+  return 1;
+}
+
+static int
+off_handler(char *buf, void *priv) {
+  psci_system_off();
+
+  // Returning from this is an error
+  return 1;
+}
+
+static struct shell_cmd_impl reboot_impl = {
+    .cmd = "reboot",
+    .help_str = "reboot",
+    .handler = reboot_handler,
+};
+nk_register_shell_cmd(reboot_impl);
+
+static struct shell_cmd_impl off_impl = {
+    .cmd = "off",
+    .help_str = "off",
+    .handler = off_handler,
+};
+nk_register_shell_cmd(off_impl);
+

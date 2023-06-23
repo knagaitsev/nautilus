@@ -90,7 +90,7 @@ el0_to_el1_fast_interrupt_entry:
   SAVE_GPRS 
   NESTABLE_EXCP_ENTRY 
 
-  mov x3, 0
+  mov x2, 0
   bl route_interrupt
 
   DEC_EXCP_DEPTH
@@ -110,7 +110,7 @@ el1_to_el1_interrupt_entry:
   SAVE_GPRS
   NESTABLE_EXCP_ENTRY
 
-  mov x3, 1
+  mov x2, 1
   bl route_interrupt
 
   DEC_EXCP_DEPTH

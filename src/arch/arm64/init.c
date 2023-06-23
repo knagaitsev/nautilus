@@ -90,6 +90,20 @@ static inline void set_tpid_reg(struct naut_info *naut) {
   INIT_DEBUG("Wrote into thread pointer register of CPU: %u, ptr = %p\n", mpid_reg.aff0, naut->sys.cpus[mpid_reg.aff0]);
 }
 
+static inline void per_cpu_sys_ctrl_reg_init(void) {
+
+  sys_ctrl_reg_t ctrl_reg;
+  LOAD_SYS_REG(SCTLR_EL1, ctrl_reg.raw);
+
+  ctrl_reg.align_check_en = 1;
+  ctrl_reg.unaligned_acc_en = 0;
+
+  dump_sys_ctrl_reg(ctrl_reg);
+
+  STORE_SYS_REG(SCTLR_EL1, ctrl_reg.raw);
+
+}
+
 static inline int init_core_barrier(struct sys_info *sys) {
   sys->core_barrier = (nk_barrier_t *)malloc(sizeof(nk_barrier_t));
   if (!sys->core_barrier) {
@@ -117,6 +131,8 @@ void secondary_init(void) {
   set_tpid_reg(&nautilus_info);
 
   INIT_PRINT("Starting CPU %u...\n", my_cpu_id());
+
+  per_cpu_sys_ctrl_reg_init();
  
   // Locally Initialize the GIC on the init processor 
   // (will need to call this on every processor which can receive interrupts)
@@ -147,7 +163,7 @@ void secondary_init(void) {
   arch_enable_ints(); 
 
   INIT_PRINT("Interrupts are now enabled\n");
- 
+
   //enable the timer
   percpu_timer_init();
 
@@ -224,6 +240,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   spinlock_init(&printk_lock);
 
   printk(NAUT_WELCOME);
+
+  per_cpu_sys_ctrl_reg_init();
 
   INIT_PRINT("--- Device Tree ---\n");
   print_fdt((void*)dtb);
@@ -305,30 +323,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   pci_init(&nautilus_info);
   pci_dump_device_list();
-  
+
   start_secondaries(&(nautilus_info.sys));
-  
-  // Start the scheduler
-  nk_sched_start();  
-
-  // Enable interrupts
-  arch_enable_ints(); 
-
-  INIT_PRINT("Interrupts are now enabled\n");
- 
-  //enable the timer
-  percpu_timer_init();
-
-  arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
-
-  nk_vc_init();
-
-  INIT_DEBUG("VC inited!\n");
-
-#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
-  nk_vc_start_chardev_console(chardev_name);
-  INIT_DEBUG("chardev console inited!\n");
-#endif
 
 #ifdef NAUT_CONFIG_VIRTIO_PCI
   virtio_pci_init(&nautilus_info);
@@ -345,6 +341,27 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_fs_init();
   INIT_DEBUG("FS inited!\n");
+
+  nk_vc_init();
+  INIT_DEBUG("VC inited!\n");
+
+#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
+  nk_vc_start_chardev_console(chardev_name);
+  INIT_DEBUG("chardev console inited!\n");
+#endif
+ 
+  // Start the scheduler
+  nk_sched_start();  
+
+  // Enable interrupts
+  arch_enable_ints(); 
+
+  INIT_PRINT("Interrupts are now enabled\n");
+ 
+  //enable the timer
+  percpu_timer_init();
+
+  arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
 
   nk_launch_shell("root-shell",0,0,0);
 
