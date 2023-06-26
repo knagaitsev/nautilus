@@ -39,6 +39,11 @@ int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, u
   EXCP_PRINT("TYPE = %s\n", sync ? "Synchronous" : "SError");
   EXCP_PRINT("\tCPU = %u\n", my_cpu_id());
   EXCP_PRINT("\tTHREAD = %p\n", get_cur_thread());
+  EXCP_PRINT("\tTHREAD_ID = %p\n", get_cur_thread()->tid);
+  EXCP_PRINT("\tTHREAD_STACK_TOP = %p\n", get_cur_thread()->stack);
+  EXCP_PRINT("\tTHREAD_STACK_PTR = %p\n", regs->sp);
+  EXCP_PRINT("\tTHREAD_STACK_SIZE = %p\n", get_cur_thread()->stack_size);
+  EXCP_PRINT("\tTHREAD_STACK_ALLOCATED = %p\n", get_cur_thread()->stack + get_cur_thread()->stack_size - (regs->sp));
   EXCP_PRINT("\tTHREAD_NAME = %s\n", get_cur_thread()->name);
   EXCP_PRINT("\tTHREAD_BOUND_CPU = %u\n", get_cur_thread()->bound_cpu);
   EXCP_PRINT("\tTHREAD_PLACEMENT_CPU = %u\n", get_cur_thread()->placement_cpu);
@@ -141,6 +146,8 @@ void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, u
   if(per_cpu_get(in_timer_interrupt)) {
     thread = nk_sched_need_resched();
     EXCP_DEBUG("nk_sched_need_resched() returned 0x%x\n", (uint64_t)thread);
+  } else {
+    EXCP_DEBUG("Not a timer interrupt: no reschedule!\n");
   }
 
   EXCP_DEBUG("END OF INTERRUPT\n");

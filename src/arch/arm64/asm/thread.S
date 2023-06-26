@@ -1,41 +1,31 @@
 
 .GLOBAL nk_thread_entry
-
 .section .text
+
+.include "arch/arm64/asm/save_regs.S"
 
 nk_thread_entry:
 
-  ldr x19, [sp, 0x0]
-  
-  blr x19
+  msr DAIF, xzr
 
-  ldr x19, [sp, 0x8]
+  ldr x18, [sp, 0x0]
+  
+  blr x18
+
+  ldr x30, [sp, 0x8]
 
   add sp, sp, 0x10
 
-  br x19
+  ret
 
 .GLOBAL nk_thread_switch
 .GLOBAL nk_thread_switch_intr_entry
 
 nk_thread_switch:
 
-  sub sp, sp, 0xb0
-
   // Store the registers which would have 
   // been saved on the stack by an interrupt
-
-  stp x0, x1, [sp, 0x00]
-  stp x2, x3, [sp, 0x10]
-  stp x4, x5, [sp, 0x20]
-  stp x6, x7, [sp, 0x30]
-  stp x8, x9, [sp, 0x40]
-  stp x10, x11, [sp, 0x50]
-  stp x12, x13, [sp, 0x60]
-  stp x14, x15, [sp, 0x70]
-  stp x16, x17, [sp, 0x80]
-  stp x18, x29, [sp, 0x90]
-  stp x30, xzr, [sp, 0xa0]
+  SAVE_CALLER_GPRS
 
   // Make sure that lr is zero if we don't enter through intr entry
   mov x30, 0
@@ -47,39 +37,39 @@ nk_thread_switch_intr_entry:
   // Save the other GP registers
   // That we normally can ignore on exception entry
   sub sp, sp, 0x70
-  stp x20, x21, [sp, 0x00]
-  stp x22, x23, [sp, 0x10]
-  stp x24, x25, [sp, 0x20]
-  stp x26, x27, [sp, 0x30]
-  stp x28, x19, [sp, 0x40]
+  stp x19, x20, [sp, 0x00]
+  stp x22, x22, [sp, 0x10]
+  stp x23, x24, [sp, 0x20]
+  stp x25, x26, [sp, 0x30]
+  stp x27, x28, [sp, 0x40]
 
   // Save the return address incase we entered through an interrupt
   stp x30, xzr, [sp, 0x50]
 
   // Save our stack ptr into the thread struct
-  mrs x3, TPIDR_EL1
-  ldr x3, [x3] // Thread field of CPU struct
+  mrs x16, TPIDR_EL1
+  ldr x16, [x16] // Thread field of CPU struct
 
 #ifdef NAUT_CONFIG_FPU_SAVE
 
   // Get the offset of the FPU State
-  ldr x2, =__nk_thread_fpu_state_offset
-  ldr x2, [x2]
+  ldr x18, =__nk_thread_fpu_state_offset
+  ldr x18, [x18]
 
   // Get a pointer to the FPU State
-  mov x4, x0
-  add x0, x3, x2
+  mov x17, x0
+  add x0, x16, x18
 
   // Save the state
   bl nk_fp_save
 
   // Restore x0 back to pointing at the thread
-  mov x0, x4
+  mov x0, x17
 
 #endif
 
   mov x2, sp
-  str x2, [x3] // RSP field of thread struct
+  str x2, [x16] // RSP field of thread struct
 
   // Store flags
   mrs x2, DAIF
@@ -88,27 +78,27 @@ nk_thread_switch_intr_entry:
 
 nk_thread_switch_on_exit:
   // Set this CPU's current thread to the function argument
-  mrs x3, TPIDR_EL1
-  str x0, [x3]
+  mrs x16, TPIDR_EL1
+  str x0, [x16]
 
   // Load the stack ptr
   ldr x2, [x0]
   mov sp, x2
 
 #ifdef NAUT_CONFIG_FPU_SAVE
-  ldr x2, =__nk_thread_fpu_state_offset
-  ldr x2, [x2]
+  ldr x18, =__nk_thread_fpu_state_offset
+  ldr x18, [x18]
 
-  add x0, x0, x2
+  add x0, x0, x18
   bl nk_fp_restore
-  sub x0, x0, x2
+  sub x0, x0, x18
 #endif
 
-  ldp x20, x21, [sp, 0x00]
-  ldp x22, x23, [sp, 0x10]
-  ldp x24, x25, [sp, 0x20]
-  ldp x26, x27, [sp, 0x30]
-  ldp x28, x19, [sp, 0x40]
+  ldp x19, x20, [sp, 0x00]
+  ldp x21, x22, [sp, 0x10]
+  ldp x23, x24, [sp, 0x20]
+  ldp x25, x26, [sp, 0x30]
+  ldp x27, x28, [sp, 0x40]
 
   // Get whether or not we entered this via interrupt context or not
   ldp x30, xzr, [sp, 0x50]
@@ -125,19 +115,7 @@ nk_thread_switch_on_exit:
   ret
 1:
 
-  ldp x0, x1, [sp, 0x00]
-  ldp x2, x3, [sp, 0x10]
-  ldp x4, x5, [sp, 0x20]
-  ldp x6, x7, [sp, 0x30]
-  ldp x8, x9, [sp, 0x40]
-  ldp x10, x11, [sp, 0x50]
-  ldp x12, x13, [sp, 0x60]
-  ldp x14, x15, [sp, 0x70]
-  ldp x16, x17, [sp, 0x80]
-  ldp x18, x29, [sp, 0x90]
-  ldp x30, xzr, [sp, 0xa0] 
-
-  add sp, sp, 0xb0
+  RESTORE_CALLER_GPRS
 
   ret
 
@@ -197,6 +175,12 @@ nk_fp_save:
   str q29, [x0, 0x1d0]
   str q30, [x0, 0x1e0]
   str q31, [x0, 0x1f0]
+  mrs x1, FPSR
+  mrs x2, FPCR
+ 
+  // Out of range for dereference offset
+  add x0, x0, 0x200
+  stp x1, x2, [x0, 0x0]
 
   ret
 
@@ -236,5 +220,10 @@ nk_fp_restore:
   ldr q29, [x0, 0x1d0]
   ldr q30, [x0, 0x1e0]
   ldr q31, [x0, 0x1f0]
+
+  add x0, x0, 0x200
+  ldp x1, x2, [x0, 0x0]
+  msr FPSR, x1
+  msr FPCR, x2
 
   ret

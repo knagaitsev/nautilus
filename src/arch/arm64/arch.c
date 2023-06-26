@@ -56,6 +56,7 @@ void arch_print_regs(struct nk_regs *r) {
   PRINT_REG(x18);
   PRINT_REG(frame_ptr);
   PRINT_REG(link_ptr);
+  PRINT_REG(sp);
 }
 
 void *arch_read_sp(void) {

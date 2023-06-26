@@ -27,10 +27,34 @@
 #include <nautilus/shell.h>
 #include <nautilus/vc.h>
 
-#define DO_PRINT       1
+#define DO_PRINT       0
 
 #if DO_PRINT
-#define PRINT(...) nk_vc_printf(__VA_ARGS__)
+#define PRINT(fmt, args...)					\
+do {									\
+    if (__cpu_state_get_cpu()) {					\
+	int _p=preempt_is_disabled();					\
+        preempt_disable();                                              \
+	struct nk_thread *_t = get_cur_thread();				\
+ 	nk_vc_printf("CPU %d (%s%s%s %lu \"%s\"): DEBUG: " fmt,		\
+		       my_cpu_id(),					\
+		       in_interrupt_context() ? "I" :"",		\
+                       arch_ints_enabled() ? "E" : "",\
+		       _p ? "" : "P",					\
+		       _t ? _t->tid : 0,				\
+		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+		       ##args);						\
+	preempt_enable();				                \
+    } else {								\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+ 	nk_vc_printf("CPU ? (%s%s): DEBUG: " fmt,			\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       ##args);						\
+	preempt_enable();						\
+    }									\
+} while (0)
 #else
 #define PRINT(...) 
 #endif
@@ -66,10 +90,10 @@ static int test_create_join(int nump, int numt)
 {
     int i,j;
 
-    PRINT("Starting on threads create/join stress test (%d passes, %d threads)\n",nump,numt);
+    nk_vc_printf("Starting on threads create/join stress test (%d passes, %d threads)\n",nump,numt);
     
     for (i=0;i<nump;i++) {
-	PRINT("Starting to launch %d threads on pass %d\n",numt,i);
+	nk_vc_printf("Starting to launch %d threads on pass %d\n",numt,i);
 	for (j=0;j<numt;j++) { 
 	    struct test_arg *arg = (struct test_arg *) malloc(sizeof(struct test_arg));
 	    arg->pass=i;
@@ -81,17 +105,17 @@ static int test_create_join(int nump, int numt)
 				PAGE_SIZE_4KB,
 				NULL,
 				-1)) { 
-		PRINT("Failed to launch thread %d on pass %d\n", j,i);
+		nk_vc_printf("Failed to launch thread %d on pass %d\n", j,i);
 		nk_join_all_children(0);
 		return -1;
 	    }
 	}
-	PRINT("Launched %d threads in pass %d\n", j, i);
+	nk_vc_printf("Launched %d threads in pass %d\n", j, i);
 	if (nk_join_all_children(0)) {
-	    PRINT("Failed to join threads on pass %d\n",i);
+	    nk_vc_printf("Failed to join threads on pass %d\n",i);
 	    return -1;
 	}
-	PRINT("Joined %d threads in pass %d\n", j, i);
+	nk_vc_printf("Joined %d threads in pass %d\n", j, i);
 	nk_sched_reap(1); // clean up unconditionally
     }
     PRINT("Done with thread create/join stress test (SUCCESS)\n");
@@ -321,3 +345,4 @@ static struct shell_cmd_impl threads_impl = {
     .handler  = handle_threads,
 };
 nk_register_shell_cmd(threads_impl);
+

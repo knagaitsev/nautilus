@@ -1,42 +1,6 @@
 .section .text
 
-.MACRO SAVE_GPRS
-
-  sub sp, sp, 0xb0
-
-  stp x0, x1, [sp, 0x00]
-  stp x2, x3, [sp, 0x10]
-  stp x4, x5, [sp, 0x20]
-  stp x6, x7, [sp, 0x30]
-  stp x8, x9, [sp, 0x40]
-  stp x10, x11, [sp, 0x50]
-  stp x12, x13, [sp, 0x60]
-  stp x14, x15, [sp, 0x70]
-  stp x16, x17, [sp, 0x80]
-  stp x18, x29, [sp, 0x90]
-  stp x30, xzr, [sp, 0xa0]
-
-  mov x0, sp // Store nk_regs*
-
-.ENDM
-
-.MACRO RESTORE_GPRS
-
-  ldp x0, x1, [sp, 0x00]
-  ldp x2, x3, [sp, 0x10]
-  ldp x4, x5, [sp, 0x20]
-  ldp x6, x7, [sp, 0x30]
-  ldp x8, x9, [sp, 0x40]
-  ldp x10, x11, [sp, 0x50]
-  ldp x12, x13, [sp, 0x60]
-  ldp x14, x15, [sp, 0x70]
-  ldp x16, x17, [sp, 0x80]
-  ldp x18, x29, [sp, 0x90]
-  ldp x30, xzr, [sp, 0xa0]
-
-  add sp, sp, 0xb0
-
-.ENDM
+.include "arch/arm64/asm/save_regs.S"
 
 .MACRO NESTABLE_EXCP_ENTRY
 
@@ -89,7 +53,9 @@
 .GLOBAL el0_to_el1_fast_interrupt_entry
 el0_to_el1_interrupt_entry:
 el0_to_el1_fast_interrupt_entry:
-  SAVE_GPRS 
+  SAVE_CALLER_GPRS 
+  mov x0, sp // Store nk_regs*
+
   NESTABLE_EXCP_ENTRY 
 
   mov x2, 0
@@ -102,14 +68,16 @@ el0_to_el1_fast_interrupt_entry:
 1:
 
   NESTABLE_EXCP_EXIT
-  RESTORE_GPRS
+  RESTORE_CALLER_GPRS
   eret
 
 .GLOBAL el1_to_el1_interrupt_entry
 .GLOBAL el1_to_el1_fast_interrupt_entry
 el1_to_el1_fast_interrupt_entry:
 el1_to_el1_interrupt_entry:
-  SAVE_GPRS
+  SAVE_CALLER_GPRS
+  mov x0, sp // Store nk_regs*
+
   NESTABLE_EXCP_ENTRY
 
   mov x2, 1
@@ -122,7 +90,7 @@ el1_to_el1_interrupt_entry:
 1:
   
   NESTABLE_EXCP_EXIT
-  RESTORE_GPRS
+  RESTORE_CALLER_GPRS
 el1_to_el1_interrupt_end:
   eret
 
@@ -131,35 +99,44 @@ el1_to_el1_interrupt_end:
 .GLOBAL el0_to_el1_serror_entry
 .GLOBAL el0_to_el1_exception_entry
 el0_to_el1_serror_entry:
-  SAVE_GPRS
+  SAVE_CALLER_GPRS
+  mov x0, sp // Store nk_regs*
+
   NESTABLE_EXCP_ENTRY
   mov x3, 0
   b __el0_to_el1_excp_entry_common
 el0_to_el1_exception_entry:
-  SAVE_GPRS
+  SAVE_CALLER_GPRS
+  mov x0, sp // Store nk_regs*
+
   NESTABLE_EXCP_ENTRY
   mov x3, 1
 
 __el0_to_el1_excp_entry_common:
+
   mov x2, 0
   bl route_exception
 
   DEC_EXCP_DEPTH
 
   NESTABLE_EXCP_EXIT
-  RESTORE_GPRS
+  RESTORE_CALLER_GPRS
   b .
   eret
 
 .GLOBAL el1_to_el1_serror_entry
 .GLOBAL el1_to_el1_exception_entry
 el1_to_el1_serror_entry:
-  SAVE_GPRS
+  SAVE_CALLER_GPRS
+  mov x0, sp // Store nk_regs*
+
   NESTABLE_EXCP_ENTRY
   mov x3, 0
   b __el1_to_el1_excp_entry_common
 el1_to_el1_exception_entry:
-  SAVE_GPRS
+  SAVE_CALLER_GPRS
+  mov x0, sp // Store nk_regs*
+
   NESTABLE_EXCP_ENTRY
   mov x3, 1
 
@@ -170,7 +147,7 @@ __el1_to_el1_excp_entry_common:
   DEC_EXCP_DEPTH
 
   NESTABLE_EXCP_EXIT
-  RESTORE_GPRS
+  RESTORE_CALLER_GPRS
   b .
   eret
 

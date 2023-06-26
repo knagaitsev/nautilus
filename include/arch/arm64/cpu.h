@@ -42,9 +42,9 @@ struct nk_regs {
   uint64_t x16;
   uint64_t x17;
   uint64_t x18;
+  uint64_t sp;
   uint64_t frame_ptr;
   uint64_t link_ptr;
-  uint64_t _zero; // Stack must be 16 byte aligned so we need this
 };
 
 #define pause()

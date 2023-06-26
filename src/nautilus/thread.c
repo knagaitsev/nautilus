@@ -306,6 +306,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
     #define GPR_X0_OFFSET (GPR_SAVE_SIZE - 0x70 - 0x00)
     #define GPR_LR_OFFSET (GPR_SAVE_SIZE - 0x70 - 0xa0)
     #define INTERRUPT_RETURN_OFFSET (GPR_SAVE_SIZE - 0x50)
+    #define DAIF_OFFSET (GPR_SAVE_SIZE - 0x60)
 
     if (fun) {
         thread_push(t, (uint64_t)thread_cleanup);
@@ -313,6 +314,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
         *(uint64_t*)(t->rsp-GPR_X0_OFFSET) = (uint64_t)arg;
         *(uint64_t*)(t->rsp-GPR_LR_OFFSET)  = (uint64_t)nk_thread_entry;
         *(uint64_t*)(t->rsp-INTERRUPT_RETURN_OFFSET) = (uint64_t)0;
+        *(uint64_t*)(t->rsp-DAIF_OFFSET) = (uint64_t)0b1111;
     }
 #endif
 
@@ -1379,7 +1381,4 @@ nk_tls_test (void)
 {
     nk_thread_start(tls_dummy, NULL, NULL, 1, TSTACK_DEFAULT, NULL, 1);
 }
-
-
-
 

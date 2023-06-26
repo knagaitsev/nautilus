@@ -977,7 +977,7 @@ endif
 	$(call cmd,isoimage)
 
 nautilus.asm: $(BIN_NAME)
-	$(OBJDUMP) --disassemble $< > $@
+	$(OBJDUMP) --disassemble -S $< > $@
 
 ifdef NAUT_CONFIG_USE_WLLVM
 

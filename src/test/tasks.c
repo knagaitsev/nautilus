@@ -26,7 +26,7 @@
 #include <nautilus/task.h>
 #include <nautilus/scheduler.h>
 
-#define DO_PRINT       1
+#define DO_PRINT       0
 
 #define DO_ARGS        0
 

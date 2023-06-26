@@ -3,4 +3,4 @@
 # ==========================================================================
 
 CFLAGS += -mno-outline-atomics
-LDFLAGS += --no-warn-rwx-segments # Eventually we should remove this option and figure out what the issue actually is
+LDFLAGS +=

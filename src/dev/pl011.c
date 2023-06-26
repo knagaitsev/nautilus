@@ -260,19 +260,17 @@ static int pl011_uart_dev_status(void *state) {
   int ret = 0;
   int flags;
 
-  if(!spin_try_lock_irq_save(&p->input_lock, &flags)) {
-    if(!pl011_busy(p) && !pl011_read_empty(p)) {
-      ret |= NK_CHARDEV_READABLE;
-    }
-    spin_unlock_irq_restore(&p->input_lock, flags);
+  flags = spin_lock_irq_save(&p->input_lock);
+  if(!pl011_busy(p) && !pl011_read_empty(p)) {
+    ret |= NK_CHARDEV_READABLE;
   }
+  spin_unlock_irq_restore(&p->input_lock, flags);
 
-  if(!spin_try_lock_irq_save(&p->output_lock, &flags)) {
-    if (!pl011_busy(p) && !pl011_write_full(p)) {
-      ret |= NK_CHARDEV_WRITEABLE;
-    }
-    spin_unlock_irq_restore(&p->output_lock, flags);
+  flags = spin_lock_irq_save(&p->output_lock);
+  if (!pl011_busy(p) && !pl011_write_full(p)) {
+    ret |= NK_CHARDEV_WRITEABLE;
   }
+  spin_unlock_irq_restore(&p->output_lock, flags);
 
   return ret;
 }
@@ -290,12 +288,14 @@ static int pl011_interrupt_handler(excp_entry_t *excp, ulong_t vec, void *state)
 
   if(p == NULL) {
     ERROR("null UART in interrupt handler!\n");
+    return 0;
   }
 
   uint32_t int_status = pl011_read_reg(p, UART_MASK_INT_STAT);
 
   if(p->dev == NULL) {
     ERROR("null UART Device in interrupt handler!\n");
+    return 0;
   }
 
   nk_dev_signal(p->dev);

@@ -95,8 +95,8 @@ static inline void per_cpu_sys_ctrl_reg_init(void) {
   sys_ctrl_reg_t ctrl_reg;
   LOAD_SYS_REG(SCTLR_EL1, ctrl_reg.raw);
 
-  ctrl_reg.align_check_en = 1;
-  ctrl_reg.unaligned_acc_en = 0;
+  ctrl_reg.align_check_en = 0;
+  ctrl_reg.unaligned_acc_en = 1;
 
   dump_sys_ctrl_reg(ctrl_reg);
 
