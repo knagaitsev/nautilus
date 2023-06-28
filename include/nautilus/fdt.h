@@ -2258,7 +2258,7 @@ static inline struct fdt_reserve_entry *fdt_mem_rsv_w_(void *fdt, int n)
 // }
 
 // #define reverse_bytes_32(num) ( ((num & 0xFF000000) >> 24) | ((num & 0x00FF0000) >> 8) | ((num & 0x0000FF00) << 8) | ((num & 0x000000FF) << 24) )
-
+/*
 #define bswap_32(num) ( ((num & 0xFF000000) >> 24) | ((num & 0x00FF0000) >> 8) | ((num & 0x0000FF00) << 8) | ((num & 0x000000FF) << 24) )
 #define bswap_64(x) ({ \
 	uint64_t __x = (uint64_t) x; \
@@ -2267,7 +2267,7 @@ static inline struct fdt_reserve_entry *fdt_mem_rsv_w_(void *fdt, int n)
     __x = (__x & 0x00FF00FF00FF00FF) << 8  | (__x & 0xFF00FF00FF00FF00) >> 8; \
 	__x; \
 })
-
+*/
 typedef struct fdt_reg {
 	off_t address;
 	size_t size;
@@ -2275,7 +2275,7 @@ typedef struct fdt_reg {
 
 // returns 0 on success, anything else on failure
 int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg);
-int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *reg, uint_t num);
+int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *reg, int *num);
 
 // NULL on failure (not ideal for the zero CPU)
 off_t fdt_getreg_address(const void *fdt, int offset);

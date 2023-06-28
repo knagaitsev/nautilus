@@ -79,6 +79,7 @@ menu "Platform"
           For uniprocessor environments, set this to 1
 
     config MAX_IOAPICS
+        depends on X86_64_HOST
         int "Maximum Number of IOAPICS"
         range 1 255
         default "16"
@@ -675,6 +676,7 @@ config VIRTUAL_CONSOLE_SERIAL_MIRROR_ALL
 
 config REAL_MODE_INTERFACE
    bool "Enable the Long->Real interface"
+   depends on X86_64_HOST
    default n
    help
       Allows long mode code in Nautilus to execute real-mode
@@ -874,6 +876,7 @@ menu "Garbage Collection Options"
 
     config XSAVE_SUPPORT
       bool "Allow saving of FPRs with XSAVE instructions"
+      depends on X86_64_HOST
       default true
       help
         Adds xsave instruction support to Nautilus. Processor

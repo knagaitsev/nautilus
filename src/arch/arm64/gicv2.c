@@ -24,26 +24,6 @@
 
 #define ASSERT_SIZE(type, size) _Static_assert(sizeof(type) == size, \
     "sizeof("#type") is not "#size" bytes!\n") 
-
-// Distributor Register Offsets
-#define GICD_CTLR_OFFSET 0x0
-#define GICD_TYPER_OFFSET 0x4
-#define GICD_IIDR_OFFSET 0x8
-#define GICD_SGIR_OFFSET 0xF00
-#define GICD_IGROUPR_0_OFFSET 0x80
-#define GICD_ISENABLER_0_OFFSET 0x100
-#define GICD_ICENABLER_0_OFFSET 0x180
-#define GICD_ISPENDR_0_OFFSET 0x200
-#define GICD_ICPENDR_0_OFFSET 0x280
-#define GICD_ISACTIVER_0_OFFSET 0x300
-#define GICD_ICACTIVER_0_OFFSET 0x380
-#define GICD_IPRIORITYR_0_OFFSET 0x400
-#define GICD_ITARGETSR_0_OFFSET 0x800
-#define GICD_ICFGR_0_OFFSET 0xC00
-#define GICD_NSACR_0_OFFSET 0xE00
-#define GICD_CPENDSGIR_0_OFFSET 0xF10
-#define GICD_SPENDSGIR_0_OFFSET 0xF20
-
 #define GICC_CTLR_OFFSET 0x0
 #define GICC_PMR_OFFSET 0x4
 #define GICC_BPR_OFFSET 0x8
@@ -69,7 +49,7 @@ typedef struct gic_msi_frame {
   uint64_t spi_num;
 } gic_msi_frame_t;
 
-typedef struct gic {
+typedef struct gicv2 {
 
   uint64_t dist_base;
   uint64_t cpu_base;
@@ -86,9 +66,9 @@ typedef struct gic {
 
   char *compatible_string;
 
-} gic_t;
+} gicv2_t;
 
-static gic_t __gic;
+static gicv2_t __gic;
 
 #define LOAD_GICD_REG(gic, offset) *(volatile uint32_t*)((gic).dist_base + offset)
 #define STORE_GICD_REG(gic, offset, val) (*(volatile uint32_t*)((gic).dist_base + offset)) = val
@@ -182,10 +162,6 @@ typedef union msi_type_reg {
   };
 } msi_type_reg_t;
 
-static char *gicv2_fdt_node_name_list[] = {
-        "intc",
-        "interrupt-controller"
-};
 static char *gicv2_compat_list[] = {
         "arm,arm1176jzf-devchip-gic",
 	"arm,arm11mp-gic",
@@ -204,7 +180,7 @@ static char *gicv2_compat_list[] = {
 
 int global_init_gic(uint64_t dtb) {
 
-  memset(&__gic, 0, sizeof(gic_t));
+  memset(&__gic, 0, sizeof(gicv2_t));
 
   // Find node with "interrupt-controller" property
   int offset = fdt_node_offset_by_prop_value((void*)dtb, -1, "interrupt-controller", NULL, NULL);
@@ -355,20 +331,18 @@ uint16_t gic_max_irq(void) {
   return __gic.max_irq;
 }
 
-int gic_ack_int(gic_int_info_t *info) {
+void gic_ack_int(gic_int_info_t *info) {
   gicc_int_info_reg_t info_reg;
   info_reg.raw = LOAD_GICC_REG(__gic, GICC_IAR_OFFSET);
 
   if(is_spurrious_int(info_reg.int_id)) {
     info->group = -1;
     GIC_WARN("Spurrious interrupt occurred!\n");
-    return -1;
   }
   else {
     info->group = 1;
   }
   info->int_id = info_reg.int_id;
-  return 0;
 }
 
 void gic_end_of_int(gic_int_info_t *info) {

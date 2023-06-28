@@ -53,7 +53,7 @@ typedef uint64_t nk_stack_size_t;
     
 #include <nautilus/scheduler.h>
 
-#define CPU_ANY       -1
+#define CPU_ANY       (int)-1
 
 /* common thread stack sizes */
 #define TSTACK_DEFAULT 0  // will be 4K

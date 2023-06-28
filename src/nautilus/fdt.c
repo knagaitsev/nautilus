@@ -49,6 +49,7 @@
  *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <nautilus/fdt.h>
+#include <nautilus/endian.h>
 
 int fdt_check_header(const void *fdt)
 {
@@ -276,31 +277,31 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 		parent_iter_offset = fdt_parent_offset(fdt, parent_iter_offset);
 	}
 
-	uint32_t address_cells = bswap_32(*((uint32_t *)address_cells_p));
-	uint32_t size_cells = bswap_32(*((uint32_t *)size_cells_p));
+	uint32_t address_cells = be32toh(*((uint32_t *)address_cells_p));
+	uint32_t size_cells = be32toh(*((uint32_t *)size_cells_p));
 
 	// printk("Addr: %d, size: %d\n", address_cells, size_cells);
 
 	int i = 0;
 	if (address_cells > 0) {
-		if (address_cells == 1) reg->address = bswap_32(*((uint32_t *)reg_prop));
-		if (address_cells == 2) reg->address = bswap_64(*((uint64_t *)reg_prop));
+		if (address_cells == 1) reg->address = be32toh(*((uint32_t *)reg_prop));
+		if (address_cells == 2) reg->address = be64toh(*((uint64_t *)reg_prop));
 	}
 	reg_prop += 4 * address_cells;
 	if (size_cells > 0) {
-		if (size_cells == 1) reg->size = bswap_32(*((uint32_t *)reg_prop));
-		if (size_cells == 2) reg->size = bswap_64(*((uint64_t *)reg_prop));
+		if (size_cells == 1) reg->size = be32toh(*((uint32_t *)reg_prop));
+		if (size_cells == 2) reg->size = be64toh(*((uint64_t *)reg_prop));
 	}
 
     // for (int i = 0; i < lenp / 8; i++) {
-    //     printk("%x ", bswap_64(((uint64_t *)reg_prop)[i]));
+    //     printk("%x ", be64toh(((uint64_t *)reg_prop)[i]));
     // }
     // printk("\n");
 
 	return 0;
 }
 
-int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, uint_t num) {
+int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, int *num) {
  
 	int reg_lenp = 0;
         char *reg_prop = fdt_getprop(fdt, offset, "reg", &reg_lenp);
@@ -322,34 +323,37 @@ int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, uint_t num) {
 		parent_iter_offset = fdt_parent_offset(fdt, parent_iter_offset);
 	}
 
-	uint32_t address_cells = bswap_32(*((uint32_t *)address_cells_p));
-	uint32_t size_cells = bswap_32(*((uint32_t *)size_cells_p));
+	uint32_t address_cells = be32toh(*((uint32_t *)address_cells_p));
+	uint32_t size_cells = be32toh(*((uint32_t *)size_cells_p));
 
 	// printk("Addr: %d, size: %d\n", address_cells, size_cells);
 
-	for(int i = 0; i < num; i++) {
+        int num_present = (reg_lenp) / ((4*address_cells) + (4*size_cells));
+        *num = num_present > *num ? *num : num_present; // minimum
+
+	for(int i = 0; i < *num; i++) {
 	    if (address_cells > 0) {
 		if (address_cells == 1) {
-                  regs[i].address = bswap_32(*((uint32_t *)reg_prop));
+                  regs[i].address = be32toh(*((uint32_t *)reg_prop));
                 }
 		if (address_cells == 2) {
-                  regs[i].address = bswap_64(*((uint64_t *)reg_prop));
+                  regs[i].address = be64toh(*((uint64_t *)reg_prop));
                 }
 	    }
 	    reg_prop += 4 * address_cells;
 	    if (size_cells > 0) {
 		if (size_cells == 1) {
-                  regs[i].size = bswap_32(*((uint32_t *)reg_prop));
+                  regs[i].size = be32toh(*((uint32_t *)reg_prop));
                 }
 		if (size_cells == 2) {
-                  regs[i].size = bswap_64(*((uint64_t *)reg_prop));
+                  regs[i].size = be64toh(*((uint64_t *)reg_prop));
                 }
 	    }
             reg_prop += 4 * size_cells;
         }
 
     // for (int i = 0; i < lenp / 8; i++) {
-    //     printk("%x ", bswap_64(((uint64_t *)reg_prop)[i]));
+    //     printk("%x ", be64toh(((uint64_t *)reg_prop)[i]));
     // }
     // printk("\n");
 
@@ -373,7 +377,7 @@ uint32_t *fdt_get_interrupt(const void *fdt, int offset) {
 	void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
 	uint32_t *vals = (uint32_t *)ints;
 
-	return bswap_32(vals[0]);
+	return be32toh(vals[0]);
 }
 
 int print_device(const void *fdt, int offset, int depth) {
@@ -390,7 +394,7 @@ int print_device(const void *fdt, int offset, int depth) {
 	void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
 	uint32_t *vals = (uint32_t *)ints;
 	for (int i = 0; i < lenp / 4; i++) {
-		uint32_t val = bswap_32(vals[i]);
+		uint32_t val = be32toh(vals[i]);
 		printk("\tInt: %d\n", val);
 	}
 
@@ -403,8 +407,8 @@ int print_device(const void *fdt, int offset, int depth) {
 			// lenp, context_count);
 			for (int context = 0; context < context_count; context++) {
 				int c_off = context * 2;
-				int phandle = bswap_32(vals[c_off]);
-				int nr = bswap_32(vals[c_off + 1]);
+				int phandle = be32toh(vals[c_off]);
+				int nr = be32toh(vals[c_off + 1]);
 				if (nr != 9) {
 					continue;
 				}

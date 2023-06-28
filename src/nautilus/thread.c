@@ -423,6 +423,7 @@ nk_thread_create (nk_thread_fun_t fun,
     int placement_cpu = bound_cpu<0 ? nk_sched_initial_placement() : bound_cpu;
     nk_stack_size_t required_stack_size = stack_size ? stack_size: PAGE_SIZE;
 
+
     // First try to get a thread from the scheduler's pools
     if ((t=nk_sched_reanimate(required_stack_size,
 			      placement_cpu))) {
@@ -569,7 +570,6 @@ nk_thread_start (nk_thread_fun_t fun,
     nk_thread_id_t newtid   = NULL;
     nk_thread_t * newthread = NULL;
 
-
     THREAD_DEBUG("Start thread, caller %p\n", __builtin_return_address(0));
 
     if (nk_thread_create(fun, input, output, is_detached, stack_size, &newtid, bound_cpu) < 0) {
@@ -590,7 +590,7 @@ int nk_thread_run(nk_thread_id_t t)
 {
   nk_thread_t * newthread = (nk_thread_t*)t;
 
-  THREAD_DEBUG("Trying to execute thread %p (tid %lu)", newthread,newthread->tid);
+  THREAD_DEBUG("Trying to execute thread %p (tid %lu)\n", newthread,newthread->tid);
 
   THREAD_DEBUG("RUN: Function: %llu\n", newthread->fun);
   THREAD_DEBUG("RUN: Bound_CPU: %llu\n", newthread->bound_cpu);

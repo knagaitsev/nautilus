@@ -68,12 +68,12 @@ int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, u
 
 // Requires mm_boot to be initialized
 int excp_init(void) {
-  irq_handler_desc_table = mm_boot_alloc(sizeof(irq_handler_desc_t) * gic_max_irq());
+  irq_handler_desc_table = malloc(sizeof(irq_handler_desc_t) * gic_max_irq());
   for(uint_t i = 0; i < gic_max_irq(); i++) {
     irq_handler_desc_table[i].handler = unhandled_irq_handler;
     irq_handler_desc_table[i].state = NULL;
   }
-  excp_handler_desc_table = mm_boot_alloc(sizeof(excp_handler_desc_t) * (1<<EXCP_SYNDROME_BITS));
+  excp_handler_desc_table = malloc(sizeof(excp_handler_desc_t) * (1<<EXCP_SYNDROME_BITS));
   for(uint_t i = 0; i < (1<<EXCP_SYNDROME_BITS); i++) {
     excp_handler_desc_table[i].handler = unhandled_excp_handler;
     excp_handler_desc_table[i].state = NULL;
@@ -106,7 +106,9 @@ void *excp_remove_excp_handler(uint32_t syndrome) {
 void *route_interrupt(struct nk_regs *regs, struct excp_entry_info *excp_info, uint8_t el) {
 
   gic_int_info_t int_info;
-  if(gic_ack_int(&int_info)) {
+  gic_ack_int(&int_info);
+
+  if(int_info.group < 0) {
     // This was spurrious
     return NULL;
   }

@@ -797,8 +797,8 @@ static int vc_print_specific(struct nk_virtual_console *vc, char *s)
     BUF_LOCK_CONF;
     BUF_LOCK(vc);
     _vc_print_specific(vc,s);
-    BUF_UNLOCK(vc);
     chardev_consoles_print(vc,s);
+    BUF_UNLOCK(vc);
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_SERIAL_MIRROR_ALL
     serial_write(s);
 #endif
@@ -818,8 +818,8 @@ int nk_vc_print(char *s)
       BUF_LOCK_CONF;
       BUF_LOCK(vc);
       _vc_print_specific(vc,s);
-      BUF_UNLOCK(vc);
       chardev_consoles_print(vc, s);
+      BUF_UNLOCK(vc);
     }
   } else {
 #ifdef NAUT_CONFIG_X86_64_HOST
@@ -893,8 +893,8 @@ int nk_vc_log(char *fmt, ...)
     BUF_LOCK_CONF;
     BUF_LOCK(log_vc);
     _vc_print_specific(log_vc, buf);
-    BUF_UNLOCK(log_vc);
     chardev_consoles_print(log_vc, buf);
+    BUF_UNLOCK(log_vc);
   }
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_SERIAL_MIRROR
   serial_write(buf);

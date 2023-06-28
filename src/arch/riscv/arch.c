@@ -10,9 +10,9 @@ void arch_irq_enable(int irq) { plic_enable(irq, 1); }
 void arch_irq_disable(int irq) { 
     printk("im disabling irq=%d\n", irq);
     plic_disable(irq); }
-void arch_irq_install(int irq, int (*handler)(excp_entry_t *, excp_vec_t, void *)) {
-    printk("registering int handler! irq=%d, handler=%p\n", irq, handler);
-    register_int_handler(irq, handler);
+void arch_irq_install(int irq, int (*handler)(excp_entry_t *, excp_vec_t, void *), void *state) {
+    printk("registering int handler! irq=%d, handler=%p, state=%p\n", irq, handler);
+    register_int_handler(irq, handler, state);
     arch_irq_enable(irq);
 }
 void arch_irq_uninstall(int irq) { /* TODO */ }

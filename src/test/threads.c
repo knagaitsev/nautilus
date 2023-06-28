@@ -27,7 +27,8 @@
 #include <nautilus/shell.h>
 #include <nautilus/vc.h>
 
-#define DO_PRINT       0
+#define DO_PRINT               1
+#define DO_PRINT_PER_THREAD    0
 
 #if DO_PRINT
 #define PRINT(fmt, args...)					\
@@ -81,7 +82,9 @@ static void thread_func(void *in, void **out)
 
     get_cur_thread()->vc = get_cur_thread()->parent->vc;
 
+#if DO_PRINT_PER_THREAD
     PRINT("Hello from thread tid %lu - %d pass %d\n", t->tid, arg->thread, arg->pass);
+#endif
 
     free(arg);
 }
@@ -90,32 +93,35 @@ static int test_create_join(int nump, int numt)
 {
     int i,j;
 
-    nk_vc_printf("Starting on threads create/join stress test (%d passes, %d threads)\n",nump,numt);
+    PRINT("Starting on threads create/join stress test (%d passes, %d threads)\n",nump,numt);
     
     for (i=0;i<nump;i++) {
-	nk_vc_printf("Starting to launch %d threads on pass %d\n",numt,i);
+	PRINT("Starting to launch %d threads on pass %d\n",numt,i);
 	for (j=0;j<numt;j++) { 
 	    struct test_arg *arg = (struct test_arg *) malloc(sizeof(struct test_arg));
 	    arg->pass=i;
 	    arg->thread=j;
-	    if (nk_thread_start(thread_func,
+	    int res = nk_thread_start(thread_func,
 				arg,
 				0,
 				0,
 				PAGE_SIZE_4KB,
 				NULL,
-				-1)) { 
-		nk_vc_printf("Failed to launch thread %d on pass %d\n", j,i);
-		nk_join_all_children(0);
+				(int)-1);
+            if(res) { 
+		PRINT("ERROR: Failed to launch thread %d on pass %d - nk_thread_start returned %d\n", j,i,res);
+		if(nk_join_all_children(0)) {
+                  PRINT("ERROR: Failed to rejoin thread's children on error exit!\n");
+                }
 		return -1;
 	    }
 	}
-	nk_vc_printf("Launched %d threads in pass %d\n", j, i);
+	PRINT("Launched %d threads in pass %d\n", j, i);
 	if (nk_join_all_children(0)) {
-	    nk_vc_printf("Failed to join threads on pass %d\n",i);
+	    PRINT("ERROR: Failed to join threads on pass %d\n",i);
 	    return -1;
 	}
-	nk_vc_printf("Joined %d threads in pass %d\n", j, i);
+	PRINT("Joined %d threads in pass %d\n", j, i);
 	nk_sched_reap(1); // clean up unconditionally
     }
     PRINT("Done with thread create/join stress test (SUCCESS)\n");
@@ -181,7 +187,9 @@ static void _test_recursive_create_join(void *in, void **out)
 	get_cur_thread()->vc = get_cur_thread()->parent->vc;
     }
 
+#if DO_PRINT_PER_THREAD
     PRINT("Hello from tid %lu at depth %lu\n", get_cur_thread()->tid, depth);
+#endif
 
     if (depth==DEPTH) { 
 	return;
@@ -210,9 +218,13 @@ static void _test_recursive_create_join(void *in, void **out)
 	    nk_join_all_children(0);
 	    return ;
 	}
+#if DO_PRINT_PER_THREAD
 	PRINT("Thread %lu launched left and right threads at depth %lu\n",get_cur_thread()->tid, depth);
+#endif
 	nk_join_all_children(0);
+#if DO_PRINT_PER_THREAD
 	PRINT("Thread %lu joined with left and right threads at depth %lu\n",get_cur_thread()->tid,depth);
+#endif
 	return ;
     }
 }

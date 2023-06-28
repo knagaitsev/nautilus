@@ -3,8 +3,11 @@
 
 #include<nautilus/nautilus.h>
 #include<nautilus/fdt.h>
+#include<nautilus/endian.h>
 
 #include<arch/arm64/sys_reg.h>
+
+#include<lib/bitops.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
 #undef DEBUG_PRINT
@@ -16,10 +19,8 @@
 #define GIC_ERROR(fmt, args...) ERROR_PRINT("[GICv3] " fmt, ##args)
 #define GIC_WARN(fmt, args...) WARN_PRINT("[GICv3] " fmt, ##args)
 
-#define GIC_MALLOC_MEM(size) mm_boot_alloc(size)
-
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
-  #define INVALID_INT_NUM(gic, num) (num >= (gic).max_num_ints)
+  #define INVALID_INT_NUM(gic, num) (num >= (gic).max_int_num)
 #else
   #define INVALID_INT_NUM(gic, num) 0
 #endif
@@ -27,58 +28,170 @@
 #define ASSERT_SIZE(type, size) _Static_assert(sizeof(type) == size, \
     "sizeof("#type") is not "#size" bytes!\n") 
 
-// Distributor Register Offsets
-#define GICD_CTLR_OFFSET 0x0
-#define GICD_TYPER_OFFSET 0x4
-#define GICD_IIDR_OFFSET 0x8
-#define GICD_SGIR_OFFSET 0xF00
-#define GICD_IGROUPR_0_OFFSET 0x80
-#define GICD_ISENABLER_0_OFFSET 0x100
-#define GICD_ICENABLER_0_OFFSET 0x180
-#define GICD_ISPENDR_0_OFFSET 0x200
-#define GICD_ICPENDR_0_OFFSET 0x280
-#define GICD_ISACTIVER_0_OFFSET 0x300
-#define GICD_ICACTIVER_0_OFFSET 0x380
-#define GICD_IPRIORITYR_0_OFFSET 0x400
-#define GICD_ITARGETSR_0_OFFSET 0x800
-#define GICD_ICFGR_0_OFFSET 0xC00
-#define GICD_NSACR_0_OFFSET 0xE00
-#define GICD_CPENDSGIR_0_OFFSET 0xF10
-#define GICD_SPENDSGIR_0_OFFSET 0xF20
+#define GICR_DEFAULT_STRIDE 0x20000
+
+#define GICR_SGI_BASE 0x10000
 
 #define GICR_CTLR_OFFSET 0x0
 #define GICR_PROPBASE_OFFSET 0x70
-#define GICR_ISENABLER_0_OFFSET 0x100
-#define GICR_ICENABLER_0_OFFSET 0x180
-#define GICR_ISPENDR_0_OFFSET 0x200
-#define GICR_ICPENDR_0_OFFSET 0x280
-#define GICR_ISACTIVER_0_OFFSET 0x300
+#define GICR_ISENABLER_0_OFFSET (GICR_SGI_BASE+0x100)
+#define GICR_ICENABLER_0_OFFSET (GICR_SGI_BASE+0x180)
+#define GICR_ISPENDR_0_OFFSET (GICR_SGI_BASE+0x200)
+#define GICR_ICPENDR_0_OFFSET (GICR_SGI_BASE+0x280)
+#define GICR_ISACTIVER_0_OFFSET (GICR_SGI_BASE+0x300)
 
-typedef struct gic {
+typedef struct gicv3 {
+
+  // Required
   uint64_t dist_base;
-  uint64_t redist_base;
-  uint64_t max_num_ints;
-  uint8_t num_sec_states;
-} gic_t;
+  uint64_t dist_size;
 
-static gic_t __gic;
+  uint_t num_redist_regions;
+  uint64_t redist_stride;
+  uint64_t *redist_bases;
+  uint64_t *redist_sizes;
 
-#define LOAD_GICD_REG(gic, offset) *(volatile uint32_t*)((gic).dist_base + offset)
-#define STORE_GICD_REG(gic, offset, val) (*(volatile uint32_t*)((gic).dist_base + offset)) = val
-#define GICD_BITMAP_SET(gic, num, offset) \
-  *(((volatile uint32_t*)((gic).dist_base + offset))+(num >> 5)) |= (1<<(num&(0x1F)))
-#define GICD_BITMAP_READ(gic, num, offset) \
-  (!!(*(((volatile uint32_t*)((gic).dist_base + offset))+(num >> 5)) & (1<<(num&(0x1F)))))
+  uint32_t num_redists;
 
-#define LOAD_GICR_REG(gic, offset) *(volatile uint32_t*)((gic).redist_base + offset)
-#define STORE_GICR_REG(gic, offset, val) (*(volatile uint32_t*)((gic).redist_base + offset)) = val
-#define GICR_BITMAP_SET(gic, num, offset) \
-  *(((volatile uint32_t*)((gic).redist_base + offset))+(num >> 5)) |= (1<<(num&(0x1F)))
-#define GICR_BITMAP_READ(gic, num, offset) \
-  (!!(*(((volatile uint32_t*)((gic).redist_base + offset))+(num >> 5)) & (1<<(num&(0x1F)))))
+  // Optional
+  uint64_t cpu_base;
+  uint64_t cpu_size;
+  uint64_t hyper_base;
+  uint64_t hyper_size;
+  uint64_t virt_base;
+  uint64_t virt_size;
+  
+  const char *compatible_string;
 
+  uint64_t max_int_num;
+  uint_t num_security_states;
 
+} gicv3_t;
 
+static gicv3_t __gic;
+
+static inline uint32_t gicr_read32(gicv3_t *gic, uint64_t offset, uint32_t cpu) {
+  uint32_t region = (cpu >> 5); // 32 CPU's per region
+  if(cpu >= gic->num_redists || region >= gic->num_redist_regions) {
+    GIC_ERROR("Trying to access CPU redistributor which does not exist: cpu = %u, region = %u\n", cpu, region);
+    return -1;
+  } else {
+    volatile uint32_t *ptr = (volatile uint32_t *)(gic->redist_bases[region] + (cpu * gic->redist_stride) + offset);
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+    if(((void*)ptr) < (void*)(gic->redist_bases[region]) || ((void*)ptr) >= (void*)(gic->redist_bases[region] + gic->redist_sizes[region])) {
+      GIC_ERROR("Assertion Failed: Trying to access GIC redistributor outside of the MMIO region bounds!\n");
+      return -1;
+    }
+#endif
+    return *ptr;
+  }
+}
+
+static inline int gicr_write32(uint32_t val, gicv3_t *gic, uint64_t offset, uint32_t cpu) {
+  uint32_t region = (cpu >> 5);
+  if(cpu >= gic->num_redists || region >= gic->num_redist_regions) {
+    GIC_ERROR("Trying to write to CPU redistributor which does not exist: cpu = %u, region = %u\n", cpu, region);
+    return -1;
+  } else {
+    volatile uint32_t *ptr = (volatile uint32_t *)(gic->redist_bases[region] + (cpu * gic->redist_stride) + offset);
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+    if(((void*)ptr) < (void*)(gic->redist_bases[region]) || ((void*)ptr) >= (void*)(gic->redist_bases[region] + gic->redist_sizes[region])) {
+      GIC_ERROR("Assertion Failed: Trying to write to GIC redistributor outside of the MMIO region bounds!\n");
+      return -1;
+    }
+#endif
+    *ptr = val;
+    return 0;
+  }
+}
+
+static inline uint64_t gicr_read64(gicv3_t *gic, uint64_t offset, uint32_t cpu) {
+  uint32_t region = (cpu >> 5); // 32 CPU's per region
+  if(cpu >= gic->num_redists || region >= gic->num_redist_regions) {
+    GIC_ERROR("Trying to access CPU redistributor which does not exist: cpu = %u, region = %u\n", cpu, region);
+    return -1;
+  } else {
+    volatile uint64_t *ptr = (volatile uint64_t *)(gic->redist_bases[region] + (cpu * gic->redist_stride) + offset);
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+    if(((void*)ptr) < (void*)(gic->redist_bases[region]) || ((void*)ptr) >= (void*)(gic->redist_bases[region] + gic->redist_sizes[region])) {
+      GIC_ERROR("Assertion Failed: Trying to access GIC redistributor outside of the MMIO region bounds!\n");
+      return -1;
+    }
+#endif
+    return *ptr;
+  }
+}
+
+static inline int gicr_write64(uint64_t val, gicv3_t *gic, uint64_t offset, uint32_t cpu) {
+  uint32_t region = (cpu >> 5);
+  if(cpu >= gic->num_redists || region >= gic->num_redist_regions) {
+    GIC_ERROR("Trying to write to CPU redistributor which does not exist: cpu = %u, region = %u\n", cpu, region);
+    return -1;
+  } else {
+    volatile uint64_t *ptr = (volatile uint64_t *)(gic->redist_bases[region] + (cpu * gic->redist_stride) + offset);
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+    if(((void*)ptr) < (void*)(gic->redist_bases[region]) || ((void*)ptr) >= (void*)(gic->redist_bases[region] + gic->redist_sizes[region])) {
+      GIC_ERROR("Assertion Failed: Trying to write to GIC redistributor outside of the MMIO region bounds!\n");
+      return -1;
+    }
+#endif
+    *ptr = val;
+    return 0;
+  }
+}
+
+static inline int gicr_bitmap_set(uint32_t nr, gicv3_t *gic, uint64_t reg, uint32_t cpu) {
+  uint32_t region = (cpu >> 5);
+  if(cpu >= gic->num_redists || region >= gic->num_redist_regions) {
+    GIC_ERROR("Trying to write to CPU redistributor which does not exist: cpu = %u, region = %u\n", cpu, region);
+    return -1;
+  } else {
+    volatile uint64_t *ptr = (volatile uint64_t *)(gic->redist_bases[region] + (cpu * gic->redist_stride) + reg);
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+    if(((void*)ptr) < (void*)(gic->redist_bases[region]) || ((void*)ptr) >= (void*)(gic->redist_bases[region] + gic->redist_sizes[region])) {
+      GIC_ERROR("Assertion Failed: Trying to write to GIC redistributor outside of the MMIO region bounds!\n");
+      return -1;
+    }
+#endif
+    set_bit(nr, ptr);
+    return 0;
+  }
+}
+
+static inline int gicr_bitmap_clear(uint32_t nr, gicv3_t *gic, uint64_t reg, uint32_t cpu) {
+  uint32_t region = (cpu >> 5);
+  if(cpu >= gic->num_redists || region >= gic->num_redist_regions) {
+    GIC_ERROR("Trying to write to CPU redistributor which does not exist: cpu = %u, region = %u\n", cpu, region);
+    return -1;
+  } else {
+    volatile uint64_t *ptr = (volatile uint64_t *)(gic->redist_bases[region] + (cpu * gic->redist_stride) + reg);
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+    if(((void*)ptr) < (void*)(gic->redist_bases[region]) || ((void*)ptr) >= (void*)(gic->redist_bases[region] + gic->redist_sizes[region])) {
+      GIC_ERROR("Assertion Failed: Trying to write to GIC redistributor outside of the MMIO region bounds!\n");
+      return -1;
+    }
+#endif
+    clear_bit(nr, ptr);
+    return 0;
+  }
+}
+
+static inline int gicr_bitmap_read(uint32_t nr, gicv3_t *gic, uint64_t reg, uint32_t cpu) {
+  uint32_t region = (cpu >> 5);
+  if(cpu >= gic->num_redists || region >= gic->num_redist_regions) {
+    GIC_ERROR("Trying to write to CPU redistributor which does not exist: cpu = %u, region = %u\n", cpu, region);
+    return -1;
+  } else {
+    volatile uint64_t *ptr = (volatile uint64_t *)(gic->redist_bases[region] + (cpu * gic->redist_stride) + reg);
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+    if(((void*)ptr) < (void*)(gic->redist_bases[region]) || ((void*)ptr) >= (void*)(gic->redist_bases[region] + gic->redist_sizes[region])) {
+      GIC_ERROR("Assertion Failed: Trying to write to GIC redistributor outside of the MMIO region bounds!\n");
+      return -1;
+    }
+#endif
+    return test_bit(nr, ptr);
+  }
+}
 typedef union gicd_ctl_reg {
   uint32_t raw;
   struct {
@@ -166,6 +279,13 @@ typedef union gicr_ctl_reg {
 } gicr_ctl_reg_t;
 ASSERT_SIZE(gicr_ctl_reg_t, 8);
 
+typedef union gicr_type_reg {
+  uint64_t raw;
+  struct {
+  };
+} gicr_type_reg_t;
+ASSERT_SIZE(gicr_type_reg_t, 8);
+
 typedef union gicr_base_reg {
   uint64_t raw;
   struct {
@@ -187,44 +307,138 @@ static inline void gicd_wait_for_write(void) {
     gicd_ctl_reg.raw = LOAD_GICD_REG(__gic, GICD_CTLR_OFFSET);
   } while(gicd_ctl_reg.common.write_pending);
 }
-static inline void gicr_wait_for_write(void) {
+static inline void curr_cpu_gicr_wait_for_write(void) {
   gicr_ctl_reg_t gicr_ctl_reg;
   do {
-    gicr_ctl_reg.raw = LOAD_GICR_REG(__gic, GICR_CTLR_OFFSET);
+    gicr_ctl_reg.raw = gicr_read64(&__gic, GICR_CTLR_OFFSET, my_cpu_id());
   } while(gicr_ctl_reg.upstream_write_pending || gicr_ctl_reg.write_pending);
+}
+
+static const char *gicv3_compat_list[] = {
+  "arm,gic-v3",
+  "qcom,msm8996-gic-v3"
+};
+
+static int dtb_find_gicv3(gicv3_t *gic, uint64_t dtb) {
+
+  int offset = fdt_node_offset_by_prop_value((void*)dtb, -1, "interrupt-controller", NULL, NULL);
+
+  while(offset >= 0) { 
+    int compat_result = 1;
+    for(uint_t i = 0; i < sizeof(gicv3_compat_list)/sizeof(const char*); i++) {
+      compat_result &= fdt_node_check_compatible((void*)dtb, offset, gicv3_compat_list[i]);
+      if(!compat_result) {
+        gic->compatible_string = gicv3_compat_list[i];
+        GIC_DEBUG("Found compatible GICv3 controller in device tree: %s\n", gic->compatible_string);
+        break;
+      }
+    }
+    if(compat_result) {
+      GIC_DEBUG("Found interrupt controller found in the device tree which is not compatible with GICv3!\n");
+    } else {
+      break;
+    }
+    offset = fdt_node_offset_by_prop_value((void*)dtb, offset, "interrupt-controller", NULL, NULL);
+  }
+
+  if(offset < 0) {
+    GIC_ERROR("Could not find a compatible interrupt controller in the device tree!\n");
+    return -1;
+  }
+
+  int lenp = 0;
+  void *gicr_regions_p = fdt_getprop(dtb, offset, "#redistributor-regions", &lenp);
+  if(gicr_regions_p != NULL) {
+    if(lenp == 4) {
+        gic->num_redist_regions = be32toh(*(uint32_t *)gicr_regions_p);
+    } else if(lenp == 8) {
+        gic->num_redist_regions = be64toh(*(uint32_t *)gicr_regions_p);
+    }
+  } else {
+    gic->num_redist_regions = 1;
+  }
+
+  gic->redist_bases = malloc(sizeof(typeof(*gic->redist_bases)) * gic->num_redist_regions);
+  gic->redist_sizes = malloc(sizeof(typeof(*gic->redist_sizes)) * gic->num_redist_regions);
+
+  void *gicr_stride_p = fdt_getprop(dtb, offset, "#redistributor-stride", &lenp);
+  if(gicr_regions_p != NULL) {
+    if(lenp == 4) {
+        gic->redist_stride = be32toh(*(uint32_t *)gicr_stride_p);
+    } else if(lenp == 8) {
+        gic->redist_stride = be64toh(*(uint64_t *)gicr_stride_p);
+    }
+  } else {
+    gic->redist_stride = GICR_DEFAULT_STRIDE;
+  }
+
+  int num_read = 4 + gic->num_redist_regions;
+  fdt_reg_t reg[num_read];
+
+  int getreg_result = fdt_getreg_array((void*)dtb, offset, reg, &num_read);
+
+  if(!getreg_result && num_read >= 1+gic->num_redist_regions) {
+
+      // Required MMIO Regions
+      for(uint_t i = 0; i < gic->num_redist_regions; i++) {
+        gic->redist_bases[i] = reg[1+i].address;
+        gic->redist_sizes[i] = reg[1+i].size;
+        GIC_PRINT("GICR_BASE_%u = %p, GICR_SIZE_%u = 0x%x\n", i, gic->redist_bases[i], i, gic->redist_sizes[i]);
+      }
+      gic->dist_base = reg[0].address;
+      gic->dist_size = reg[0].size;
+      GIC_PRINT("GICD_BASE = %p, GICD_SIZE = 0x%x\n", gic->dist_base, gic->dist_size);
+
+      // Optional extra MMIO regions
+      if(num_read >= 2+gic->num_redist_regions) {
+        gic->cpu_base = reg[num_read-3].address;
+        gic->cpu_size = reg[num_read-3].size;
+        GIC_PRINT("GICC_BASE = %p, GICC_SIZE = 0x%x\n", gic->cpu_base, gic->cpu_size);
+      }
+      if(num_read >= 3+gic->num_redist_regions) {
+        gic->hyper_base = reg[num_read-2].address;
+        gic->hyper_size = reg[num_read-2].size;
+        GIC_PRINT("GICH_BASE = %p, GICH_SIZE = 0x%x\n", gic->hyper_base, gic->hyper_size);
+      } 
+      if(num_read >= 4+gic->num_redist_regions) {
+        gic->virt_base = reg[num_read-1].address;
+        gic->virt_size = reg[num_read-1].size;
+        GIC_PRINT("GICV_BASE = %p, GICV_SIZE = 0x%x\n", gic->virt_base, gic->virt_size);
+      }
+      if(num_read > 4+gic->num_redist_regions) {
+        GIC_WARN("Read more REG entries in device tree than expected! num_read = %d\n", num_read);
+      }
+  } else {
+    GIC_ERROR("GICv3 found in device tree has invalid or missing REG property! num_read = %d, gic->num_redist_regions = %u\n", num_read, gic->num_redist_regions);
+    return -1;
+  }
+
+  return 0;
 }
 
 int global_init_gic(uint64_t dtb) {
 
-  memset(&__gic, 0, sizeof(gic_t));
+  memset(&__gic, 0, sizeof(gicv3_t));
 
-  int offset = fdt_subnode_offset_namelen((void*)dtb, 0, "intc", 4);
-
-  int compat_result = fdt_node_check_compatible((void*)dtb, offset, "arm,gic-v3");
-  if(compat_result) {
-    GIC_ERROR("Interrupt controller found in the device tree is not compatible with GICv3!\n");
-    panic("Interrupt controller found in the device tree is not compatible with GICv3!\n");
+  // Offset should now point to the GICv3 entry in the device tree
+  if(dtb_find_gicv3(&__gic, dtb)) {
+    GIC_ERROR("Could not find GICv3 in device tree: global initialization failed!\n");
+    return -1;
   }
 
-  fdt_reg_t reg[2];
-  int getreg_result = fdt_getreg_array((void*)dtb, offset, reg, 2);
-
-  if(!getreg_result) {
-     __gic.dist_base = reg[0].address;
-     __gic.redist_base = reg[1].address;
-    GIC_PRINT("Found GICv3 in the device tree: GICD_BASE = 0x%x GICR_BASE = 0x%x\n", __gic.dist_base, __gic.redist_base);
-  } else {
-    GIC_ERROR("Could not find an interrupt controller in the device tree!\n");
-    panic("Could not find an interrupt controller in the device tree!\n");
-  }
+  // There are better ways to do this but if there isn't exactly 1 redistributor
+  // per CPU it's not going to work anyways
+  extern struct naut_info nautilus_info;
+  __gic.num_redists = nautilus_info.sys.num_cpus;
 
   gicd_type_reg_t gicd_type_reg;
   gicd_type_reg.raw = LOAD_GICD_REG(__gic, GICD_TYPER_OFFSET);
-  __gic.max_num_ints = (gicd_type_reg.it_lines_num + 1) << 6;
-  __gic.num_sec_states = gicd_type_reg.security_ext_impl ? 2 : 1;
-  GIC_PRINT("max_num_ints = %u\n", __gic.max_num_ints);
-  GIC_PRINT("num_sec_states = %u\n", __gic.num_sec_states);
+  __gic.max_int_num = (gicd_type_reg.it_lines_num + 1) << 6;
+  __gic.num_security_states = gicd_type_reg.security_ext_impl ? 2 : 1;
+  GIC_PRINT("max_int_num = %u\n", __gic.max_int_num);
+  GIC_PRINT("num_security_states = %u\n", __gic.num_security_states);
 
+  /*
   uint64_t gicr_prop_mem_bytes = (1<<(gicd_type_reg.int_id_bits)) - 8192;
   void *allocated_propbase = GIC_MALLOC_MEM(gicr_prop_mem_bytes);
   if(!allocated_propbase) {
@@ -239,10 +453,11 @@ int global_init_gic(uint64_t dtb) {
   propbase.paddr = allocated_propbase;
   STORE_GICR_REG(__gic, GICR_PROPBASE_OFFSET, propbase.raw);
 
+  */
   gicd_ctl_reg_t ctl;
   ctl.raw = LOAD_GICD_REG(__gic, GICD_CTLR_OFFSET);
   
-  switch(__gic.num_sec_states) {
+  switch(__gic.num_security_states) {
     case 1:
 
       GIC_DEBUG("Configuring Distributor for Single Security State System\n");
@@ -291,39 +506,44 @@ int global_init_gic(uint64_t dtb) {
       break;
 
     default:
-      GIC_ERROR("Invalid number of security states for GICv3: %u!\n", __gic.num_sec_states);
+      GIC_ERROR("Invalid number of security states for GICv3: %u!\n", __gic.num_security_states);
       return -1;
   }
 
+  gic_dump_state();
   GIC_PRINT("inited globally\n");
 
   return 0;
 }
 
 int per_cpu_init_gic(void) {
-
+/*
   uint32_t gicr_wake;
   gicr_wake = LOAD_GICR_REG(__gic, GICR_WAKER_OFFSET);
-  if(gicr_wake & 0b10) {
+  if(!(gicr_wake & 0b10)) {
     GIC_DEBUG("Processor's Redistributor thought it was sleeping, Waking...\n");
     gicr_wake |= 0b10;
-    STORE_GICR_REG(__gic, GICR_WAKER_OFFSET);
+    STORE_GICR_REG(__gic, GICR_WAKER_OFFSET, gicr_wake);
   }
   do {
     // Wait for the children to be marked as awake
     gicr_wake = LOAD_GICR_REG(__gic, GICR_WAKER_OFFSET);
   } while(gicr_wake & 0b100);
   GIC_DEBUG("Redistributor is aware the processor is awake.\n");
+*/
 
 
   uint64_t icc_sre;
   LOAD_SYS_REG(ICC_SRE_EL1, icc_sre);
-  icc_sre |= 1;
+  icc_sre |= 1; // Enable ICC Register Access
   STORE_SYS_REG(ICC_SRE_EL1, icc_sre);
+
+  // Being safe before we access other registers
+  asm volatile ("isb");
 
   icc_ctl_reg_t ctl_reg;
   LOAD_SYS_REG(ICC_CTLR_EL1, ctl_reg.raw);
-  ctl_reg.multistep_eoi = 0;
+  ctl_reg.multistep_eoi = 0; // EOI Priority Drop = Deactivation
   STORE_SYS_REG(ICC_CTLR_EL1, ctl_reg.raw);
 
   uint64_t icc_pmr = 0xFF;
@@ -372,10 +592,20 @@ void gic_end_of_int(gic_int_info_t *info) {
   }
 }
 
+uint16_t gic_max_irq(void) {
+  return __gic.max_int_num;
+}
+
+uint32_t gic_num_msi_irq(void) {
+  return 0;
+}
+uint32_t gic_base_msi_irq(void) {
+  return 0;
+}
+
 int gic_enable_int(uint_t irq) {
   if(irq < 32) {
-    //It's either an SGI or PPI
-    GICR_BITMAP_SET(__gic, irq, GICR_ISENABLER_0_OFFSET);
+    gicr_bitmap_set(irq, &__gic, GICR_ISENABLER_0_OFFSET, my_cpu_id());
   } else {
     GICD_BITMAP_SET(__gic, irq, GICD_ISENABLER_0_OFFSET);
   }
@@ -384,7 +614,7 @@ int gic_enable_int(uint_t irq) {
 
 int gic_disable_int(uint_t irq) {
   if(irq < 32) {
-    GICR_BITMAP_SET(__gic, irq, GICR_ICENABLER_0_OFFSET);
+    gicr_bitmap_set(irq, &__gic, GICR_ICENABLER_0_OFFSET, my_cpu_id());
   } else {
     GICD_BITMAP_SET(__gic, irq, GICD_ICENABLER_0_OFFSET);
   }
@@ -392,7 +622,7 @@ int gic_disable_int(uint_t irq) {
 }
 int gic_int_enabled(uint_t irq) {
   if(irq < 32) {
-    return GICR_BITMAP_READ(__gic, irq, GICR_ISENABLER_0_OFFSET);
+    return gicr_bitmap_read(irq, &__gic, GICR_ISENABLER_0_OFFSET, my_cpu_id());
   } else {
     return GICD_BITMAP_READ(__gic, irq, GICD_ISENABLER_0_OFFSET);
   }
@@ -400,23 +630,28 @@ int gic_int_enabled(uint_t irq) {
 
 int gic_clear_int_pending(uint_t irq) {
   if(irq < 32) {
-    GICR_BITMAP_SET(__gic, irq, GICR_ICPENDR_0_OFFSET);
+    gicr_bitmap_set(irq, &__gic, GICR_ICPENDR_0_OFFSET, my_cpu_id());
   } else {
     GICD_BITMAP_SET(__gic, irq, GICD_ICPENDR_0_OFFSET);
   }
   return 0;
 }
-int gic_int_pending(uint_t irq) {
+
+static int gic_int_pending(uint_t irq) {
   if(irq < 32) {
-    return GICR_BITMAP_READ(__gic, irq, GICR_ISPENDR_0_OFFSET);
+    return gicr_bitmap_read(irq, &__gic, GICR_ISPENDR_0_OFFSET, my_cpu_id());
   } else {
     return GICD_BITMAP_READ(__gic, irq, GICD_ISPENDR_0_OFFSET);
   }
 }
 
-int gic_int_active(uint_t irq) {
+void gic_set_target_all(uint_t irq) {
+  // TODO
+}
+
+static int gic_int_active(uint_t irq) {
   if(irq < 32) {
-    return GICR_BITMAP_READ(__gic, irq, GICR_ISACTIVER_0_OFFSET);
+    return gicr_bitmap_read(irq, &__gic, GICR_ISACTIVER_0_OFFSET, my_cpu_id());
   }
   else {
     return GICD_BITMAP_READ(__gic, irq, GICD_ISACTIVER_0_OFFSET);
@@ -427,8 +662,8 @@ int gic_int_active(uint_t irq) {
 
 void gic_dump_state(void) {
 
-  GIC_PRINT("Maximum Number of Interrupts = %u (Not Counting LPI's)\n", __gic.max_num_ints);
-  GIC_PRINT("Number of Security States = %u\n", __gic.num_sec_states);
+  GIC_PRINT("Maximum Number of Interrupts = %u (Not Counting LPI's)\n", __gic.max_int_num);
+  GIC_PRINT("Number of Security States = %u\n", __gic.num_security_states);
 
   gicd_ctl_reg_t ctl_reg;
   ctl_reg.raw = LOAD_GICD_REG(__gic, GICD_CTLR_OFFSET);
@@ -436,7 +671,7 @@ void gic_dump_state(void) {
   GIC_PRINT("\traw = 0x%08x\n", ctl_reg.raw);
   GIC_PRINT("\twrite pending = %u\n", ctl_reg.common.write_pending);
 
-  switch(__gic.num_sec_states) {
+  switch(__gic.num_security_states) {
     case 1:
       break;
     case 2:
@@ -460,8 +695,6 @@ void gic_dump_state(void) {
   for(uint_t i = 32; i < 32; i++) {
     if(gic_int_enabled(i)) {
       GIC_PRINT("\tINTERRUPT %u: ENABLED\n", i);
-    } else {
- //     GIC_PRINT("\tINTERRUPT %u: DISABLED\n", i);
     }
   }
 
@@ -469,8 +702,6 @@ void gic_dump_state(void) {
   for(uint_t i = 0; i < 32; i++) {
     if(gic_int_pending(i)) {
       GIC_PRINT("\tINTERRUPT %u: PENDING\n", i);
-    } else {
- //     GIC_PRINT("\tINTERRUPT %u: NOT PENDING\n", i);
     }
   }
 
@@ -478,35 +709,27 @@ void gic_dump_state(void) {
   for(uint_t i = 0; i < 32; i++) {
     if(gic_int_active(i)) {
       GIC_PRINT("\tINTERRUPT %u: ACTIVE\n", i);
-    } else {
-//      GIC_PRINT("\tINTERRUPT %u: INACTIVE\n", i);
     }
   }
 
   GIC_PRINT("Distributor Enabled Interrupts:\n");
-  for(uint_t i = 32; i < __gic.max_num_ints; i++) {
+  for(uint_t i = 32; i < __gic.max_int_num; i++) {
     if(gic_int_enabled(i)) {
       GIC_PRINT("\tINTERRUPT %u: ENABLED\n", i);
-    } else {
- //     GIC_PRINT("\tINTERRUPT %u: DISABLED\n", i);
     }
   }
 
   GIC_PRINT("Distributor Pending Interrupts:\n");
-  for(uint_t i = 32; i < __gic.max_num_ints; i++) {
+  for(uint_t i = 32; i < __gic.max_int_num; i++) {
     if(gic_int_pending(i)) {
       GIC_PRINT("\tINTERRUPT %u: PENDING\n", i);
-    } else {
- //     GIC_PRINT("\tINTERRUPT %u: NOT PENDING\n", i);
     }
   }
 
   GIC_PRINT("Distributor Active Interrupts:\n");
-  for(uint_t i = 32; i < __gic.max_num_ints; i++) {
+  for(uint_t i = 32; i < __gic.max_int_num; i++) {
     if(gic_int_active(i)) {
       GIC_PRINT("\tINTERRUPT %u: ACTIVE\n", i);
-    } else {
-//      GIC_PRINT("\tINTERRUPT %u: INACTIVE\n", i);
     }
   }
 }

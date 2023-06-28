@@ -185,7 +185,9 @@ struct nk_prog_info;
 struct sys_info {
 
     struct cpu * cpus[NAUT_CONFIG_MAX_CPUS];
+#ifdef NAUT_CONFIG_ARCH_X86
     struct ioapic * ioapics[NAUT_CONFIG_MAX_IOAPICS];
+#endif
 
     uint32_t num_cpus;
     uint32_t num_ioapics;

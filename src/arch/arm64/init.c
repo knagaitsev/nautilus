@@ -262,17 +262,24 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Set our thread pointer id register for the BSP
   set_tpid_reg(&nautilus_info);
   
-  // Initialize NUMA (Fake)
+  // Initialize NUMA
   arch_numa_init(&(nautilus_info.sys));
 
-  // Initialize (but not enable) the Generic Interrupt Controller
+  // Start using the main kernel allocator
+  //mm_dump_page_map();
+  nk_kmem_init();
+  mm_boot_kmem_init();
+
+  // Do this early to speed up the boot process with data caches enabled
+  if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
+    INIT_ERROR("Failed to initialize paging!\n");
+  }
+
   if(global_init_gic(dtb)) {
     INIT_ERROR("Failed to globally initialize the GIC!\n");
     return;
   }
   
-  // Locally Initialize the GIC on the init processor 
-  // (will need to call this on every processor which can receive interrupts)
   if(per_cpu_init_gic()) {
     INIT_ERROR("Failed to initialize the init processor's GIC registers!\n");
     return;
@@ -283,15 +290,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   if(excp_init()) {
     INIT_ERROR("Failed to initialize the excp handler tables!\n");
     return;
-  }
-
-  // Start using the main kernel allocator
-  //mm_dump_page_map();
-  nk_kmem_init();
-  mm_boot_kmem_init();
-
-  if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
-    INIT_ERROR("Failed to initialize paging!\n");
   }
 
   per_cpu_paging_init();
@@ -341,6 +339,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_fs_init();
   INIT_DEBUG("FS inited!\n");
+  
+  gic_dump_state();
 
   nk_vc_init();
   INIT_DEBUG("VC inited!\n");
@@ -357,10 +357,9 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   arch_enable_ints(); 
 
   INIT_PRINT("Interrupts are now enabled\n");
- 
+  
   //enable the timer
   percpu_timer_init();
-
   arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
 
   nk_launch_shell("root-shell",0,0,0);
