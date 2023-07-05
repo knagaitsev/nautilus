@@ -28,7 +28,8 @@
 #include <nautilus/acpi.h>
 #include <nautilus/list.h>
 #include <nautilus/multiboot2.h>
-#include<nautilus/fdt.h>
+#include <nautilus/endian.h>
+#include <nautilus/fdt/fdt.h>
 
 #define u8  uint8_t
 #define u16 uint16_t
@@ -187,9 +188,7 @@ numa_dtb_assign_cpus(struct sys_info * sys) {
 
       uint64_t id = *(uint32_t*)(numa_id_ptr);
 
-      if(arch_little_endian()) {
-        id = __builtin_bswap32(id);
-      }
+      id = be32toh(id);
 
       struct numa_domain *domain = get_domain(sys, id);
 
@@ -259,12 +258,12 @@ numa_init_fake(struct sys_info * sys) {
 }
 
 int 
-arch_numa_init (struct sys_info * sys)
+fdt_numa_init (struct sys_info * sys)
 {
 
-//#define NAUT_CONFIG_IDENTITY_NUMA
+//#define DEBUG_DO_IDENTITY_NUMA
 
-#ifdef NAUT_CONFIG_IDENTITY_NUMA
+#ifdef DEBUG_DO_IDENTITY_NUMA
   numa_init_fake(sys);
 #else
     if(!numa_dtb_find_domains(sys)) {
@@ -273,7 +272,7 @@ arch_numa_init (struct sys_info * sys)
 
     } else {
       // Error utilizing the DTB to find Domains, so we fake a Domain 0 containing all of memory
-
+      // (worse performance but should still work)
       numa_init_fake(sys);
 
     }

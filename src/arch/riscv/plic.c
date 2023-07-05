@@ -3,7 +3,7 @@
 #include <nautilus/cpu.h>
 #include <nautilus/naut_types.h>
 #include <nautilus/percpu.h>
-#include <nautilus/fdt.h>
+#include <nautilus/fdt/fdt.h>
 
 typedef struct plic_context {
   off_t enable_offset;

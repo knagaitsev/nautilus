@@ -27,7 +27,7 @@
 #include <nautilus/mb_utils.h>
 #include <nautilus/macros.h>
 #include <nautilus/multiboot2.h>
-#include <nautilus/fdt.h>
+#include <nautilus/fdt/fdt.h>
 
 extern char * mem_region_types[6];
 
@@ -44,7 +44,7 @@ extern ulong_t kernel_start;
 extern ulong_t kernel_end;
 
 void
-arch_reserve_boot_regions (unsigned long fdt)
+fdt_reserve_boot_regions (unsigned long fdt)
 {
 
   BMM_PRINT("Reserving kernel region (%p, size %lu)\n", &kernel_start, (&kernel_end - &kernel_start));
@@ -98,7 +98,7 @@ static inline int insert_free_region_into_memory_map(mem_map_entry_t *memory_map
 }
 
 void
-arch_detect_mem_map (mmap_info_t * mm_info,
+fdt_detect_mem_map (mmap_info_t * mm_info,
                      mem_map_entry_t * memory_map,
                      ulong_t fdt)
 {

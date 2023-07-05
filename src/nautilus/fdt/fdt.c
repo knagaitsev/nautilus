@@ -48,7 +48,7 @@
  *     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <nautilus/fdt.h>
+#include <nautilus/fdt/fdt.h>
 #include <nautilus/endian.h>
 
 int fdt_check_header(const void *fdt)
