@@ -29,6 +29,17 @@
 #define GICD_BITMAP_READ(gic, num, offset) \
   (!!(*(((volatile uint32_t*)((gic).dist_base + offset))+(num >> 5)) & (1<<(num&(0x1F)))))
 
+struct gic_msi_frame {
+
+  uint64_t mmio_base;
+
+  uint32_t base_irq;
+  uint32_t num_irq;
+
+  struct gic_msi_frame *next;
+
+};
+
 typedef struct gic_int_info {
   uint32_t int_id;
   uint32_t cpu_id;
@@ -41,10 +52,9 @@ int per_cpu_init_gic(void);
 void gic_ack_int(gic_int_info_t *int_info);
 void gic_end_of_int(gic_int_info_t *int_info);
 
-uint16_t gic_max_irq(void);
+struct gic_msi_frame *gic_msi_frame(void);
 
-uint32_t gic_num_msi_irq(void);
-uint32_t gic_base_msi_irq(void);
+uint32_t gic_max_irq(void);
 
 int gic_enable_int(uint_t irq);
 int gic_disable_int(uint_t irq);

@@ -1,5 +1,7 @@
 
 #include<nautilus/arch.h>
+#include<nautilus/fdt/fdt_numa.h>
+#include<nautilus/fdt/fdt_mem.h>
 
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/unimpl.h>
@@ -74,6 +76,17 @@ void arch_relax(void) {
 }
 void arch_halt(void) {
   __asm__ __volatile__ ("wfi");
+}
+
+void arch_detect_mem_map(mmap_info_t *mm_info, mem_map_entry_t *memory_map,
+                         unsigned long mbd) {
+  fdt_detect_mem_map(mm_info, memory_map, mbd);
+}
+void arch_reserve_boot_regions(unsigned long mbd) {
+  fdt_reserve_boot_regions(mbd);
+}
+int arch_numa_init(struct sys_info *sys) {
+  return fdt_numa_init(sys);
 }
 
 int arch_little_endian(void) {

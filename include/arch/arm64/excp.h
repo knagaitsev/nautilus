@@ -52,17 +52,10 @@ typedef struct excp_handler_desc {
 } excp_handler_desc_t;
 extern excp_handler_desc_t *excp_handler_desc_table;
 
-// Requires boot mem allocator
-int excp_init(void);
-
 void excp_assign_irq_handler(int irq, irq_handler_t handler, void *state);
 
 // Returns the removed state of the handler if it exists
-void *excp_remove_irq_handler(int irq);
-
 void excp_assign_excp_handler(uint32_t syndrome, excp_handler_t handler, void *state);
 void *excp_remove_excp_handler(uint32_t syndrome);
-
-int unhandled_irq_handler(excp_entry_t *entry, excp_vec_t vec, void *state);
 
 #endif

@@ -100,16 +100,18 @@ struct cpu {
     uint64_t interrupt_count;                  /* +16 PAD: DO NOT MOVE */
     uint64_t exception_count;                  /* +24 PAD: DO NOT MOVE */
 
+    struct nk_irq_dev *irq_chip;
+
     // this field is only used if aspace are enabled
     struct nk_aspace    *cur_aspace;            /* +32 PAD: DO NOT MOVE */
 
-    #if NAUT_CONFIG_FIBER_ENABLE
+#if NAUT_CONFIG_FIBER_ENABLE
     struct nk_fiber_percpu_state *f_state; /* Fiber state for each CPU */
-    #endif
+#endif
 
-    #ifdef NAUT_CONFIG_WATCHDOG
+#ifdef NAUT_CONFIG_WATCHDOG
     uint64_t watchdog_count; /* Number of times the watchdog timer has been triggered */
-    #endif
+#endif
 
     cpu_id_t id;
     uint32_t lapic_id;   

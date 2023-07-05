@@ -182,7 +182,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 ARCH		?= $(SUBARCH)
 
 CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
-#CROSS_COMPILE ?= /opt/toolchain/riscv/bin/
+#CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/riscv64/bin/
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 
 # Architecture as present in compile.h
@@ -398,10 +398,10 @@ ifndef NAUT_CONFIG_USE_GCC
                   -mno-relax
 endif
 
-  COMMON_FLAGS += -mcmodel=medany \
-  			          -march=rv64gc \
-				          -mabi=lp64d \
-				          -mcmodel=medany
+  COMMON_FLAGS += \
+  	-march=rv64gc \
+	-mabi=lp64d \
+	-mcmodel=medany
 endif
 
 

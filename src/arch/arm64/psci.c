@@ -3,7 +3,7 @@
 
 #include<arch/arm64/smc.h>
 #include<nautilus/nautilus.h>
-
+#include<nautilus/shell.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
 #undef DEBUG_PRINT
@@ -73,8 +73,6 @@ int psci_init(void) {
 
   PSCI_PRINT("Initialized PSCI\n");
 }
-
-#include<nautilus/shell.h>
 
 static int
 reboot_handler(char *buf, void *priv) {

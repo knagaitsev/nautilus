@@ -2,6 +2,10 @@
 #include<arch/arm64/gic.h>
 
 #include<nautilus/nautilus.h>
+<<<<<<< Updated upstream
+=======
+#include<nautilus/endian.h>
+>>>>>>> Stashed changes
 #include<nautilus/fdt/fdt.h>
 
 #include<arch/arm64/sys_reg.h>
@@ -42,22 +46,12 @@
 
 #define MSI_TYPER_OFFSET 0x8
 
-typedef struct gic_msi_frame {
-  uint64_t mmio_base;
-
-  uint64_t spi_base;
-  uint64_t spi_num;
-} gic_msi_frame_t;
-
 typedef struct gicv2 {
 
   uint64_t dist_base;
   uint64_t cpu_base;
 
-  // Technically there could be multiple of these
-  // but for now we're just going to support a single
-  // msi frame
-  gic_msi_frame_t msi_frame;
+  struct gic_msi_frame *msi_frame;
 
   uint32_t max_irq;
   uint32_t cpu_num;
@@ -89,8 +83,8 @@ static gicv2_t __gic;
 #define LOAD_GICC_REG(gic, offset) *(volatile uint32_t*)((gic).cpu_base + offset)
 #define STORE_GICC_REG(gic, offset, val) (*(volatile uint32_t*)((gic).cpu_base + offset)) = val
 
-#define LOAD_MSI_REG(gic, offset) *(volatile uint32_t*)((gic).msi_frame.mmio_base + offset)
-#define STORE_MSI_REG(gic, offset, val) (*(volatile uint32_t*)((gic).msi_frame.mmio_base + offset)) = val
+#define LOAD_MSI_REG(frame, offset) *(volatile uint32_t*)((frame).mmio_base + offset)
+#define STORE_MSI_REG(frame, offset, val) (*(volatile uint32_t*)((frame).mmio_base + offset)) = val
 
 typedef union gicd_ctl_reg {
   uint32_t raw;
@@ -196,7 +190,7 @@ int global_init_gic(uint64_t dtb) {
       }
     }
     if(compat_result) {
-      GIC_DEBUG("Found interrupt controller found in the device tree which is not compatible with GICv2!\n");
+      GIC_DEBUG("Found interrupt controller in the device tree which is not compatible with GICv2\n");
     } else {
       break;
     }
@@ -208,13 +202,14 @@ int global_init_gic(uint64_t dtb) {
     return -1;
   }
 
-  fdt_reg_t reg[2];
-  int getreg_result = fdt_getreg_array((void*)dtb, offset, reg, 2);
+  int num_read = 2;
+  fdt_reg_t reg[num_read];
+  int getreg_result = fdt_getreg_array((void*)dtb, offset, reg, &num_read);
 
-  if(!getreg_result) {
+  if(!getreg_result && num_read == 2) {
      __gic.dist_base = reg[0].address;
      __gic.cpu_base = reg[1].address;
-    GIC_DEBUG("GICD_BASE = 0x%x GICC_BASE = 0x%x\n", __gic.dist_base, __gic.cpu_base);
+     GIC_DEBUG("GICD_BASE = 0x%x GICC_BASE = 0x%x\n", __gic.dist_base, __gic.cpu_base);
   } else {
     GIC_ERROR("Invalid reg field in the device tree!\n");
     return -1;
@@ -235,27 +230,25 @@ int global_init_gic(uint64_t dtb) {
   STORE_GICD_REG(__gic, GICD_CTLR_OFFSET, d_ctl_reg.raw);
 
   GIC_DEBUG("Looking for MSI(-X) Support\n");
+
   int msi_offset = fdt_node_offset_by_compatible((void*)dtb, -1, "arm,gic-v2m-frame");
   while(msi_offset >= 0) {
-
-    if(__gic.msi_frame.mmio_base) {
-      GIC_WARN("Another MSI Frame was found in the device tree, which is not supported yet, ignoring...\n");
-      msi_offset = fdt_node_offset_by_compatible((void*)dtb, msi_offset, "arm,gic-v2m-frame");
-      continue;
-    }
     GIC_DEBUG("Found compatible msi-controller frame in device tree!\n");
+
+    struct gic_msi_frame *frame = malloc(sizeof(struct gic_msi_frame));
 
     fdt_reg_t msi_reg = { .address = 0, .size = 0 };
     fdt_getreg((void*)dtb, msi_offset, &msi_reg);
-    __gic.msi_frame.mmio_base = msi_reg.address;
-    GIC_DEBUG("MSI_BASE = 0x%x\n", __gic.msi_frame.mmio_base);
+    frame->mmio_base = msi_reg.address;
+    GIC_DEBUG("\tMSI_BASE = 0x%x\n", frame->mmio_base);
 
-    int msi_info_not_found = 0;
+    int msi_info_found = 0;
     
     // We first try to get this info from the DTB
     struct fdt_property *prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-base-spi", 16, NULL); 
     if(prop) {
       GIC_DEBUG("Found MSI Base SPI in FDT\n");
+<<<<<<< Updated upstream
       __gic.msi_frame.spi_base = be32toh(*(uint32_t*)prop->data);
     } else {
       GIC_WARN("Failed to find MSI Base SPI in the device tree\n");
@@ -271,25 +264,50 @@ int global_init_gic(uint64_t dtb) {
     }
     
     if(msi_info_not_found) {
+=======
+      frame->base_irq = be32toh(*(uint32_t*)prop->data);
+      prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-num-spis", 16, NULL); 
+      if(prop) {
+        GIC_DEBUG("Found MSI SPI Number in FDT\n");
+        frame->num_irq = be32toh(*(uint32_t*)prop->data);
+        msi_info_found = 1;
+      } else {
+        GIC_WARN("Failed to find MSI SPI Number in the device tree\n");
+      }
+    } else {
+      GIC_WARN("Failed to find MSI Base SPI in the device tree\n");
+    }    
+
+    if(!msi_info_found) {
+>>>>>>> Stashed changes
       
       // If the device tree doesn't say, look at the MSI_TYPER
       // (Finding documentation on GICv2m is awful, so we're trusting 
-      //  the linux implementation)
+      //  the linux implementation has the right offsets)
       GIC_DEBUG("Could not find all MSI info in the device tree so checking MMIO MSI registers\n");
 
       msi_type_reg_t msi_type;
-      msi_type.raw = LOAD_MSI_REG(__gic, MSI_TYPER_OFFSET);
+      msi_type.raw = LOAD_MSI_REG(*frame, MSI_TYPER_OFFSET);
       GIC_DEBUG("MSI_TYPER = 0x%08x\n", msi_type.raw);
       
-      __gic.msi_frame.spi_base = msi_type.first_int_id;
-      __gic.msi_frame.spi_num = msi_type.spi_num;
-      GIC_DEBUG("MSI SPI Range : [%u - %u]\n", __gic.msi_frame.spi_base, __gic.msi_frame.spi_base+__gic.msi_frame.spi_num-1);
-      if(!__gic.msi_frame.spi_base || !__gic.msi_frame.spi_num) {
+      frame->base_irq = msi_type.first_int_id;
+      frame->num_irq = msi_type.spi_num;
+      GIC_DEBUG("MSI SPI Range : [%u - %u]\n", frame->base_irq, frame->base_irq + frame->num_irq - 1);
+
+      if(!frame->base_irq || !frame->num_irq) {
         GIC_DEBUG("Invalid MSI_TYPER: spi base = 0x%x, spid num = 0x%x\n",
           msi_type.first_int_id, msi_type.spi_num);
-        GIC_ERROR("Failed to get MSI Information!\n");
-        return -1;
+        GIC_ERROR("Failed to get MSI Information!\n");  
+      } else {
+        msi_info_found = 1;
       }
+    }
+
+    if(!msi_info_found) {
+      free(frame);
+    } else {
+      frame->next = __gic.msi_frame;
+      __gic.msi_frame = frame;
     }
 
     msi_offset = fdt_node_offset_by_compatible((void*)dtb, msi_offset, "arm,gic-v2m-frame");
@@ -327,9 +345,11 @@ static inline int is_spurrious_int(uint32_t id) {
   return ((id & (~0b11)) ^ (0x3FC)) == 0;
 }
 
-uint16_t gic_max_irq(void) {
-  return __gic.max_irq;
+struct gic_msi_frame * gic_msi_frame(void) {
+  return __gic.msi_frame;
 }
+
+uint32_t gic_max_irq(void);
 
 void gic_ack_int(gic_int_info_t *info) {
   gicc_int_info_reg_t info_reg;
@@ -391,14 +411,6 @@ void gic_set_target_all(uint_t irq) {
 
 static int gic_int_is_edge_triggered(uint_t irq) {
   return 0b10 & GICD_DUALBITMAP_READ(__gic, irq, GICD_ICFGR_0_OFFSET);
-}
-
-uint32_t gic_num_msi_irq(void) {
-  return __gic.msi_frame.spi_num;
-}
-
-uint32_t gic_base_msi_irq(void) {
-  return __gic.msi_frame.spi_base;
 }
 
 void gic_dump_state(void) {

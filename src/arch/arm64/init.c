@@ -275,16 +275,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
     INIT_ERROR("Failed to initialize paging!\n");
   }
 
-  if(global_init_gic(dtb)) {
-    INIT_ERROR("Failed to globally initialize the GIC!\n");
-    return;
-  }
-  
-  if(per_cpu_init_gic()) {
-    INIT_ERROR("Failed to initialize the init processor's GIC registers!\n");
-    return;
-  }
-
   // Initialize the structures which hold info about 
   // interrupt/exception handlers and routing
   if(excp_init()) {

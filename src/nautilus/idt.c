@@ -444,7 +444,7 @@ int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first)
 }
 #else
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first) {
-  return arch_irq_find_and_reserve_range(numentries, aligned, first);
+  return arch_msi_find_and_reserve_range(numentries, aligned, first);
 }
 #endif
 

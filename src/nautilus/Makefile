@@ -48,7 +48,11 @@ obj-y += \
 	prog.o \
 	getopt.o \
 	cmdline.o \
+<<<<<<< Updated upstream
 	lru_cache.o \
+=======
+	lru_cache.o
+>>>>>>> Stashed changes
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \
@@ -63,6 +67,12 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	nemo.o \
 	pmc.o \
 	setjmp.o \
+
+obj-$(NAUT_CONFIG_ARCH_RISCV) += \
+	fdt/
+
+obj-$(NAUT_CONFIG_ARCH_ARM64) += \
+	fdt/
 
 obj-$(NAUT_CONFIG_PROFILE) += instrument.o
 obj-$(NAUT_CONFIG_XEON_PHI) += sfi.o
