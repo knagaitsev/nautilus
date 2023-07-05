@@ -48,11 +48,7 @@ obj-y += \
 	prog.o \
 	getopt.o \
 	cmdline.o \
-<<<<<<< Updated upstream
-	lru_cache.o \
-=======
 	lru_cache.o
->>>>>>> Stashed changes
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \

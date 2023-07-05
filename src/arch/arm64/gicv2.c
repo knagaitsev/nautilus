@@ -2,10 +2,7 @@
 #include<arch/arm64/gic.h>
 
 #include<nautilus/nautilus.h>
-<<<<<<< Updated upstream
-=======
 #include<nautilus/endian.h>
->>>>>>> Stashed changes
 #include<nautilus/fdt/fdt.h>
 
 #include<arch/arm64/sys_reg.h>
@@ -247,24 +244,8 @@ int global_init_gic(uint64_t dtb) {
     // We first try to get this info from the DTB
     struct fdt_property *prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-base-spi", 16, NULL); 
     if(prop) {
+
       GIC_DEBUG("Found MSI Base SPI in FDT\n");
-<<<<<<< Updated upstream
-      __gic.msi_frame.spi_base = be32toh(*(uint32_t*)prop->data);
-    } else {
-      GIC_WARN("Failed to find MSI Base SPI in the device tree\n");
-      msi_info_not_found = 1;
-    }
-    prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-num-spis", 16, NULL); 
-    if(prop) {
-      GIC_DEBUG("Found MSI SPI Number in FDT\n");
-      __gic.msi_frame.spi_num = be32toh(*(uint32_t*)prop->data);
-    } else {
-      GIC_WARN("Failed to find MSI SPI Number in the device tree\n");
-      msi_info_not_found = 1;
-    }
-    
-    if(msi_info_not_found) {
-=======
       frame->base_irq = be32toh(*(uint32_t*)prop->data);
       prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-num-spis", 16, NULL); 
       if(prop) {
@@ -279,7 +260,6 @@ int global_init_gic(uint64_t dtb) {
     }    
 
     if(!msi_info_found) {
->>>>>>> Stashed changes
       
       // If the device tree doesn't say, look at the MSI_TYPER
       // (Finding documentation on GICv2m is awful, so we're trusting 
