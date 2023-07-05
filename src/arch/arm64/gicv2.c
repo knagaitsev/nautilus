@@ -2,7 +2,7 @@
 #include<arch/arm64/gic.h>
 
 #include<nautilus/nautilus.h>
-#include<nautilus/fdt.h>
+#include<nautilus/fdt/fdt.h>
 
 #include<arch/arm64/sys_reg.h>
 
@@ -256,7 +256,7 @@ int global_init_gic(uint64_t dtb) {
     struct fdt_property *prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-base-spi", 16, NULL); 
     if(prop) {
       GIC_DEBUG("Found MSI Base SPI in FDT\n");
-      __gic.msi_frame.spi_base = bswap_32(*(uint32_t*)prop->data);
+      __gic.msi_frame.spi_base = be32toh(*(uint32_t*)prop->data);
     } else {
       GIC_WARN("Failed to find MSI Base SPI in the device tree\n");
       msi_info_not_found = 1;
@@ -264,7 +264,7 @@ int global_init_gic(uint64_t dtb) {
     prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-num-spis", 16, NULL); 
     if(prop) {
       GIC_DEBUG("Found MSI SPI Number in FDT\n");
-      __gic.msi_frame.spi_num = bswap_32(*(uint32_t*)prop->data);
+      __gic.msi_frame.spi_num = be32toh(*(uint32_t*)prop->data);
     } else {
       GIC_WARN("Failed to find MSI SPI Number in the device tree\n");
       msi_info_not_found = 1;

@@ -5,7 +5,7 @@
 
 #include<nautilus/naut_types.h>
 #include<nautilus/nautilus.h>
-#include<nautilus/fdt.h>
+#include<nautilus/fdt/fdt.h>
 #include<nautilus/macros.h>
 
 #include<arch/arm64/sys_reg.h>

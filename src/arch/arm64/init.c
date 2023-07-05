@@ -5,7 +5,7 @@
 #include<nautilus/printk.h>
 #include<nautilus/fpu.h>
 #include<nautilus/naut_string.h>
-#include<nautilus/fdt.h>
+#include<nautilus/fdt/fdt.h>
 #include<nautilus/arch.h>
 #include<nautilus/dev.h>
 #include<nautilus/chardev.h>

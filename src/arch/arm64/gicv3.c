@@ -2,7 +2,7 @@
 #include<arch/arm64/gic.h>
 
 #include<nautilus/nautilus.h>
-#include<nautilus/fdt.h>
+#include<nautilus/fdt/fdt.h>
 #include<nautilus/endian.h>
 
 #include<arch/arm64/sys_reg.h>

@@ -33,6 +33,7 @@ obj-y += \
 	env.o \
 	setjmp.o \
 	mm/ \
+	fdt/ \
 	dev.o \
 	chardev.o \
 	blkdev.o \
@@ -48,8 +49,6 @@ obj-y += \
 	getopt.o \
 	cmdline.o \
 	lru_cache.o \
-	fdt.o \
-	fdt_ro.o
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \

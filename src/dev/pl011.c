@@ -4,7 +4,7 @@
 #include<nautilus/dev.h>
 #include<nautilus/chardev.h>
 #include<nautilus/spinlock.h>
-#include<nautilus/fdt.h>
+#include<nautilus/fdt/fdt.h>
 
 #define UART_DATA        0x0
 #define UART_RECV_STATUS 0x4
