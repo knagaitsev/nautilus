@@ -117,7 +117,7 @@ time_end (void)
 
 
 static int
-ping (excp_entry_t * excp, excp_vec_t vec, void *state)
+ping (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     struct apic_dev * apic = per_cpu_get(apic);
     apic_write_icr(apic,
@@ -130,7 +130,7 @@ ping (excp_entry_t * excp, excp_vec_t vec, void *state)
 
 
 static int
-pong (excp_entry_t * excp, excp_vec_t vec, void *state)
+pong (struct nk_irq_action * action, struct nk_regs * regs, void *state)
 {
     rdtscll(ipi_oneway_end);
     IRQ_HANDLER_END();
@@ -140,7 +140,7 @@ pong (excp_entry_t * excp, excp_vec_t vec, void *state)
 
 
 static int
-pong_bcast (excp_entry_t * excp, excp_vec_t vec, void *state)
+pong_bcast (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     uint64_t tmp;
     ipi_exp_data_t * data = glob_exp_data;
@@ -158,17 +158,17 @@ ipi_exp_setup (ipi_exp_data_t * data)
 {
     nk_fs_fd_t fd;
 
-    if (register_int_handler(PING_VEC, ping, NULL) != 0) {
+    if (nk_ivec_add_callback(PING_VEC, ping, NULL) != 0) {
         ERROR("Could not register int handler");
         return -1;
     }
 
-    if (register_int_handler(PONG_VEC, pong, NULL) != 0) {
+    if (nk_ivec_add_callback(PONG_VEC, pong, NULL) != 0) {
         ERROR("Could not register int handler");
         return -1;
     }
 
-    if (register_int_handler(PONG_BCAST_VEC, pong_bcast, NULL) != 0) {
+    if (nk_ivec_add_callback(PONG_BCAST_VEC, pong_bcast, NULL) != 0) {
         ERROR("Could not register int handler");
         return -1;
     }

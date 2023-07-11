@@ -20,8 +20,10 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
+#include <arch/x64/idt.h>
+
 #include <nautilus/nautilus.h>
-#include <nautilus/idt.h>
 #include <nautilus/intrinsics.h>
 #include <nautilus/naut_string.h>
 #include <nautilus/paging.h>
@@ -99,12 +101,8 @@ struct idt_desc idt_descriptor =
 int 
 null_excp_handler (
     struct nk_irq_action *action,
-    struct nk_regs *regs)
-  /*
-    excp_entry_t * excp,
-                   excp_vec_t vector,
-		   void *state)
-    */
+    struct nk_regs *regs,
+    void *state)
 {
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
     return nk_monitor_excp_entry(action_regs);
@@ -146,25 +144,24 @@ null_excp_handler (
 
 
 int
-null_irq_handler (excp_entry_t * excp,
-                  excp_vec_t vector,
+null_irq_handler (struct nk_irq_action *action,
+                  struct nk_regs *regs,
 		  void       *state)
 {
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    return nk_monitor_irq_entry (excp,
-				 vector,
+    return nk_monitor_irq_entry (action,
+				 regs,
 				 state);
 #else
     
     printk("[Unhandled IRQ] (vector=0x%x)\n    RIP=(%p)     (core=%u)\n", 
-            vector,
-            (void*)excp->rip,
+            action->ivec,
+            (void*)regs->rip,
             my_cpu_id());
 
 #ifdef NAUT_CONFIG_ARCH_X86
-    struct nk_regs * r = (struct nk_regs*)((char*)excp - 128);
-    nk_print_regs(r);
-    backtrace(r->rbp);
+    nk_print_regs(regs);
+    backtrace(regs->rbp);
 #endif
 
     panic("+++ HALTING +++\n");
@@ -174,13 +171,13 @@ null_irq_handler (excp_entry_t * excp,
 }
 
 int 
-debug_excp_handler (excp_entry_t * excp,
-                   excp_vec_t vector,
+debug_excp_handler (struct nk_irq_action *action,
+                   struct nk_regs *regs,
 		   void *state)
 {
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    return nk_monitor_debug_entry (excp,
-				   vector,
+    return nk_monitor_debug_entry (action,
+				   regs,
 				   state);
 #else 
     cpu_id_t cpu_id = cpu_info_ready ? my_cpu_id() : 0xffffffff;
@@ -190,18 +187,15 @@ debug_excp_handler (excp_entry_t * excp,
     printk("\n+++ UNHANDLED DEBUG EXCEPTION +++\n");
 
     printk("[%s] (0x%x) error=0x%x <%s>\n    RIP=%p      (core=%u, thread=%u)\n", 
-	   excp_codes[vector][EXCP_NAME],
-	   vector,
-	   excp->error_code,
-	   excp_codes[vector][EXCP_MNEMONIC],
-	   (void*)excp->rip, 
+	   excp_codes[action->ivec][EXCP_NAME],
+	   action->ivec,
+	   regs->error_code,
+	   excp_codes[action->ivec][EXCP_MNEMONIC],
+	   (void*)regs->rip, 
 	   cpu_id, tid);
     
-#ifdef NAUT_CONFIG_ARCH_X86
-    struct nk_regs * r = (struct nk_regs*)((char*)excp - 128);
-    nk_print_regs(r);
-    backtrace(r->rbp);
-#endif
+    nk_print_regs(regs);
+    backtrace(regs->rbp);
     
     panic("+++ HALTING +++\n");
     
@@ -212,13 +206,13 @@ debug_excp_handler (excp_entry_t * excp,
 
 
 int
-reserved_irq_handler (excp_entry_t * excp,
-		      excp_vec_t vector,
+reserved_irq_handler (struct nk_irq_action * action,
+		      struct nk_regs *regs,
 		      void       *state)
 {
   printk("[Reserved IRQ] (vector=0x%x)\n    RIP=(%p)     (core=%u)\n", 
-	 vector,
-	 (void*)excp->rip,
+	 action->ivec,
+	 (void*)regs->rip,
 	 my_cpu_id());
   printk("You probably have a race between reservation and assignment....\n");
   printk("   you probably want to mask the interrupt first...\n");
@@ -228,8 +222,8 @@ reserved_irq_handler (excp_entry_t * excp,
 
 
 static int
-df_handler (excp_entry_t * excp,
-            excp_vec_t vector,
+df_handler (struct nk_irq_action * action,
+            struct nk_regs *regs,
             addr_t unused)
 {
     panic("DOUBLE FAULT. Dying.\n");
@@ -238,8 +232,8 @@ df_handler (excp_entry_t * excp,
 
 
 static int
-pic_spur_int_handler (excp_entry_t * excp,
-                      excp_vec_t vector,
+pic_spur_int_handler (struct nk_irq_action * action,
+                      struct nk_regs *regs,
                       addr_t unused)
 {
     WARN_PRINT("Received Spurious interrupt from PIC\n");
@@ -267,9 +261,8 @@ pic_spur_int_handler (excp_entry_t * excp,
 
 */
 
-int nmi_handler (excp_entry_t * excp,
-		 excp_vec_t vector,
-		 addr_t fault_addr,
+int nmi_handler (struct nk_irq_action *action,
+		 struct nk_regs *regs,
 		 void *state)
 {
 
@@ -314,7 +307,7 @@ int nmi_handler (excp_entry_t * excp,
 	nk_watchdog_nmi();
 	if (nk_watchdog_check_this_cpu()) {
 	    // we are hanging on this cpu...
-	    int rc = nk_monitor_hang_entry(excp,vector,state);
+	    int rc = nk_monitor_hang_entry(action,regs,state);
 	    nk_watchdog_reset();
 	    nk_watchdog_pet();
 	    return rc;
@@ -336,7 +329,7 @@ int nmi_handler (excp_entry_t * excp,
 	return nk_monitor_sync_entry();
     } else {
 	// surprise NMI... 
-	return nk_monitor_excp_entry(excp, vector, state);
+	return nk_monitor_excp_entry(action, regs, state);
     }
 
 #endif
@@ -352,17 +345,16 @@ int nmi_handler (excp_entry_t * excp,
     unsigned tid = cpu_info_ready ? get_cur_thread()->tid : 0xffffffff;
 
     printk("[%s] (0x%x) error=0x%x <%s>\n    RIP=%p      (core=%u, thread=%u)\n", 
-	   excp_codes[vector][EXCP_NAME],
-	   vector,
-	   excp->error_code,
-	   excp_codes[vector][EXCP_MNEMONIC],
-	   (void*)excp->rip, 
+	   excp_codes[action->ivec][EXCP_NAME],
+	   action->ivec,
+	   regs->error_code,
+	   excp_codes[action->ivec][EXCP_MNEMONIC],
+	   (void*)regs->rip, 
 	   cpu_id, tid);
 
 #ifdef NAUT_CONFIG_ARCH_X86
-    struct nk_regs * r = (struct nk_regs*)((char*)excp - 128);
-    nk_print_regs(r);
-    backtrace(r->rbp);
+    nk_print_regs(regs);
+    backtrace(regs->rbp);
 #endif
 
     panic("+++ HALTING +++\n");
@@ -444,35 +436,35 @@ setup_idt (void)
     }
     */
 
-    if (nk_ivec_add_callback(PF_EXCP, (ulong_t)nk_pf_handler, 0) < 0) {
+    if (nk_ivec_add_callback(PF_EXCP, nk_pf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign page fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_add_callback(GP_EXCP, (ulong_t)nk_gpf_handler, 0) < 0) {
+    if (nk_ivec_add_callback(GP_EXCP, nk_gpf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign general protection fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_add_callback(DF_EXCP, (ulong_t)df_handler, 0) < 0) {
+    if (nk_ivec_add_callback(DF_EXCP, df_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign double fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_add_callback(0xf, (ulong_t)pic_spur_int_handler, 0) < 0) {
+    if (nk_ivec_add_callback(0xf, pic_spur_int_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign PIC spur int handler\n");
         return -1;
     }
 
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    if (nk_ivec_add_callback(DB_EXCP, (ulong_t)debug_excp_handler, 0) < 0) {
+    if (nk_ivec_add_callback(DB_EXCP, debug_excp_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign debug excp handler\n");
         return -1;
     }
 #endif
 
 #if defined(NAUT_CONFIG_ENABLE_MONITOR) || defined(NAUT_CONFIG_WATCHDOG)
-    if (nk_ivec_add_callback(NMI_INT, (ulong_t)nmi_handler, 0) < 0) {
+    if (nk_ivec_add_callback(NMI_INT, nmi_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign NMI handler\n");
         return -1;
     }

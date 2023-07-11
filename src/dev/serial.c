@@ -352,7 +352,7 @@ static int serial_setup(struct serial_state *s)
     return 0;
 }  
 
-static int serial_irq_handler (struct nk_irq_action *, struct nk_regs *, void *state);
+static int serial_irq_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state);
 
 
 // 0 = success, -1 = fail, +1 = does not exist
@@ -523,8 +523,8 @@ static int drive_cmd_fsm(char c)
     
 
 static int 
-serial_irq_handler_early (struct nk_irq_action *,
-			  struct nk_regs *,
+serial_irq_handler_early (struct nk_irq_action *action,
+			  struct nk_regs *regs,
 			  void *state)
 {
   char rcv_byte;

@@ -28,7 +28,7 @@
 #define __CPU_STATE
 
 #ifdef NAUT_CONFIG_ARCH_X86
-#include <nautilus/msr.h>
+#include <arch/x64/msr.h>
 #endif
 
 // #include <nautilus/arch.h>

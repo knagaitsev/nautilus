@@ -20,15 +20,17 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
 #include <nautilus/nautilus.h>
 #include <nautilus/printk.h>
 #include <nautilus/fpu.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
-#include <nautilus/idt.h>
 #include <nautilus/irq.h>
-#include <nautilus/msr.h>
 #include <nautilus/smp.h>
+
+#include <arch/x64/idt.h>
+#include <arch/x64/msr.h>
 
 #include <nautilus/backtrace.h>
 #ifndef NAUT_CONFIG_DEBUG_FPU
@@ -535,12 +537,12 @@ fpu_init (struct naut_info * naut, int is_ap)
 
     if (is_ap == 0) {
 
-        if (register_int_handler(XM_EXCP, xm_handler, NULL) != 0) {
+        if (nk_ivec_add_callback(XM_EXCP, xm_handler, NULL) != 0) {
             ERROR_PRINT("Could not register excp handler for XM\n");
             return;
         }
 
-        if (register_int_handler(MF_EXCP, mf_handler, NULL) != 0) {
+        if (nk_ivec_add_callback(MF_EXCP, mf_handler, NULL) != 0) {
             ERROR_PRINT("Could not register excp handler for MF\n");
             return;
         }

@@ -105,21 +105,22 @@ struct nk_ivec_desc * nk_ivec_to_desc(nk_ivec_t ivec_num)
 
 static struct nk_ivec_desc descriptors[MAX_IVEC_NUM];
 
-int nk_alloc_ivec_desc(ivec_t num, uint16_t type, uint16_t flags)
+int nk_alloc_ivec_desc(nk_ivec_t num, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
 {
   descriptors[num].ivec_num = num;
   descriptors[num].flags = flags;
   descriptors[num].type = type;
+  descriptors[num].irq_dev = dev;
   spinlock_init(&(descriptors[num].lock));
 }
 
-int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, uint16_t type, uint16_t flags)
+int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint16_t type, uint16_t flags)
 {
   // Inefficient but should work
   for(uint32_t i = 0; i < n; i++) 
   {
 
-    if(nk_alloc_ivec_desc(base + i, type, flags)) 
+    if(nk_alloc_ivec_desc(base + i, dev, type, flags)) 
     {
       return -1;  
     }
@@ -183,6 +184,7 @@ int nk_ivec_add_callback(nk_ivec_t vec, nk_irq_callback_t callback, void *state)
 
   spin_unlock(&desc->lock);
 
+  return 0;
 }
 
 /*
@@ -213,13 +215,27 @@ int nk_handle_irq_actions(struct nk_irq_action *actions, struct nk_regs *regs)
 
 #ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
 
+inline int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec) 
+{ 
+  return irq != ivec;
+}
 inline nk_ivec_t nk_irq_to_ivec(nk_irq_t irq) 
 { 
   return (nk_ivec_t)irq; 
 }
 inline struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq) 
 { 
-  return nk_ivec_to_desc(nk_irq_to_ivec(irq)); 
+  return nk_ivec_to_desc((nk_ivec_t)irq); 
+}
+
+inline int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
+{
+  nk_irq_to_desc(irq)->irq_dev = dev;
+  return 0;
+}
+inline struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
+{
+  return nk_ivec_to_desc((nk_ivec_t)irq).irq_dev;
 }
 
 #else
@@ -229,6 +245,10 @@ inline struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq)
 // We have no architectures which need this case yet
 // so I'm just going to leave it empty for now, 
 // potentially this would just be another radix tree
+int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec) 
+{
+  // TODO
+}
 nk_ivec_t nk_irq_to_ivec(nk_irq_t irq) 
 {
   // TODO
@@ -238,10 +258,25 @@ struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq)
   // TODO
 }
 
+int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
+{
+  // TODO
+}
+struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
+{
+  // TODO
+}
+
 #else
 
 static nk_ivec_t irq_to_ivec_array[MAX_IRQ_NUM];
+static struct nk_irq_dev * irq_to_irqdev_array[MAX_IRQ_NUM];
 
+int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec) 
+{
+  irq_to_ivec_array[irq] = ivec;
+  return 0;
+}
 nk_ivec_t nk_irq_to_ivec(nk_irq_t irq) 
 {
   return irq_to_ivec_array[irq];
@@ -251,9 +286,24 @@ struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq)
   return nk_ivec_to_desc(irq_to_ivec_array[irq]);
 }
 
+int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
+{
+  irq_to_irqdev_array[irq] = dev;
+  return 0;
+}
+struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
+{
+  return irq_to_irqdev_array[irq];
+}
+
 #endif /* NAUT_CONFIG_SPARSE_IRQ */
 
 #endif /* !NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS */
+
+int nk_irq_is_assigned_to_irqdev(nk_irq_t irq) 
+{
+  return nk_irq_to_irqdev(irq) != NULL;
+}
 
 int nk_irq_add_callback(nk_irq_t irq, nk_irq_callback_t callback, void *state)
 {
@@ -283,15 +333,23 @@ int nk_irq_add_callback(nk_irq_t irq, nk_irq_callback_t callback, void *state)
   desc->num_actions += 1;
 
   spin_unlock(&desc->lock);
+
+  return 0;
 }
 
 int nk_mask_irq(nk_irq_t irq) {
-  struct nk_ivec_desc *desc = nk_irq_to_desc(irq);
-  return nk_irq_dev_disable_irq(desc->irq_dev, irq);
+  struct nk_irq_dev *dev = nk_irq_to_irqdev(irq);
+  if(dev == NULL) {
+    return 1;
+  }
+  return nk_irq_dev_disable_irq(dev, irq);
 }
 
 int nk_unmask_irq(nk_irq_t irq) {
-  struct nk_ivec_desc *desc = nk_irq_to_desc(irq);
-  return nk_irq_dev_enable_irq(desc->irq_dev, irq);
+  struct nk_irq_dev *dev = nk_irq_to_irqdev(irq);
+  if(dev == NULL) {
+    return 1;
+  }
+  return nk_irq_dev_enable_irq(dev, irq);
 }
 

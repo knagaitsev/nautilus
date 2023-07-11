@@ -21,7 +21,7 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <asm/lowlevel.h>
-#include <nautilus/gdt.h>
+#include <arch/x64/gdt.h>
 #include <nautilus/thread.h>
 
 /* NOTE: the below offsets and constants are VERY fragile

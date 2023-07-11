@@ -1,6 +1,7 @@
 #pragma once
 
 #include <nautilus/nautilus.h>
+#include <nautilus/interrupt.h>
 
 typedef struct excp_entry_state excp_entry_t;
 typedef struct mmap_info mmap_info_t;

@@ -212,7 +212,7 @@ do { \
 #define my_cpu_id() per_cpu_get(id)
 
 
-#include <nautilus/msr.h>
+#include <arch/x64/msr.h>
 #include <nautilus/smp.h>
 static inline struct cpu*
 get_cpu (void)

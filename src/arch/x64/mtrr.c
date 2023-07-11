@@ -24,9 +24,10 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/smp.h>
 #include <nautilus/cpuid.h>
-#include <nautilus/msr.h>
 #include <nautilus/shell.h>
-#include <nautilus/mtrr.h>
+
+#include <arch/x64/mtrr.h>
+#include <arch/x64/msr.h>
 
 #define NAUT_CONFIG_MTRR_DEBUG 0
 #define NAUT_CONFIG_MTRR_CAPTURE_AT_BOOT         1

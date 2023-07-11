@@ -73,6 +73,8 @@ typedef unsigned int nk_ivec_t;
 // Must be large enough to represent every IRQ line number in the system
 typedef unsigned int nk_irq_t;
 
+typedef uint32_t cpu_id_t;
+
 //#define NULL ((void *)0)
 #ifndef NULL
 #define NULL 0

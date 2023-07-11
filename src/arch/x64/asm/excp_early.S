@@ -20,7 +20,7 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
-#include <nautilus/idt.h>
+#include <arch/x64/idt.h>
 #include <nautilus/thread.h>
 
 #define GPIO_OUTPUT 1

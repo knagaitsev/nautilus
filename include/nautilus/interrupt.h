@@ -109,7 +109,13 @@ int nk_handle_irq_actions(struct nk_irq_action *actions, struct nk_regs *regs);
  * IRQ Functions
  */
 
+int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec);
 nk_ivec_t nk_irq_to_ivec(nk_irq_t);
+
+int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev);
+struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t);
+int nk_irq_is_assigned_to_irqdev(nk_irq_t);
+
 struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t);
 
 int nk_irq_add_callback(nk_irq_t, nk_irq_callback_t, void *state);

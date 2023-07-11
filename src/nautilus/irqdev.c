@@ -52,18 +52,12 @@ int nk_irq_dev_initialize_cpu(struct nk_irq_dev *dev) {
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
-  // We want this to be as fast as possible
-#ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->initialize_cpu) {
     return di->initialize_cpu(d->state);
   } else {
-    // This device doesn't have ACK 
-    ERROR("NULL initialize_cpu in interface of device %s\n", d->name);
-    return IRQ_DEV_INIT_CPU_UNIMPL;
+    // This device doesn't need to initialize CPU's 
+    return 0;
   }
-#else
-  return di->initialize_cpu(d->state);
-#endif
 }
 
 int nk_irq_dev_get_characteristics(struct nk_irq_dev *dev, struct nk_irq_dev_characteristics *c) {
@@ -71,16 +65,12 @@ int nk_irq_dev_get_characteristics(struct nk_irq_dev *dev, struct nk_irq_dev_cha
   struct nk_dev *d = (struct nk_dev*)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
-#ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->get_characteristics) {
     return di->get_characteristics(d->state, c);
   } else {
-    ERROR("NULL get_characteristics in interface of device %s\n", d->name);
-    return IRQ_DEV_GET_CHAR_UNIMPL;
+    memset(c, 0, sizeof(struct nk_irq_dev_characteristics));
+    return 0;
   }
-#else
-  return di->get_characteristics(d->state, c);
-#endif
 }
 
 int nk_irq_dev_ack(struct nk_irq_dev *dev, nk_irq_t *irq) {
@@ -184,7 +174,6 @@ int nk_assign_cpu_irq_dev(struct nk_irq_dev* dev, cpu_id_t cpuid) {
   naut->sys.cpus[cpuid]->irq_dev = dev;
 
   return 0;
-
 }
 
 int nk_assign_all_cpus_irq_dev(struct nk_irq_dev* dev) {

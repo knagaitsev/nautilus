@@ -8,11 +8,13 @@ menu "Platform"
 			bool
 
 		config ARCH_RISCV
+                        select USE_FDT
                         select USE_PCI_ECAM
 			bool
 
 		config ARCH_ARM64
 			bool
+                        select USE_FDT
                         select USE_PCI_ECAM
                         select SPARSE_IRQ_VECTORS
                         select IDENTITY_MAP_IRQ_VECTORS
@@ -1869,6 +1871,12 @@ menu "Languages"
 endmenu
 
 # --- Invisible Options ---
+
+# FDT
+config USE_FDT
+    def_bool n
+    help
+      Use the Open Firmware device tree to discover devices.
 
 # PCI
 config USE_PCI_ECAM

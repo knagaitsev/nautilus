@@ -21,10 +21,13 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/nautilus.h>
-#include <nautilus/idt.h>
 #include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/mm.h>
+
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/idt.h>
+#endif
 
 #define PIC_MASTER_CMD_PORT  0x20
 #define PIC_MASTER_DATA_PORT 0x21
@@ -54,48 +57,6 @@
  * priority with increasing vector number
  *
  */
-
-void
-irqmap_set_ioapic (uint8_t irq, struct ioapic * ioapic)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-    naut->sys.int_info.irq_map[irq].ioapic = ioapic;
-    naut->sys.int_info.irq_map[irq].assigned = 1;
-}
-
-static inline void 
-set_irq_vector (uint8_t irq, uint8_t vector)
-{
-    nk_get_nautilus_info()->sys.int_info.irq_map[irq].vector = vector;
-}
-
-
-void 
-nk_mask_irq (uint8_t irq)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-	if (nk_irq_is_assigned(irq)) {
-		ioapic_mask_irq(naut->sys.int_info.irq_map[irq].ioapic, irq);
-	}
-}
-
-
-void
-nk_unmask_irq (uint8_t irq)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-	if (nk_irq_is_assigned(irq)) {
-		ioapic_unmask_irq(naut->sys.int_info.irq_map[irq].ioapic, irq);
-	}
-}
-
-
-uint8_t
-nk_irq_is_assigned (uint8_t irq)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-    return naut->sys.int_info.irq_map[irq].assigned;
-}
 
 void 
 disable_8259pic (void)
@@ -199,13 +160,13 @@ nk_int_init (struct sys_info * sys)
      * assign IRQs properly. 0xff is reserved for APIC 
      * suprious interrupts */
     for (i = 0; i < 256; i++) {
-        set_irq_vector(i, 0xfe);
+        nk_map_irq_to_ivec(i, 0xfe);
     }
 
     /* we're going to count down in decreasing priority 
      * when we run out of vectors, we'll stop */
     for (i = 0, vector = 0xef; vector > 0x1f; vector--, i++) {
-        set_irq_vector(i, vector);
+        nk_map_irq_to_ivec(i, vector);
     }
 
     INIT_LIST_HEAD(&(info->int_list));

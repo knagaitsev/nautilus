@@ -24,7 +24,6 @@
 #include <nautilus/paging.h>
 #include <nautilus/naut_string.h>
 #include <nautilus/mb_utils.h>
-#include <nautilus/idt.h>
 #include <nautilus/cpu.h>
 #include <nautilus/errno.h>
 #include <nautilus/cpuid.h>
@@ -324,8 +323,8 @@ nk_map_page_nocache (addr_t paddr, uint64_t flags, page_size_t ps)
  *
  */
 int
-nk_pf_handler (excp_entry_t * excp,
-               excp_vec_t     vector,
+nk_pf_handler (struct nk_irq_action *action,
+               struct nk_regs *regs,
                void         * state)
 {
 
@@ -333,36 +332,35 @@ nk_pf_handler (excp_entry_t * excp,
     uint64_t fault_addr = read_cr2();
     
 #ifdef NAUT_CONFIG_HVM_HRT
-    if (excp->error_code == UPCALL_MAGIC_ERROR) {
+    if (regs->error_code == UPCALL_MAGIC_ERROR) {
         return nautilus_hrt_upcall_handler(NULL, 0);
     }
 #endif
 
 #ifdef NAUT_CONFIG_ASPACES
-    if (!nk_aspace_exception(excp,vector,state)) {
+    if (!nk_aspace_exception(action,regs,state)) {
 	return 0;
     }
 #endif
 
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    int nk_monitor_excp_entry(excp_entry_t * excp,
-			      excp_vec_t vector,
+    int nk_monitor_excp_entry(struct nk_irq_action *action,
+			      struct nk_regs *regs,
 			      void *state);
 
-    return nk_monitor_excp_entry(excp, vector, state);
+    return nk_monitor_excp_entry(action, regs, state);
 #endif
 
     printk("\n+++ Page Fault +++\n"
             "RIP: %p    Fault Address: 0x%llx \n"
             "Error Code: 0x%x    (core=%u)\n", 
-            (void*)excp->rip, 
+            (void*)regs->rip, 
             fault_addr, 
-            excp->error_code, 
+            regs->error_code, 
             id);
 
-    struct nk_regs * r = (struct nk_regs*)((char*)excp - 128);
-    nk_print_regs(r);
-    backtrace(r->rbp);
+    nk_print_regs(regs);
+    backtrace(regs->rbp);
 
     panic("+++ HALTING +++\n");
     return 0;
@@ -376,22 +374,22 @@ nk_pf_handler (excp_entry_t * excp,
  *
  */
 int
-nk_gpf_handler (excp_entry_t * excp,
-		excp_vec_t     vector,
+nk_gpf_handler (struct nk_irq_action *action,
+		struct nk_regs *regs,
 		void         * state)
 {
 
     cpu_id_t id = cpu_info_ready ? my_cpu_id() : 0xffffffff;
 
 #ifdef NAUT_CONFIG_ASPACES
-    if (!nk_aspace_exception(excp,vector,state)) {
+    if (!nk_aspace_exception(action,regs,state)) {
 	return 0;
     }
 #endif
 
     // if monitor is active, we will fall through to it
     // by calling null_excp_handler
-    return null_excp_handler(excp,vector,state);
+    return null_excp_handler(action,regs,state);
 }
 
 

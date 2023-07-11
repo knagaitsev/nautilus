@@ -43,12 +43,7 @@ int nk_irq_dev_unregister(struct nk_irq_dev *);
 
 struct nk_irq_dev * nk_irq_dev_find(char *name);
 
-#define IRQ_DEV_INIT_CPU_SUCCESS 0
-#define IRQ_DEV_INIT_CPU_UNIMPL  1
 int nk_irq_dev_initialize_cpu(struct nk_irq_dev *d);
-
-#define IRQ_DEV_GET_CHAR_SUCCESS 0
-#define IRQ_DEV_GET_CHAR_UNIMPL  1
 int nk_irq_dev_get_characteristics(struct nk_irq_dev *d, struct nk_irq_dev_characteristics *c);
 
 // Return Codes for nk_irq_dev_ack

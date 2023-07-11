@@ -33,7 +33,6 @@ obj-y += \
 	env.o \
 	setjmp.o \
 	mm/ \
-	fdt/ \
 	dev.o \
 	chardev.o \
 	blkdev.o \
@@ -53,9 +52,7 @@ obj-y += \
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \
 	paging.o \
-	msr.o \
 	cpuid.o \
-	mtrr.o \
 	ticketlock.o \
 	cpu.o \
 	acpi.o \
@@ -103,3 +100,5 @@ obj-$(NAUT_CONFIG_PROCESSES) += process.o \
 obj-$(NAUT_CONFIG_LINUX_SYSCALLS) += syscalls/
 
 obj-$(NAUT_CONFIG_USE_IST) += gdt.o
+
+obj-$(NAUT_CONFIG_USE_FDT) += fdt/

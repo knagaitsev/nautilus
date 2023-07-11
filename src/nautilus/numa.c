@@ -23,7 +23,6 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/cpu.h>
-#include <nautilus/msr.h>
 #include <nautilus/numa.h>
 #include <nautilus/errno.h>
 #include <nautilus/list.h>
@@ -36,6 +35,9 @@
 #include <nautilus/multiboot2.h>
 #include <dev/apic.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/msr.h>
+#endif
 
 #ifndef NAUT_CONFIG_DEBUG_NUMA
 #undef DEBUG_PRINT

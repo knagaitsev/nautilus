@@ -455,7 +455,7 @@ static int switcher(nk_scancode_t scan)
 
 
 static int 
-kbd_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
+kbd_handler (struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
   
   uint8_t status;
@@ -486,7 +486,7 @@ kbd_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
     if (scan == 0x42) {
       // F8 down - stop
-        nk_gdb_handle_exception(excp, vec, 0, (void *)0x1ULL);
+        nk_gdb_handle_exception(action, regs, 0, (void *)0x1ULL);
       // now ignore the key
       goto out;
     }
@@ -661,7 +661,7 @@ int ps2_mouse_reset()
 
 
 
-static int mouse_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
+static int mouse_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     ps2_status_t status;
     int count=0;
@@ -766,12 +766,12 @@ int ps2_init(struct naut_info * naut)
   } else {
     if (rc==HAVE_KEYBOARD || rc == HAVE_KEYBOARD_AND_MOUSE) { 
       nk_dev_register("ps2-keyboard",NK_DEV_GENERIC,0,&kops,0);
-      register_irq_handler(1, kbd_handler, NULL);
+      nk_irq_add_callback(1, kbd_handler, NULL);
       nk_unmask_irq(1);
     } 
     if (rc==HAVE_KEYBOARD_AND_MOUSE) { 
       nk_dev_register("ps2-mouse",NK_DEV_GENERIC,0,&mops,0);
-      register_irq_handler(12, mouse_handler, NULL);
+      nk_irq_add_callback(12, mouse_handler, NULL);
       nk_unmask_irq(12);
     }
   }

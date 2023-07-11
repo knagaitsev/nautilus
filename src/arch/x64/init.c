@@ -22,14 +22,15 @@
  */
 #define __NAUTILUS_MAIN__
 
+#include <arch/x64/idt.h>
+#include <arch/x64/msr.h>
+#include <arch/x64/mtrr.h>
+
 #include <nautilus/nautilus.h>
 #include <nautilus/paging.h>
-#include <nautilus/idt.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/mb_utils.h>
 #include <nautilus/cpu.h>
-#include <nautilus/msr.h>
-#include <nautilus/mtrr.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/smp.h>
 #include <nautilus/irq.h>

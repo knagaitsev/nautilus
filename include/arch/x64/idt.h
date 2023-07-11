@@ -61,10 +61,11 @@ extern "C" {
 #ifndef __ASSEMBLER__
 
 #include <nautilus/naut_types.h>
-#include <nautilus/gdt.h>
 #include <nautilus/intrinsics.h>
 #include <nautilus/naut_string.h>
+#include<nautilus/interrupt.h>
 
+#include <arch/x64/gdt.h>
 
 #define ADDR_LO(x) ((ulong_t)(x) & 0xFFFF)
 #define ADDR_MI(x) (((ulong_t)(x) >> 16) & 0xFFFF)
@@ -125,8 +126,8 @@ int setup_idt(void);
 
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first);
 
-int null_excp_handler(excp_entry_t * excp, excp_vec_t vec, void * state_addr);
-int null_irq_handler(excp_entry_t * excp, excp_vec_t vector, void * state_addr);
+int null_excp_handler(struct nk_irq_action*, struct nk_regs*, void * state_addr);
+int null_irq_handler(struct nk_irq_action*, struct nk_regs*, void * state_addr);
 
 #ifdef NAUT_CONFIG_ARCH_X86
 static inline void

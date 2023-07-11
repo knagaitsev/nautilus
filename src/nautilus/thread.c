@@ -38,6 +38,10 @@
 #include <nautilus/errno.h>
 #include <nautilus/mm.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+#include<arch/x64/gdt.h>
+#endif
+
 #ifdef NAUT_CONFIG_ENABLE_BDWGC
 #include <gc/bdwgc/bdwgc.h>
 #endif

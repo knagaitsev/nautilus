@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include <nautilus/naut_types.h>
+#include <nautilus/interrupt.h>
 
 /******* EXTERNAL INTERFACE *********/
 
@@ -59,8 +60,6 @@ struct nk_thread;
 //typedef struct nk_wait_queue nk_wait_queue_t;
 //typedef struct nk_thread nk_thread_t;
 typedef void (*nk_xcall_func_t)(void * arg);
-typedef uint32_t cpu_id_t;
-
 
 struct nk_xcall {
     nk_queue_entry_t xcall_node;
@@ -169,6 +168,7 @@ struct cpu {
 #endif
 };
 
+int xcall_handler(struct nk_irq_action *, struct nk_regs *, void *);
 int smp_xcall(cpu_id_t cpu_id, nk_xcall_func_t fun, void * arg, uint8_t wait);
 
 /* ARCH-SPECIFIC */

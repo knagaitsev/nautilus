@@ -30,8 +30,10 @@
 extern "C" {
 #endif
 
-#include <arch/x86/msr.h>
-#include <arch/x86/gdt.h>
+#include<nautilus/nautilus.h>
+
+#include <arch/x64/msr.h>
+#include <arch/x64/gdt.h>
 
 
 /******* EXTERNAL INTERFACE *********/

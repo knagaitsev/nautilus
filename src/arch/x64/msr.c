@@ -20,8 +20,10 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
+#include <arch/x64/msr.h>
+
 #include <nautilus/nautilus.h>
-#include <nautilus/msr.h>
 #include <nautilus/shell.h>
 
 

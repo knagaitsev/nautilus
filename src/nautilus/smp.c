@@ -24,8 +24,6 @@
 #include <nautilus/smp.h>
 #include <nautilus/paging.h>
 #include <nautilus/irq.h>
-#include <nautilus/mtrr.h>
-#include <nautilus/gdt.h>
 #include <nautilus/cpu.h>
 #include <nautilus/naut_assert.h>
 #include <nautilus/thread.h>
@@ -34,14 +32,7 @@
 #include <nautilus/atomic.h>
 #include <nautilus/numa.h>
 #include <nautilus/mm.h>
-#include <nautilus/fpu.h>
 #include <nautilus/percpu.h>
-
-#ifdef NAUT_CONFIG_ARCH_X86
-#include <nautilus/msr.h>
-#include <dev/ioapic.h>
-#include <dev/apic.h>
-#endif
 
 #ifdef NAUT_CONFIG_ALLOCS
 #include <nautilus/alloc.h>
@@ -74,14 +65,6 @@
 #endif
 #define SMP_PRINT(fmt, args...) printk("SMP: " fmt, ##args)
 #define SMP_DEBUG(fmt, args...) DEBUG_PRINT("SMP: " fmt, ##args)
-
-
-static volatile unsigned smp_core_count = 1; // assume BSP is booted
-
-extern addr_t init_smp_boot;
-extern addr_t end_smp_boot;
-
-uint8_t cpu_info_ready = 0;
 
 uint32_t
 nk_get_num_cpus (void)
@@ -117,8 +100,8 @@ mark_xcall_done (struct nk_xcall * x)
 }
 
 
-#ifdef NAUT_CONFIG_ARCH_x86
-static int
+#ifdef NAUT_CONFIG_ARCH_X86
+int
 xcall_handler (struct nk_irq_action * action, struct nk_regs * regs, void *state) 
 {
     nk_queue_t * xcq = per_cpu_get(xcall_q); 

@@ -20,6 +20,12 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
+#include <arch/x64/smp.h>
+#include <arch/x64/gdt.h>
+#include <arch/x64/idt.h>
+#include <arch/x64/mtrr.h>
+
 #include <nautilus/nautilus.h>
 #include <nautilus/acpi.h>
 #include <nautilus/smp.h>
@@ -29,6 +35,7 @@
 #include <nautilus/percpu.h>
 #include <nautilus/numa.h>
 #include <nautilus/cpu.h>
+#include <nautilus/fpu.h>
 
 #ifndef NAUT_CONFIG_DEBUG_SMP
 #undef DEBUG_PRINT
@@ -38,6 +45,12 @@
 #define SMP_DEBUG(fmt, args...) DEBUG_PRINT("SMP: " fmt, ##args)
 #define SMP_ERROR(fmt, args...) ERROR_PRINT("SMP: " fmt, ##args)
 
+static volatile unsigned smp_core_count = 1; // assume BSP is booted
+
+extern addr_t init_smp_boot;
+extern addr_t end_smp_boot;
+
+uint8_t cpu_info_ready = 0;
 
 static uint8_t mp_entry_lengths[5] = {
     MP_TAB_CPU_LEN,
@@ -991,10 +1004,6 @@ out_ok:
 	return 0;
 }
 
-
-static int xcall_handler(excp_entry_t * e, excp_vec_t v, void *state);
-
-
 static int
 smp_xcall_init_queue (struct cpu * core)
 {
@@ -1015,7 +1024,7 @@ smp_setup_xcall_bsp (struct cpu * core)
     smp_xcall_init_queue(core);
 
 #ifdef NAUT_CONFIG_ARCH_X86
-    if (register_int_handler(IPI_VEC_XCALL, xcall_handler, NULL) != 0) {
+    if (nk_ivec_add_callback(IPI_VEC_XCALL, xcall_handler, NULL) != 0) {
         ERROR_PRINT("Could not assign interrupt handler for XCALL on core %u\n", core->id);
         return -1;
     }

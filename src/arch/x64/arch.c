@@ -1,5 +1,7 @@
 #include <nautilus/arch.h>
 
+#include<nautilus/interrupt.h>
+
 void arch_enable_ints(void)  { asm volatile ("sti" : : : "memory"); }
 void arch_disable_ints(void) { asm volatile ("cli" : : : "memory"); }
 int  arch_ints_enabled(void) {
@@ -33,9 +35,9 @@ void arch_set_timer(uint32_t ticks) { apic_set_oneshot_timer(MY_APIC, ticks); }
 int  arch_read_timer(void) { return apic_read_timer(MY_APIC); }
 uint64_t arch_read_timestamp() { return rdtsc(); }
 
-int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state);
-int  arch_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state) {
-    return apic_timer_handler(excp, vec, state);
+int apic_timer_handler(struct nk_irq_action *, struct nk_regs *, void *state);
+int  arch_timer_handler(struct nk_irq_action * action, struct nk_regs * regs, void *state) {
+    return apic_timer_handler(action, regs, state);
 }
 
 void arch_print_regs(struct nk_regs * r) {
@@ -58,7 +60,7 @@ void arch_print_regs(struct nk_regs * r) {
 
     printk("RIP: %04lx:%016lx\n", r->cs, r->rip);
     printk("RSP: %04lx:%016lx RFLAGS: %08lx Vector: %08lx Error: %08lx\n", 
-            r->ss, r->rsp, r->rflags, r->vector, r->err_code);
+            r->ss, r->rsp, r->rflags, r->vector, r->error_code);
     printk("RAX: %016lx RBX: %016lx RCX: %016lx\n", r->rax, r->rbx, r->rcx);
     printk("RDX: %016lx RDI: %016lx RSI: %016lx\n", r->rdx, r->rdi, r->rsi);
     printk("RBP: %016lx R08: %016lx R09: %016lx\n", r->rbp, r->r8, r->r9);

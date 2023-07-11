@@ -108,7 +108,7 @@ i8254_calib_tsc (void)
 
 
 static int 
-pit_irq_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
+pit_irq_handler (struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
     DEBUG_PRINT("Received PIT Timer interrupt\n");
     IRQ_HANDLER_END();
@@ -169,7 +169,7 @@ i8254_init (struct naut_info * naut)
     DEBUG_PRINT("Gating PIT channel 0\n");
     i8254_disable();
 
-    if (register_irq_handler(PIT_TIMER_IRQ, pit_irq_handler, NULL) < 0) {
+    if (nk_irq_add_callback(PIT_TIMER_IRQ, pit_irq_handler, NULL) < 0) {
         ERROR_PRINT("Could not register timer interrupt handler\n");
         return -1;
     }

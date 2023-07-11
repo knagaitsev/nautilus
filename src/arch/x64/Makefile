@@ -9,4 +9,6 @@ obj-y += asm/ \
 		arch.o \
 		irq.o \
 		fpu.o \
-                idt.o 
+                idt.o \
+                msr.o \
+                mtrr.o

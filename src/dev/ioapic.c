@@ -72,13 +72,18 @@ ioapic_mask_irq (struct ioapic * ioapic, uint8_t irq)
     ioapic->entries[irq].enabled = 0;
 }
 
+static int
+ioapic_dev_mask_irq(void *state, nk_irq_t irq) 
+{
+  ioapic_mask_irq((struct ioapic*)state, (uint8_t)irq);
+  return 0;
+}
 
 static uint8_t
 ioapic_get_max_entry (struct ioapic * ioapic)
 {
     return ((ioapic_read_reg(ioapic, IOAPICVER_REG) >> 16) & 0xff);
 }
-
 
 void 
 ioapic_unmask_irq (struct ioapic * ioapic, uint8_t irq)
@@ -90,6 +95,11 @@ ioapic_unmask_irq (struct ioapic * ioapic, uint8_t irq)
     ioapic->entries[irq].enabled = 1;
 }
 
+static int
+ioapic_dev_unmask_irq(void *state, nk_irq_t irq) {
+  ioapic_unmask_irq((struct ioapic*)state, (uint8_t)irq);
+  return 0;
+}
 
 static void 
 ioapic_assign_irq (struct ioapic * ioapic,
@@ -125,78 +135,11 @@ ioapic_get_version (struct ioapic * ioapic)
     return ret & 0xff;
 }
 
-
-static void
-ioapic_dump (struct ioapic * ioapic)
-{
-    uint64_t val = 0;
-    unsigned pin;
-    const char * del_modes[8] = {
-        "Fixed",
-        "Lowest",
-        "SMI",
-        "Rsvd",
-        "NMI",
-        "INIT",
-        "Rsvd",
-        "ExtINT"
-    };
-
-    IOAPIC_DEBUG("IOAPIC DUMP: \n");
-
-    IOAPIC_DEBUG(
-        "  ID:  0x%08x (id=%u)\n",
-        ioapic_read_reg(ioapic, IOAPICID_REG),
-        IOAPIC_GET_ID(ioapic_read_reg(ioapic, IOAPICID_REG))
-    );
-
-    IOAPIC_DEBUG(
-        "  VER: 0x%08x (Max Red. Entry=%u, Version=0x%02x)\n",
-        ioapic_read_reg(ioapic, IOAPICVER_REG),
-        IOAPIC_GET_MAX_RED(ioapic_read_reg(ioapic, IOAPICVER_REG)),
-        IOAPIC_GET_VER(ioapic_read_reg(ioapic, IOAPICVER_REG))
-    );
-
-    IOAPIC_DEBUG(
-        "  BASE ADDR: %p\n",
-        ioapic->base
-    );
-
-    IOAPIC_DEBUG(
-        "  ARB: 0x%08x (Arb. ID=0x%01x)\n", 
-        ioapic_read_reg(ioapic, IOAPICARB_REG),
-        IOAPIC_GET_ARBID(ioapic_read_reg(ioapic, IOAPICARB_REG))
-    );
-
-    for (pin = 0; pin < ioapic->num_entries; pin++)  {
-        val = ioapic_read_irq_entry(ioapic, pin);
-
-        IOAPIC_DEBUG(
-            "  IORED[%u]: (Dest ID=0x%02x, %s, Trig Mode=%s,\n",
-            pin,
-            IORED_GET_DEST(val),
-            IORED_GET_MASK(val) ? "MASKED" : "ENABLED",
-            IORED_GET_TRIG(val) ? "Level" : "Edge"
-        );
-
-        IOAPIC_DEBUG(
-            "             Remote IRR=%u, Polarity=%s, Dest Mode=%s,\n",
-            IORED_GET_RIRR(val),
-            IORED_GET_POL(val) ? "ActiveLo" : "ActiveHi",
-            IORED_GET_DST_MODE(val) ? "Logical" : "Physical"
-        );
-
-        IOAPIC_DEBUG(
-            "             Delivery Mode=%s, IDT VECTOR %u\n", 
-            del_modes[IORED_GET_DEL_MODE(val)],
-            IORED_GET_VEC(val)
-        );
-    }
-}
+static void ioapic_dump (struct ioapic * ioapic);
 
 
 static int
-__ioapic_init (struct ioapic * ioapic, uint8_t ioapic_id)
+__ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t ioapic_id)
 {
     int i;
     struct nk_int_entry * ioint = NULL;
@@ -281,19 +224,19 @@ __ioapic_init (struct ioapic * ioapic, uint8_t ioapic_id)
          * IOAPIC IORED entries. The BIOS should, and does appear to, set things up
          * this way 
          */
-        if (!nk_irq_is_assigned(newirq)) {
+        if (!nk_irq_is_assigned_to_irqdev(newirq)) {
 
             IOAPIC_DEBUG("Unit %u assigning new IRQ 0x%x (src_bus=0x%x, src_bus_irq=0x%x, vector=0x%x) to IORED entry %u\n",
                     ioapic->id,
                     newirq,
                     ioint->src_bus_id,
                     ioint->src_bus_irq,
-                    irq_to_vec(newirq),
+                    nk_irq_to_ivec(newirq),
                     ioint->dst_ioapic_intin);
 
             ioapic_assign_irq(ioapic, 
                     ioint->dst_ioapic_intin,
-                    irq_to_vec(newirq),
+                    nk_irq_to_ivec(newirq),
                     pol,
                     trig,
                     1 /* mask it */);
@@ -302,7 +245,7 @@ __ioapic_init (struct ioapic * ioapic, uint8_t ioapic_id)
             iored_entry->boot_info  = ioint;
             iored_entry->actual_irq = newirq;
 
-            irqmap_set_ioapic(newirq, ioapic);
+            nk_map_irq_to_irqdev(newirq, ioapic_dev);
         }
     }
 
@@ -318,24 +261,25 @@ __ioapic_init (struct ioapic * ioapic, uint8_t ioapic_id)
     return 0;
 }
 
-static struct nk_dev_int ops = {
-    .open=0,
-    .close=0,
+static struct nk_irq_dev_int ops = {
+  .enable_irq = ioapic_dev_unmask_irq,
+  .disable_irq = ioapic_dev_mask_irq,
 };
+
 
 int 
 ioapic_init (struct sys_info * sys)
 {
     int i = 0;
     for (i = 0; i < sys->num_ioapics; i++) {
-        if (__ioapic_init(sys->ioapics[i], i) < 0) {
+        char n[32];
+	snprintf(n,32,"ioapic%u",i);
+	struct nk_irq_dev * dev = nk_irq_dev_register(n,0,&ops,&sys->ioapics[i]);
+        if (__ioapic_init(sys->ioapics[i], dev, i) < 0) {
             ERROR_PRINT("Couldn't initialize IOAPIC\n");
+            nk_irq_dev_unregister(dev);
             return -1;
-        } else {
-	    char n[32];
-	    snprintf(n,32,"ioapic%u",i);
-	    nk_dev_register(n,NK_DEV_INTR,0,&ops,&sys->ioapics[i]);
-	}
+        } 	
     }
 
 #ifndef NAUT_CONFIG_GEM5    // unsupported in Gem5, causes Gem5 to crash
@@ -348,6 +292,79 @@ ioapic_init (struct sys_info * sys)
     
     return 0;
 }
+
+/*
+ * Shell Cmd Interface
+ */
+
+static void
+ioapic_dump (struct ioapic * ioapic)
+{
+    uint64_t val = 0;
+    unsigned pin;
+    const char * del_modes[8] = {
+        "Fixed",
+        "Lowest",
+        "SMI",
+        "Rsvd",
+        "NMI",
+        "INIT",
+        "Rsvd",
+        "ExtINT"
+    };
+
+    IOAPIC_DEBUG("IOAPIC DUMP: \n");
+
+    IOAPIC_DEBUG(
+        "  ID:  0x%08x (id=%u)\n",
+        ioapic_read_reg(ioapic, IOAPICID_REG),
+        IOAPIC_GET_ID(ioapic_read_reg(ioapic, IOAPICID_REG))
+    );
+
+    IOAPIC_DEBUG(
+        "  VER: 0x%08x (Max Red. Entry=%u, Version=0x%02x)\n",
+        ioapic_read_reg(ioapic, IOAPICVER_REG),
+        IOAPIC_GET_MAX_RED(ioapic_read_reg(ioapic, IOAPICVER_REG)),
+        IOAPIC_GET_VER(ioapic_read_reg(ioapic, IOAPICVER_REG))
+    );
+
+    IOAPIC_DEBUG(
+        "  BASE ADDR: %p\n",
+        ioapic->base
+    );
+
+    IOAPIC_DEBUG(
+        "  ARB: 0x%08x (Arb. ID=0x%01x)\n", 
+        ioapic_read_reg(ioapic, IOAPICARB_REG),
+        IOAPIC_GET_ARBID(ioapic_read_reg(ioapic, IOAPICARB_REG))
+    );
+
+    for (pin = 0; pin < ioapic->num_entries; pin++)  {
+        val = ioapic_read_irq_entry(ioapic, pin);
+
+        IOAPIC_DEBUG(
+            "  IORED[%u]: (Dest ID=0x%02x, %s, Trig Mode=%s,\n",
+            pin,
+            IORED_GET_DEST(val),
+            IORED_GET_MASK(val) ? "MASKED" : "ENABLED",
+            IORED_GET_TRIG(val) ? "Level" : "Edge"
+        );
+
+        IOAPIC_DEBUG(
+            "             Remote IRR=%u, Polarity=%s, Dest Mode=%s,\n",
+            IORED_GET_RIRR(val),
+            IORED_GET_POL(val) ? "ActiveLo" : "ActiveHi",
+            IORED_GET_DST_MODE(val) ? "Logical" : "Physical"
+        );
+
+        IOAPIC_DEBUG(
+            "             Delivery Mode=%s, IDT VECTOR %u\n", 
+            del_modes[IORED_GET_DEL_MODE(val)],
+            IORED_GET_VEC(val)
+        );
+    }
+}
+
 
 
 static int
