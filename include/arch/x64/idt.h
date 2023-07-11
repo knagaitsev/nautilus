@@ -123,9 +123,6 @@ struct idt_desc {
 
 int setup_idt(void);
 
-int idt_assign_entry(ulong_t entry, ulong_t handler_addr, ulong_t state_addr);
-int idt_get_entry(ulong_t entry, ulong_t *handler_addr, ulong_t *state_addr);
-
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first);
 
 int null_excp_handler(excp_entry_t * excp, excp_vec_t vec, void * state_addr);

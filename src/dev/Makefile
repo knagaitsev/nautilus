@@ -12,7 +12,10 @@ endif
 obj-$(NAUT_CONFIG_ARCH_RISCV) += sifive.o
 
 obj-$(NAUT_CONFIG_ARCH_ARM64) += pl011.o \
-	pci.o \
+	pci.o
+
+obj-$(NAUT_CONFIG_GIC_VERSION_2) += gicv2.o
+obj-$(NAUT_CONFIG_GIC_VERSION_3) += gicv3.o
 
 obj-$(NAUT_CONFIG_HPET) += hpet.o
 

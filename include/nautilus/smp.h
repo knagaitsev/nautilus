@@ -23,35 +23,30 @@
 #ifndef __SMP_H__
 #define __SMP_H__
 
-#ifndef __ASSEMBLER__ 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <nautilus/naut_types.h>
 
-#ifdef NAUT_CONFIG_ARCH_X86
-#include <nautilus/msr.h>
-#endif
-
 /******* EXTERNAL INTERFACE *********/
 
 uint32_t nk_get_num_cpus (void);
-uint8_t nk_get_cpu_by_lapicid (uint8_t lapicid);
 
 /******* !EXTERNAL INTERFACE! *********/
 
-
-#ifdef NAUT_CONFIG_ARCH_X86
-#include <dev/apic.h>
-#endif
 #include <nautilus/spinlock.h>
 #include <nautilus/mm.h>
 #include <nautilus/queue.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+
+#include <dev/apic.h>
+
 #ifdef NAUT_CONFIG_USE_IST
-#include <nautilus/gdt.h>
+#include <arch/x86/gdt.h>
+#endif
+
 #endif
 
 struct naut_info;
@@ -100,7 +95,7 @@ struct cpu {
     uint64_t interrupt_count;                  /* +16 PAD: DO NOT MOVE */
     uint64_t exception_count;                  /* +24 PAD: DO NOT MOVE */
 
-    struct nk_irq_dev *irq_chip;
+    struct nk_irq_dev *irq_dev;
 
     // this field is only used if aspace are enabled
     struct nk_aspace    *cur_aspace;            /* +32 PAD: DO NOT MOVE */
@@ -114,7 +109,7 @@ struct cpu {
 #endif
 
     cpu_id_t id;
-    uint32_t lapic_id;   
+
 #ifdef NAUT_CONFIG_ARCH_RISCV
     uint32_t enabled;
     uint32_t is_bsp;
@@ -122,16 +117,15 @@ struct cpu {
     uint8_t enabled;
     uint8_t is_bsp;
 #endif
+
     uint32_t cpu_sig;
     uint32_t feat_flags;
 
     volatile uint8_t booted;
 
-
     int in_timer_interrupt;
     int in_kick_interrupt;
 
-    struct apic_dev * apic;
 
     struct sys_info * system;
 
@@ -154,6 +148,11 @@ struct cpu {
 
     struct nk_rand_info * rand;
 
+#ifdef NAUT_CONFIG_ARCH_X86
+
+    struct apic_dev * apic;
+    uint32_t lapic_id;   
+
 #ifdef NAUT_CONFIG_USE_IST
     /* CPU-specific GDT, for separate IST per-CPU */
     // Set up in smp_ap_setup
@@ -162,57 +161,22 @@ struct cpu {
     struct tss64 tss;
 #endif
 
+#endif
+
     /* temporary */
 #ifdef NAUT_CONFIG_PROFILE
     struct nk_instr_data * instr_data;
 #endif
 };
 
-
-struct ap_init_area {
-    uint32_t stack;  // 0
-    uint32_t rsvd; // to align the GDT on 8-byte boundary // 4
-    uint32_t gdt[6] ; // 8
-    uint16_t gdt_limit; // 32
-    uint32_t gdt_base; // 34
-    uint16_t rsvd1; // 38
-    uint64_t gdt64[3]; // 40
-    uint16_t gdt64_limit; // 64
-    uint64_t gdt64_base; // 66
-    uint64_t cr3; // 74
-    struct cpu * cpu_ptr; // 82
-
-    void (*entry)(struct cpu * core); // 90
-
-} __packed;
-
-
-int smp_early_init(struct naut_info * naut);
-int smp_bringup_aps(struct naut_info * naut);
 int smp_xcall(cpu_id_t cpu_id, nk_xcall_func_t fun, void * arg, uint8_t wait);
-void smp_ap_entry (struct cpu * core);
-int smp_setup_xcall_bsp (struct cpu * core);
-
 
 /* ARCH-SPECIFIC */
 
 int arch_early_init (struct naut_info * naut);
 
-
-
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* !__ASSEMBLER__ */
-
-#define AP_TRAMPOLINE_ADDR 0xf000 
-#define AP_BOOT_STACK_ADDR 0x1000
-#define AP_INFO_AREA       0x2000
-
-#define BASE_MEM_LAST_KILO 0x9fc00
-#define BIOS_ROM_BASE      0xf0000
-#define BIOS_ROM_END       0xfffff
-
 
 #endif

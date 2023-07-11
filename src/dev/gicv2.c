@@ -1,7 +1,10 @@
 
-#include<arch/arm64/gic.h>
+#include<dev/gicv2.h>
+#include<dev/gic_common.h>
 
 #include<nautilus/nautilus.h>
+#include<nautilus/irqdev.h>
+#include<nautilus/interrupt.h>
 #include<nautilus/endian.h>
 #include<nautilus/fdt/fdt.h>
 
@@ -43,7 +46,7 @@
 
 #define MSI_TYPER_OFFSET 0x8
 
-typedef struct gicv2 {
+struct gicv2 {
 
   uint64_t dist_base;
   uint64_t cpu_base;
@@ -57,9 +60,7 @@ typedef struct gicv2 {
 
   char *compatible_string;
 
-} gicv2_t;
-
-static gicv2_t __gic;
+};
 
 #define LOAD_GICD_REG(gic, offset) *(volatile uint32_t*)((gic).dist_base + offset)
 #define STORE_GICD_REG(gic, offset, val) (*(volatile uint32_t*)((gic).dist_base + offset)) = val
@@ -135,8 +136,7 @@ typedef union gicc_priority_reg {
 typedef union gicc_int_info_reg {
   uint32_t raw;
   struct {
-    uint_t int_id : 10;
-    uint_t cpu_id : 3;
+    uint_t int_id : 13;
   };
 } gicc_int_info_reg_t;
 
@@ -153,7 +153,7 @@ typedef union msi_type_reg {
   };
 } msi_type_reg_t;
 
-static char *gicv2_compat_list[] = {
+static const char *gicv2_compat_list[] = {
         "arm,arm1176jzf-devchip-gic",
 	"arm,arm11mp-gic",
 	"arm,cortex-a15-gic",
@@ -169,20 +169,26 @@ static char *gicv2_compat_list[] = {
 	"qcom,msm-qgic2"
 };
 
-int global_init_gic(uint64_t dtb) {
-
-  memset(&__gic, 0, sizeof(gicv2_t));
+static int gicv2_dev_init(uint64_t dtb, struct gicv2 *gic) {
 
   // Find node with "interrupt-controller" property
   int offset = fdt_node_offset_by_prop_value((void*)dtb, -1, "interrupt-controller", NULL, NULL);
-
+  if(offset < 0) {
+    GIC_ERROR("FDT_ERROR: %s\n", fdt_strerror(offset));
+  }
   while(offset >= 0) { 
     int compat_result = 1;
     for(uint_t i = 0; i < sizeof(gicv2_compat_list)/sizeof(const char*); i++) {
-      compat_result &= fdt_node_check_compatible((void*)dtb, offset, gicv2_compat_list[i]);
+      compat_result = fdt_node_check_compatible((void*)dtb, offset, gicv2_compat_list[i]);
+     
+      if(compat_result & ~1) {
+        GIC_ERROR("FDT_ERROR: %s\n", fdt_strerror(compat_result));
+        return -1;
+      }
+
       if(!compat_result) {
-        __gic.compatible_string = gicv2_compat_list[i];
-        GIC_DEBUG("Found compatible GICv2 controller in device tree: %s\n", __gic.compatible_string);
+        gic->compatible_string = gicv2_compat_list[i];
+        GIC_DEBUG("Found compatible GICv2 controller in device tree: %s\n", gic->compatible_string);
         break;
       }
     }
@@ -194,7 +200,7 @@ int global_init_gic(uint64_t dtb) {
     offset = fdt_node_offset_by_prop_value((void*)dtb, offset, "interrupt-controller", NULL, NULL);
   }
 
-  if(offset < 0) {
+  if(offset == -FDT_ERR_NOTFOUND) {
     GIC_ERROR("Could not find a compatible interrupt controller in the device tree!\n");
     return -1;
   }
@@ -204,27 +210,34 @@ int global_init_gic(uint64_t dtb) {
   int getreg_result = fdt_getreg_array((void*)dtb, offset, reg, &num_read);
 
   if(!getreg_result && num_read == 2) {
-     __gic.dist_base = reg[0].address;
-     __gic.cpu_base = reg[1].address;
-     GIC_DEBUG("GICD_BASE = 0x%x GICC_BASE = 0x%x\n", __gic.dist_base, __gic.cpu_base);
+     gic->dist_base = reg[0].address;
+     gic->cpu_base = reg[1].address;
+     GIC_DEBUG("GICD_BASE = 0x%x GICC_BASE = 0x%x\n", gic->dist_base, gic->cpu_base);
   } else {
     GIC_ERROR("Invalid reg field in the device tree!\n");
     return -1;
   }
 
   gicd_type_reg_t d_type_reg;
-  d_type_reg.raw = LOAD_GICD_REG(__gic, GICD_TYPER_OFFSET);
-  __gic.max_irq = 32*(d_type_reg.it_lines_num + 1);
-  __gic.cpu_num = d_type_reg.cpu_num;
-  __gic.security_ext = d_type_reg.sec_ext_impl;
+  d_type_reg.raw = LOAD_GICD_REG(*gic, GICD_TYPER_OFFSET);
+  gic->max_irq = 32*(d_type_reg.it_lines_num + 1);
+  gic->cpu_num = d_type_reg.cpu_num;
+  gic->security_ext = d_type_reg.sec_ext_impl;
 
-  GIC_DEBUG("max irq = %u, cpu num = %u, security extensions = %s\n", __gic.max_irq, __gic.cpu_num, 
-      __gic.security_ext ? "ENABLED" : "DISABLED");
+  GIC_DEBUG("max irq = %u, cpu num = %u, security extensions = %s\n", gic->max_irq, gic->cpu_num, 
+      gic->security_ext ? "ENABLED" : "DISABLED");
 
   gicd_ctl_reg_t d_ctl_reg;
-  d_ctl_reg.raw = LOAD_GICD_REG(__gic, GICD_CTLR_OFFSET);
+  d_ctl_reg.raw = LOAD_GICD_REG(*gic, GICD_CTLR_OFFSET);
   d_ctl_reg.grp0_en = 1;
-  STORE_GICD_REG(__gic, GICD_CTLR_OFFSET, d_ctl_reg.raw);
+  STORE_GICD_REG(*gic, GICD_CTLR_OFFSET, d_ctl_reg.raw);
+
+  GIC_PRINT("inited globally\n");
+
+  return 0;
+}
+
+static int gicv2_dev_msi_init(uint64_t dtb, struct gicv2 *gic) {
 
   GIC_DEBUG("Looking for MSI(-X) Support\n");
 
@@ -233,6 +246,7 @@ int global_init_gic(uint64_t dtb) {
     GIC_DEBUG("Found compatible msi-controller frame in device tree!\n");
 
     struct gic_msi_frame *frame = malloc(sizeof(struct gic_msi_frame));
+    memset(frame, 0, sizeof(struct gic_msi_frame));
 
     fdt_reg_t msi_reg = { .address = 0, .size = 0 };
     fdt_getreg((void*)dtb, msi_offset, &msi_reg);
@@ -248,16 +262,18 @@ int global_init_gic(uint64_t dtb) {
       GIC_DEBUG("Found MSI Base SPI in FDT\n");
       frame->base_irq = be32toh(*(uint32_t*)prop->data);
       prop = fdt_get_property_namelen((void*)dtb, msi_offset, "arm,msi-num-spis", 16, NULL); 
+      GIC_DEBUG("\tBASE_SPI = %u\n", frame->base_irq);
       if(prop) {
-        GIC_DEBUG("Found MSI SPI Number in FDT\n");
+        GIC_DEBUG("Found MSI SPI Count in FDT\n");
         frame->num_irq = be32toh(*(uint32_t*)prop->data);
+        GIC_DEBUG("\tSPI_NUM = %u\n", frame->num_irq);
         msi_info_found = 1;
       } else {
         GIC_WARN("Failed to find MSI SPI Number in the device tree\n");
       }
     } else {
       GIC_WARN("Failed to find MSI Base SPI in the device tree\n");
-    }    
+    } 
 
     if(!msi_info_found) {
       
@@ -286,128 +302,196 @@ int global_init_gic(uint64_t dtb) {
     if(!msi_info_found) {
       free(frame);
     } else {
-      frame->next = __gic.msi_frame;
-      __gic.msi_frame = frame;
+      frame->next = gic->msi_frame;
+      gic->msi_frame = frame;
     }
 
     msi_offset = fdt_node_offset_by_compatible((void*)dtb, msi_offset, "arm,gic-v2m-frame");
   }
+}
 
-  GIC_PRINT("inited globally\n");
+static int gicv2_dev_int_desc_init(struct nk_irq_dev *dev, struct gicv2 *gic) 
+{
+
+  // Set up 0-15 for SGI
+  nk_alloc_ivec_descs(0, 16, dev, NK_IVEC_DESC_TYPE_VALID, NK_IVEC_DESC_FLAG_PERCPU | NK_IVEC_DESC_FLAG_IPI);
+  GIC_DEBUG("Set Up SGI Vectors\n");
+  
+  // Set up 16-31 for PPI
+  nk_alloc_ivec_descs(16, 16, dev, NK_IVEC_DESC_TYPE_VALID, NK_IVEC_DESC_FLAG_PERCPU);
+  GIC_DEBUG("Set Up PPI Vectors\n");
+
+  // Set up the correct number of SPI
+  GIC_DEBUG("gic->max_irq = %u\n", gic->max_irq);
+  nk_alloc_ivec_descs(32, gic->max_irq - 32, dev, NK_IVEC_DESC_TYPE_VALID, 0);
+  GIC_DEBUG("Set Up SPI Vectors\n");
+
+  // Now go through and set the MSI flag as appropriate
+  for(struct gic_msi_frame *frame = gic->msi_frame; frame != NULL; frame = frame->next) 
+  {
+    GIC_DEBUG("Setting up MSI Frame: [%u - %u]\n", frame->base_irq, frame->base_irq + frame->num_irq - 1);
+    for(uint32_t i = 0; i < frame->num_irq; i++) 
+    {
+      struct nk_int_desc *desc = nk_ivec_to_desc(i + frame->base_irq);
+
+      if(desc == NULL) {
+        GIC_ERROR("MSI frame contains values outside of the range of SPI interrupts! IRQ NO. = %u\n", i+frame->base_irq);
+        continue;
+      }
+
+      nk_ivec_set_flags(desc, NK_IVEC_DESC_FLAG_MSI);
+    }
+  }
 
   return 0;
 }
 
-int per_cpu_init_gic(void) {
+static int gicv2_dev_get_characteristics(void *state, struct nk_irq_dev_characteristics *c)
+{
+  memset(c, 0, sizeof(c));
+  return 0;
+}
 
-  gicc_ctl_reg_t c_ctl_reg;
-  c_ctl_reg.raw = LOAD_GICC_REG(__gic, GICC_CTLR_OFFSET);
+static int gicv2_dev_initialize_cpu(void *state) {
 
-  if(__gic.security_ext) {
-    c_ctl_reg.isc.grp1_en = 1;
-    c_ctl_reg.isc.multistep_eoi = 0;
+  struct gicv2 *gic = (struct gicv2*)state;
+
+  // Enable insecure interrupts
+  gicc_ctl_reg_t ctl;
+  ctl.raw = LOAD_GICC_REG(*gic, GICC_CTLR_OFFSET);
+
+  if(gic->security_ext) {
+    ctl.isc.grp1_en = 1;
+    ctl.isc.multistep_eoi = 0;
   } else {
-    c_ctl_reg.sss.grp1_en = 1;
+    ctl.sss.grp1_en = 1;
   }
-  STORE_GICC_REG(__gic, GICC_CTLR_OFFSET, c_ctl_reg.raw);
 
+  STORE_GICC_REG(*gic, GICC_CTLR_OFFSET, ctl.raw);
+
+  // Set priority mask to allow all
   gicc_priority_reg_t prior_reg;
-  prior_reg.raw = LOAD_GICC_REG(__gic, GICC_PMR_OFFSET);
+  prior_reg.raw = LOAD_GICC_REG(*gic, GICC_PMR_OFFSET);
   prior_reg.priority = 0xFF;
-  STORE_GICC_REG(__gic, GICC_PMR_OFFSET, prior_reg.raw);
+  STORE_GICC_REG(*gic, GICC_PMR_OFFSET, prior_reg.raw);
 
   GIC_DEBUG("per_cpu GICv2 initialized\n");
 
   return 0;
 }
 
-static inline int is_spurrious_int(uint32_t id) {
-  return ((id & (~0b11)) ^ (0x3FC)) == 0;
+static inline int gicv2_is_spurrious_int(uint32_t id) {
+  return ((id & (~0b11)) == 0x3FC);
 }
 
-struct gic_msi_frame * gic_msi_frame(void) {
-  return __gic.msi_frame;
-}
+static int gicv2_dev_ack_irq(void *state, nk_irq_t *irq) {
 
-uint32_t gic_max_irq(void);
+  struct gicv2 *gic = (struct gicv2 *)state;
 
-void gic_ack_int(gic_int_info_t *info) {
   gicc_int_info_reg_t info_reg;
-  info_reg.raw = LOAD_GICC_REG(__gic, GICC_IAR_OFFSET);
+  info_reg.raw = LOAD_GICC_REG(*gic, GICC_IAR_OFFSET);
 
-  if(is_spurrious_int(info_reg.int_id)) {
-    info->group = -1;
-    GIC_WARN("Spurrious interrupt occurred!\n");
+  if(gicv2_is_spurrious_int(info_reg.int_id)) {
+    return IRQ_DEV_ACK_ERR_RET;
   }
-  else {
-    info->group = 1;
-  }
-  info->int_id = info_reg.int_id;
+
+  *irq = info_reg.int_id;
+  return IRQ_DEV_ACK_SUCCESS;
+
 }
 
-void gic_end_of_int(gic_int_info_t *info) {
+static int gicv2_dev_eoi_irq(void *state, nk_irq_t irq) {
+
+  struct gicv2 *gic = (struct gicv2 *)state;
+
   gicc_int_info_reg_t info_reg;
-  info_reg.int_id = info->int_id;
-  info_reg.cpu_id = info->cpu_id;
-  STORE_GICC_REG(__gic, GICC_EOIR_OFFSET, info_reg.raw);
+  info_reg.int_id = irq;
+  STORE_GICC_REG(*gic, GICC_EOIR_OFFSET, info_reg.raw);
+
+  return IRQ_DEV_EOI_SUCCESS;
+
 }
 
-int gic_enable_int(uint_t irq) {
-  GICD_BITMAP_SET(__gic, irq, GICD_ISENABLER_0_OFFSET);
+static int gicv2_dev_enable_irq(void *state, nk_irq_t irq) {
+
+  GICD_BITMAP_SET(*(struct gicv2*)state, irq, GICD_ISENABLER_0_OFFSET);
+  GICD_BYTEMAP_WRITE(*(struct gicv2*)state, irq, GICD_ITARGETSR_0_OFFSET, ((1<<((struct gicv2*)state)->cpu_num)-1));
   return 0;
+
 }
 
-int gic_disable_int(uint_t irq) {
-  GICD_BITMAP_SET(__gic, irq, GICD_ICENABLER_0_OFFSET);
+static int gicv2_dev_disable_irq(void *state, nk_irq_t irq) {
+
+  GICD_BITMAP_SET(*(struct gicv2*)state, irq, GICD_ICENABLER_0_OFFSET);
   return 0;
-}
-int gic_int_enabled(uint_t irq) {
-  return GICD_BITMAP_READ(__gic, irq, GICD_ISENABLER_0_OFFSET);
+
 }
 
-int gic_clear_int_pending(uint_t irq) {
-  GICD_BITMAP_SET(__gic, irq, GICD_ICPENDR_0_OFFSET);
-  return 0;
-}
-int gic_int_pending(uint_t irq) {
-  return GICD_BITMAP_READ(__gic, irq, GICD_ISPENDR_0_OFFSET);
-}
+static int gicv2_dev_irq_status(void *state, nk_irq_t irq) {
 
-int gic_int_active(uint_t irq) {
-  return GICD_BITMAP_READ(__gic, irq, GICD_ISACTIVER_0_OFFSET);
-}
+  struct gicv2 *gic = (struct gicv2*)state;
 
-static int gic_int_group(uint_t irq) {
-  return GICD_BITMAP_READ(__gic, irq, GICD_IGROUPR_0_OFFSET);
-}
+  int status = 0;
 
-static uint8_t gic_int_target(uint_t irq) {
-  return GICD_BYTEMAP_READ(__gic, irq, GICD_ITARGETSR_0_OFFSET);
-}
-void gic_set_target_all(uint_t irq) {
-  uint8_t mask = (1 << __gic.cpu_num) - 1;
-  GICD_BYTEMAP_WRITE(__gic, irq, GICD_ITARGETSR_0_OFFSET, mask);
+  status |= GICD_BITMAP_READ(*gic, irq, GICD_ISENABLER_0_OFFSET) ?
+    IRQ_DEV_STATUS_ENABLED : 0;
+
+  status |= GICD_BITMAP_READ(*gic, irq, GICD_ISPENDR_0_OFFSET) ?
+    IRQ_DEV_STATUS_PENDING : 0;
+
+  status |= GICD_BITMAP_READ(*gic, irq, GICD_ISACTIVER_0_OFFSET) ?
+    IRQ_DEV_STATUS_ACTIVE : 0;
+
+  return status;
+
 }
 
-static int gic_int_is_edge_triggered(uint_t irq) {
-  return 0b10 & GICD_DUALBITMAP_READ(__gic, irq, GICD_ICFGR_0_OFFSET);
-}
+static struct nk_irq_dev_int gicv2_dev_int = {
+  .get_characteristics = gicv2_dev_get_characteristics,
+  .initialize_cpu = gicv2_dev_initialize_cpu,
+  .ack_irq = gicv2_dev_ack_irq,
+  .eoi_irq = gicv2_dev_eoi_irq,
+  .enable_irq = gicv2_dev_enable_irq,
+  .disable_irq = gicv2_dev_disable_irq,
+  .irq_status = gicv2_dev_irq_status
+};
 
-void gic_dump_state(void) {
+int gicv2_init(uint64_t dtb) 
+{
+  struct gicv2 *state = malloc(sizeof(struct gicv2));
+  memset(state, 0, sizeof(struct gicv2));
 
-  gicd_ctl_reg_t ctl_reg;
-  ctl_reg.raw = LOAD_GICD_REG(__gic, GICD_CTLR_OFFSET);
-  GIC_PRINT("Distributor Control Register\n");
-  GIC_PRINT("\traw = 0x%08x\n", ctl_reg.raw);
-
-  for(uint_t i = 0; i < __gic.max_irq; i++) {
-    GIC_PRINT("Int (%u) : %s%s%s(group %u) (target 0x%02x) (%s)\n", i,
-      gic_int_enabled(i) ? "enabled " : "",
-      gic_int_pending(i) ? "pending " : "",
-      gic_int_active(i) ? "active " : "",
-      gic_int_group(i),
-      gic_int_target(i),
-      gic_int_is_edge_triggered(i) ? "edge triggered" : "level sensitive"
-      );
+  if(state == NULL) {
+    GIC_ERROR("Failed to allocate gicv2 struct!\n");
+    return -1;
   }
+
+  if(gicv2_dev_init(dtb, state)) {
+    GIC_ERROR("Failed to initialize GIC device!\n");
+    return -1;
+  }
+
+  if(gicv2_dev_msi_init(dtb, state)) {
+    GIC_WARN("Failed to initialize GICv2m MSI Support!\n");
+  }
+
+  struct nk_irq_dev *dev = nk_irq_dev_register("gicv2", 0, &gicv2_dev_int, (void*)state);
+
+  if(dev == NULL) {
+    GIC_ERROR("Failed to register as an IRQ device!\n");
+    return -1;
+  }
+
+  if(gicv2_dev_int_desc_init(dev, state)) {
+    GIC_ERROR("Failed to set up interrupt vector descriptors!\n");
+    return -1;
+  }
+
+  if(nk_assign_all_cpus_irq_dev(dev)) {
+    GIC_ERROR("Failed to assign the GIC to all CPU's in the system!\n");
+    return -1;
+  }
+
+  return 0;
 }
+

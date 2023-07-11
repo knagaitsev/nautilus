@@ -15,6 +15,7 @@ void arch_enable_ints(void);
 void arch_disable_ints(void);
 int arch_ints_enabled(void);
 
+/*
 void arch_irq_enable(int irq);
 void arch_irq_disable(int irq);
 void arch_irq_install(int irq, int (*handler)(excp_entry_t *excp,
@@ -23,6 +24,7 @@ void arch_irq_install(int irq, int (*handler)(excp_entry_t *excp,
 void arch_irq_uninstall(int irq);
 
 int arch_msi_find_and_reserve_range(uint64_t num_entries, int aligned, uint64_t *first);
+*/
 
 int arch_early_init(struct naut_info *naut);
 int arch_numa_init(struct sys_info *sys);
@@ -39,7 +41,7 @@ uint64_t arch_cycles_to_realtime(uint64_t cycles);
 void arch_update_timer(uint32_t ticks, nk_timer_condition_t cond);
 void arch_set_timer(uint32_t ticks);
 int arch_read_timer(void);
-int arch_timer_handler(excp_entry_t *excp, ulong_t vec, void *state);
+int arch_timer_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state);
 
 uint64_t arch_read_timestamp(void);
 
@@ -59,3 +61,16 @@ int arch_little_endian(void);
 #else
 #error "Unsupported architecture"
 #endif
+
+#ifndef NAUT_CONFIG_SPARSE_IRQ
+#ifndef MAX_IRQ_NUM
+#error "Architecture did not specify MAX_IRQ_NUM or CONFIG_SPARSE_IRQ!"
+#endif
+#endif
+
+#ifndef NAUT_CONFIG_SPARSE_IRQ_VECTORS
+#ifndef MAX_IVEC_NUM
+#error "Architecture did not specify MAX_IVEC_NUM or CONFIG_SPARSE_IRQ_VECTORS!"
+#endif
+#endif
+

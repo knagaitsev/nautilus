@@ -282,7 +282,7 @@ static struct nk_char_dev_int pl011_uart_char_dev_ops = {
   .status = pl011_uart_dev_status
 };
 
-static int pl011_interrupt_handler(excp_entry_t *excp, ulong_t vec, void *state) {
+static int pl011_interrupt_handler(struct nk_irq_action *action, struct nk_regs *, void *state) {
 
   struct pl011_uart *p = (struct pl011_uart*)state;
 
@@ -305,18 +305,20 @@ static int pl011_interrupt_handler(excp_entry_t *excp, ulong_t vec, void *state)
   return 0;
 }
 
-int pl011_uart_dev_init(const char *name, struct pl011_uart *p) {
-
-  spin_lock(&p->output_lock);
+int pl011_uart_dev_init(const char *name, struct pl011_uart *p) 
+{
+  spin_lock(&p->input_lock);
 
   // Clear out spurrious interrupts
   uint32_t int_status = pl011_read_reg(p, UART_RAW_INT_STAT);
   pl011_write_reg(p, UART_INT_CLR, int_status);
 
-  arch_irq_install(33, pl011_interrupt_handler, (void*)p);
+  nk_irq_add_callback(33, pl011_interrupt_handler, (void*)p);
+  nk_unmask_irq(33);
+
   pl011_write_reg(p, UART_INT_MASK, 0x50);
 
-  spin_unlock(&p->output_lock);
+  spin_unlock(&p->input_lock);
 
   // This may print so we need to unlock before calling it
   p->dev = nk_char_dev_register(name,0,&pl011_uart_char_dev_ops, p);

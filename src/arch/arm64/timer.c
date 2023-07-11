@@ -2,7 +2,6 @@
 #include<nautilus/arch.h>
 #include<nautilus/timer.h>
 #include<nautilus/percpu.h>
-#include<arch/arm64/gic.h>
 
 #define NS_PER_S 1000000000ULL
 
@@ -71,8 +70,6 @@ void arch_set_timer(uint32_t ticks) {
    
     asm volatile("msr CNTP_TVAL_EL0, %0" :: "r" ((int)ticks));
 
-    gic_clear_int_pending(30);
-
     current_ticks = ticks;
 }
 int arch_read_timer(void) {
@@ -81,7 +78,7 @@ int arch_read_timer(void) {
   return (tval<<32)>>32;
 }
 
-int arch_timer_handler(excp_entry_t *excp, ulong_t vec, void *state) { 
+int arch_timer_handler(struct nk_irq_action*, struct nk_regs*, void *state) { 
 
     TIMER_DEBUG("Interrupt\n");
 
@@ -111,7 +108,8 @@ uint64_t arch_read_timestamp(void) {
 int percpu_timer_init(void) {
 
   // install the handler
-  arch_irq_install(30, arch_timer_handler, NULL);
+  nk_irq_add_callback(30, arch_timer_handler, NULL);
+  nk_unmask_irq(30);
 
 #ifdef NAUT_CONFIG_DEBUG_TIMERS
   print_timer_regs();

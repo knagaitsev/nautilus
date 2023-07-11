@@ -44,7 +44,6 @@ configure_cpu (unsigned long fdt, int offset) {
     memset(new_cpu, 0, sizeof(struct cpu));
 
     new_cpu->id         = reg_addr;
-    new_cpu->lapic_id   = 0;
 
     new_cpu->enabled    = enabled;
     new_cpu->is_bsp     = (new_cpu->id == sys->bsp_id ? 1 : 0);
@@ -52,6 +51,8 @@ configure_cpu (unsigned long fdt, int offset) {
     new_cpu->feat_flags = 0;
     new_cpu->system     = sys;
     new_cpu->cpu_khz    = 0;
+
+    new_cpu->irq_dev = NULL;
 
     SMP_DEBUG("CPU %u\n", new_cpu->id);
     SMP_DEBUG("\tEnabled?=%01d\n", new_cpu->enabled);

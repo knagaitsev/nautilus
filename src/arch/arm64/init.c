@@ -12,9 +12,10 @@
 #include<nautilus/blkdev.h>
 #include<nautilus/netdev.h>
 #include<nautilus/gpudev.h>
+#include<nautilus/irqdev.h>
 #include<nautilus/arch.h>
 #include<nautilus/irq.h>
-#include<nautilus/idt.h>
+#include<nautilus/interrupt.h>
 #include<nautilus/mm.h>
 #include<nautilus/waitqueue.h>
 #include<nautilus/future.h>
@@ -30,7 +31,6 @@
 #include<nautilus/fs.h>
 
 #include<arch/arm64/unimpl.h>
-#include<arch/arm64/gic.h>
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/excp.h>
 #include<arch/arm64/timer.h>
@@ -38,6 +38,12 @@
 
 #include<dev/pl011.h>
 #include<dev/pci.h>
+
+#ifdef NAUT_CONFIG_GIC_VERSION_2
+#include<dev/gicv2.h>
+#elif NAUT_CONFIG_GIC_VERSION_3
+#include<dev/gicv3.h>
+#endif
 
 #ifdef NAUT_CONFIG_VIRTIO_PCI
 #include<dev/virtio_pci.h>
@@ -98,10 +104,16 @@ static inline void per_cpu_sys_ctrl_reg_init(void) {
   ctrl_reg.align_check_en = 0;
   ctrl_reg.unaligned_acc_en = 1;
 
-  dump_sys_ctrl_reg(ctrl_reg);
+  //dump_sys_ctrl_reg(ctrl_reg);
 
   STORE_SYS_REG(SCTLR_EL1, ctrl_reg.raw);
 
+}
+
+static inline int per_cpu_irq_init(void) 
+{
+  struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev); 
+  return nk_irq_dev_initialize_cpu(irq_dev);
 }
 
 static inline int init_core_barrier(struct sys_info *sys) {
@@ -136,8 +148,8 @@ void secondary_init(void) {
  
   // Locally Initialize the GIC on the init processor 
   // (will need to call this on every processor which can receive interrupts)
-  if(per_cpu_init_gic()) {
-    INIT_ERROR("Failed to initialize CPU %u's GIC registers!\n", my_cpu_id());
+  if(per_cpu_irq_init()) {
+    INIT_ERROR("Failed to initialize the IRQ chip locally for CPU %u!\n", my_cpu_id());
     return;
   }
   INIT_PRINT("Initialized the GIC!\n", my_cpu_id());
@@ -248,6 +260,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Init devices (these don't seem to do anything for now)
   nk_dev_init();
+  nk_irq_dev_init();
   nk_char_dev_init();
   nk_block_dev_init();
   nk_net_dev_init();
@@ -257,7 +270,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   mm_boot_init(dtb);
 
   // Initialize SMP using the dtb
-  smp_early_init(&nautilus_info);
+  arch_early_init(&nautilus_info);
 
   // Set our thread pointer id register for the BSP
   set_tpid_reg(&nautilus_info);
@@ -275,18 +288,31 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
     INIT_ERROR("Failed to initialize paging!\n");
   }
 
-  // Initialize the structures which hold info about 
-  // interrupt/exception handlers and routing
-  if(excp_init()) {
-    INIT_ERROR("Failed to initialize the excp handler tables!\n");
+  per_cpu_paging_init();
+
+#ifdef NAUT_CONFIG_GIC_VERSION_2
+  if(gicv2_init(dtb)) {
+    panic("Failed to initialize GICv2!\n");  
+  }
+#elif NAUT_CONFIG_GIC_VERSION_3
+  if(gicv3_init(dtb)) {
+    panic("Failed to initialize GICv3!\n");  
+  }
+#else
+#error "Invalid GIC Version!"
+#endif
+
+  if(per_cpu_irq_init()) {
+    INIT_ERROR("Failed to initialize the IRQ chip locally for CPU %u!\n", my_cpu_id());
     return;
   }
-
-  per_cpu_paging_init();
+  INIT_DEBUG("Initialized the Interrupt Controller\n");
 
   // Now we should be able to install irq handlers
 
   pl011_uart_dev_init(chardev_name, &_main_pl011_uart);
+
+  INIT_DEBUG("Initialized the PL011 as a character device: %s\n", chardev_name);
 
   nk_wait_queue_init();
   nk_future_init();
@@ -329,8 +355,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_fs_init();
   INIT_DEBUG("FS inited!\n");
-  
-  gic_dump_state();
 
   nk_vc_init();
   INIT_DEBUG("VC inited!\n");
@@ -343,14 +367,14 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Start the scheduler
   nk_sched_start();  
 
-  // Enable interrupts
-  arch_enable_ints(); 
-
-  INIT_PRINT("Interrupts are now enabled\n");
-  
   //enable the timer
   percpu_timer_init();
   arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
+  
+  // Enable interrupts
+  arch_enable_ints(); 
+
+  INIT_PRINT("Interrupts are now enabled\n"); 
 
   nk_launch_shell("root-shell",0,0,0);
 

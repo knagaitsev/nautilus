@@ -9,7 +9,3 @@ obj-y += asm/ \
 	psci.o \
 	paging.o \
 
-obj-$(NAUT_CONFIG_GIC_VERSION_2) += gicv2.o
-
-obj-$(NAUT_CONFIG_GIC_VERSION_3) += gicv3.o
-

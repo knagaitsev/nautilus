@@ -38,6 +38,7 @@ typedef enum {
     NK_DEV_NET,
     NK_DEV_GRAPHICS,
     NK_DEV_SOUND,
+    NK_DEV_IRQ,
 } nk_dev_type_t ; 
 
 

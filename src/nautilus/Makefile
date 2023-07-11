@@ -3,9 +3,9 @@ obj-y += \
 	printk.o \
 	doprnt.o \
 	vc.o \
-	idt.o \
 	queue.o \
-	irq.o \
+	irqdev.o \
+	interrupt.o \
 	naut_string.o \
 	cpuid.o \
 	crypto.o \

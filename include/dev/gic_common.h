@@ -1,5 +1,5 @@
-#ifndef __ARM64_GIC_H__
-#define __ARM64_GIC_H__
+#ifndef __GIC_COMMON_H__
+#define __GIC_COMMON_H__
 
 #include<nautilus/naut_types.h>
 
@@ -32,38 +32,13 @@
 struct gic_msi_frame {
 
   uint64_t mmio_base;
-
+  
   uint32_t base_irq;
   uint32_t num_irq;
-
+  
   struct gic_msi_frame *next;
 
 };
 
-typedef struct gic_int_info {
-  uint32_t int_id;
-  uint32_t cpu_id;
-  int group; // -1 -> spurrious interrupt
-} gic_int_info_t;
-
-int global_init_gic(uint64_t dtb);
-int per_cpu_init_gic(void);
-
-void gic_ack_int(gic_int_info_t *int_info);
-void gic_end_of_int(gic_int_info_t *int_info);
-
-struct gic_msi_frame *gic_msi_frame(void);
-
-uint32_t gic_max_irq(void);
-
-int gic_enable_int(uint_t irq);
-int gic_disable_int(uint_t irq);
-int gic_int_enabled(uint_t irq);
-
-int gic_clear_int_pending(uint_t irq);
-
-void gic_set_target_all(uint_t irq);
-
-void gic_dump_state(void);
 
 #endif

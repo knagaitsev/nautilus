@@ -26,7 +26,7 @@
 #include <nautilus/cpu.h>
 #include <nautilus/mm.h>
 
-#define MAX_IRQ_NUM    15     // this is really PIC-specific
+#define PIC_MAX_IRQ_NUM    15     // this is really PIC-specific
 
 
 /* NOTE: the APIC organizes interrupt priorities as follows:
@@ -53,12 +53,13 @@
  *
  */
 
-
+/*
 uint8_t
 irq_to_vec (uint8_t irq)
 {
     return nk_get_nautilus_info()->sys.int_info.irq_map[irq].vector;
 }
+*/
 
 /* 
  * this should only be used when the OS interrupt vector
@@ -66,6 +67,7 @@ irq_to_vec (uint8_t irq)
  * of external interrupts. It's much more likely you
  * should be using register_irq_handler
  */
+/*
 int 
 register_int_handler (uint16_t int_vec, 
                       int (*handler)(excp_entry_t *, excp_vec_t, void *),
@@ -104,7 +106,7 @@ register_irq_handler (uint16_t irq,
         return -1;
     }
 
-    if (irq > MAX_IRQ_NUM) {
+    if (irq > PIC_MAX_IRQ_NUM) {
         ERROR_PRINT("Attempt to register invalid IRQ (0x%x)\n", irq);
         return -1;
     }
@@ -119,4 +121,4 @@ register_irq_handler (uint16_t irq,
 
     return 0;
 }
-
+*/

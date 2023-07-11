@@ -40,7 +40,8 @@
 #define PCI_WARN(fmt, args...)  WARN_PRINT("PCI: " fmt, ##args)
 #define PCI_ERROR(fmt, args...) ERROR_PRINT("PCI: " fmt, ##args)
 
-#ifndef NAUT_CONFIG_ARCH_X86
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+// TODO: Change this ARM virt board specific value
 #define pci_ecam_base_addr 0x4010000000
 #endif
 
@@ -62,14 +63,15 @@ pci_cfg_readw (uint8_t bus,
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
-#ifdef NAUT_CONFIG_ARCH_X86
-    outl(addr, PCI_CFG_ADDR_PORT);
-    ret = inl(PCI_CFG_DATA_PORT);
-    return (ret >> ((off & 0x2) * 8)) & 0xffff;
-#else
+
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
     uint16_t read = *(volatile uint16_t*)(pci_ecam_base_addr + (void*)addr);
 //    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
     return read;
+#else
+    outl(addr, PCI_CFG_ADDR_PORT);
+    ret = inl(PCI_CFG_DATA_PORT);
+    return (ret >> ((off & 0x2) * 8)) & 0xffff;
 #endif
 }
 
@@ -91,14 +93,14 @@ pci_cfg_readl (uint8_t bus,
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
-#ifdef NAUT_CONFIG_ARCH_X86
-    outl(addr, PCI_CFG_ADDR_PORT);
-    return inl(PCI_CFG_DATA_PORT);
-#else
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
     uint32_t read;
     read = *(volatile uint32_t*)(pci_ecam_base_addr + (void*)addr);
 //    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
     return read;
+#else
+    outl(addr, PCI_CFG_ADDR_PORT);
+    return inl(PCI_CFG_DATA_PORT);
 #endif
 }
 
@@ -122,11 +124,11 @@ pci_cfg_writew (uint8_t bus,
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
-#ifdef NAUT_CONFIG_ARCH_X86
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    *(volatile uint16_t*)(pci_ecam_base_addr + (void*)addr) = val;
+#else
     outl(addr, PCI_CFG_ADDR_PORT);
     outw(val,PCI_CFG_DATA_PORT);
-#else
-    *(volatile uint16_t*)(pci_ecam_base_addr + (void*)addr) = val;
 #endif
 }
 
@@ -149,11 +151,11 @@ pci_cfg_writel (uint8_t bus,
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
-#ifdef NAUT_CONFIG_ARCH_X86
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    *(volatile uint32_t*)(pci_ecam_base_addr + (void*)addr) = val;
+#else
     outl(addr, PCI_CFG_ADDR_PORT);
     outl(val, PCI_CFG_DATA_PORT);
-#else
-    *(volatile uint32_t*)(pci_ecam_base_addr + (void*)addr) = val;
 #endif
 }
 
@@ -1646,12 +1648,7 @@ int pci_dev_is_pending_msi(struct pci_dev *dev, int vec)
 
 }
 
-#ifdef NAUT_CONFIG_ARCH_X86
-#define WRITEL(p,v) __asm__ __volatile__ ("movl %0, (%1)" : : "r"(v), "r"(p) : "memory")
-#define READL(p,v) __asm__ __volatile__ ("movl (%1), %0" : "=r"(v) :"r"(p) : "memory")
-#define WRITEQ(p,v) __asm__ __volatile__ ("movq %0, (%1)" : : "r"(v), "r"(p) : "memory")
-#define READQ(p,v) __asm__ __volatile__ ("movq (%1), %0" : "=r"(v) :"r"(p) : "memory")
-#elif NAUT_CONFIG_ARCH_ARM64
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
 #define WRITEL(p,v) *(uint32_t*)p = v
 #define READL(p,v) v = *(uint32_t*)p
 #define WRITEQ(p,v) *(uint64_t*)p = v
@@ -1662,10 +1659,15 @@ int pci_dev_is_pending_msi(struct pci_dev *dev, int vec)
 #define WRITEQ(p,v) __asm__ __volatile__ ("str %x0, [%x1]" : : "r"(v), "r"(p) : "memory")
 #define READQ(p,v) __asm__ __volatile__ ("ldr %x0, [%x1]" : "=r"(v) :"r"(p) : "memory")
 */
-#elif NAUT_CONFIG_ARCH_RISCV
-#error "RISC-V Does not support PCI yet!"
 #else
-#error "Unknown Architecture (PCI)"
+#ifdef NAUT_CONFIG_ARCH_X86
+#define WRITEL(p,v) __asm__ __volatile__ ("movl %0, (%1)" : : "r"(v), "r"(p) : "memory")
+#define READL(p,v) __asm__ __volatile__ ("movl (%1), %0" : "=r"(v) :"r"(p) : "memory")
+#define WRITEQ(p,v) __asm__ __volatile__ ("movq %0, (%1)" : : "r"(v), "r"(p) : "memory")
+#define READQ(p,v) __asm__ __volatile__ ("movq (%1), %0" : "=r"(v) :"r"(p) : "memory")
+#else
+#error "NAUT_CONFIG_USE_PCI_ECAM is undefined for architeture other than x86!"
+#endif
 #endif
 
 int pci_dev_set_msi_x_entry(struct pci_dev *dev, int num, int vec, int target_cpu)

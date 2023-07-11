@@ -26,7 +26,7 @@
  */
 #include <nautilus/nautilus.h>
 #include <nautilus/fmtout.h>
-#include <nautilus/idt.h>
+#include <nautilus/interrupt.h>
 #include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/shutdown.h>
@@ -352,7 +352,7 @@ static int serial_setup(struct serial_state *s)
     return 0;
 }  
 
-static int serial_irq_handler (excp_entry_t * excp, excp_vec_t vec, void *state);
+static int serial_irq_handler (struct nk_irq_action *, struct nk_regs *, void *state);
 
 
 // 0 = success, -1 = fail, +1 = does not exist
@@ -372,7 +372,8 @@ static int serial_init_one(char *name, uint64_t addr, uint8_t irq, int mmio, str
 	return rc;
     }
 
-    register_irq_handler(irq, serial_irq_handler, s);
+    nk_irq_add_callback(irq, serial_irq_handler, s);
+    nk_unmask_irq(irq);
     
     s->dev = nk_char_dev_register(name,0,&chardevops,s);
 
@@ -522,8 +523,8 @@ static int drive_cmd_fsm(char c)
     
 
 static int 
-serial_irq_handler_early (excp_entry_t * excp,
-			  excp_vec_t vec,
+serial_irq_handler_early (struct nk_irq_action *,
+			  struct nk_regs *,
 			  void *state)
 {
   char rcv_byte;
@@ -597,7 +598,7 @@ serial_irq_handler_early (excp_entry_t * excp,
 
 
 #ifdef NAUT_CONFIG_SERIAL_DEBUGGER
-static int  debug_irq_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
+static int  debug_irq_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
 	char iir;
 	char id;
@@ -614,7 +615,7 @@ static int  debug_irq_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
 		// receive data - gdb handler will absorb the data
         // 0x1ULL => come back to us
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
-        nk_gdb_handle_exception(excp, vec, 0, (void*) 0x1ULL);
+        nk_gdb_handle_exception(action, regs, 0, (void*) 0x1ULL);
 #endif    
 		break;
     
@@ -626,7 +627,7 @@ static int  debug_irq_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
             // BREAK = invoke gdb handler
             // 0x1ULL => come back to us
-            nk_gdb_handle_exception(excp, vec, 0, (void*)0x1ULL);
+            nk_gdb_handle_exception(action, regs, 0, (void*)0x1ULL);
 #endif
 		}
 		// we don't care about any other condition
@@ -645,7 +646,7 @@ static int  debug_irq_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
 
 #endif
 
-static int serial_irq_handler_late(struct serial_state *s,excp_entry_t * excp,excp_vec_t vec, void *state)
+static int serial_irq_handler_late(struct serial_state *s, struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     uint8_t iir;
     int done = 0;
@@ -691,8 +692,8 @@ static int serial_irq_handler_late(struct serial_state *s,excp_entry_t * excp,ex
 
 
 static int 
-serial_irq_handler(excp_entry_t * excp,
-		   excp_vec_t vec,
+serial_irq_handler(struct nk_irq_action *action,
+		   struct nk_regs *regs,
 		   void *state)
 {
     int i;
@@ -701,7 +702,7 @@ serial_irq_handler(excp_entry_t * excp,
 #ifdef NAUT_CONFIG_SERIAL_REDIRECT 
     if (!early_dev) { 
 	// use the old handler until we have full functionality
-	return serial_irq_handler_early(excp,vec,state);
+	return serial_irq_handler_early(action,regs,state);
     } 
 #endif
 
@@ -711,7 +712,7 @@ serial_irq_handler(excp_entry_t * excp,
     for (i=0;i<4;i++) { 
 	if (legacy[i].addr) { 
 	    // valid device
-	    rc |= serial_irq_handler_late(&legacy[i], excp, vec, state);
+	    rc |= serial_irq_handler_late(&legacy[i], action, regs, state);
 	}
     }
 
@@ -1148,7 +1149,7 @@ void serial_init()
     // debug port since the interrupt logic (apic, ioapic, interrupt routing)
     // has been configured
 #if NAUT_CONFIG_SERIAL_DEBUGGER
-    register_irq_handler(debug_irq, debug_irq_handler, NULL);
+    nk_irq_add_callback(debug_irq, debug_irq_handler, NULL);
     nk_unmask_irq(debug_irq);
 #endif
 

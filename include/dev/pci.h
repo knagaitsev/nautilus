@@ -26,7 +26,7 @@
 
 #include <nautilus/list.h>
 
-#ifdef NAUT_CONFIG_ARCH_X86
+#ifndef NAUT_CONFIG_USE_PCI_ECAM
 
 #define PCI_CFG_ADDR_PORT 0xcf8
 #define PCI_CFG_DATA_PORT 0xcfc

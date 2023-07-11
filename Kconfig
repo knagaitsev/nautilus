@@ -8,10 +8,14 @@ menu "Platform"
 			bool
 
 		config ARCH_RISCV
+                        select USE_PCI_ECAM
 			bool
 
 		config ARCH_ARM64
 			bool
+                        select USE_PCI_ECAM
+                        select SPARSE_IRQ_VECTORS
+                        select IDENTITY_MAP_IRQ_VECTORS
 
     choice
         prompt "Platform Selection"
@@ -1863,4 +1867,30 @@ menu "Languages"
 		  Nautilus functionas are made available to Lua externally
 
 endmenu
+
+# --- Invisible Options ---
+
+# PCI
+config USE_PCI_ECAM
+    def_bool n
+    help
+      Use the "Enhanced Configuration Access Mechanism" to access PCI configuration space
+
+# IRQ
+config IDENTITY_MAP_IRQ_VECTORS
+    def_bool n
+    help
+      Identity map IRQ's to Vectors for architectures where there isn't a conceptual difference between the two.
+
+config SPARSE_IRQ_VECTORS
+    def_bool n
+    help
+      Store Interrupt Vectors's efficiently on a system where there can be large gaps between IRQ numbers.
+      If this is disabled, the architecture will need to provide the MAX_IRQ_NUM macro.
+
+config SPARSE_IRQ
+    def_bool n
+    depends on !IDENTITY_MAP_IRQ_VECTORS
+    help
+      Store the mapping between IRQ's and vectors using a sparse data structure.
 

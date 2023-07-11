@@ -1,5 +1,6 @@
 
-#include<arch/arm64/gic.h>
+#include<dev/gicv3.h>
+#include<dev/gic_common.h>
 
 #include<nautilus/nautilus.h>
 #include<nautilus/fdt/fdt.h>

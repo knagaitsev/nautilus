@@ -97,12 +97,17 @@ struct idt_desc idt_descriptor =
 
 
 int 
-null_excp_handler (excp_entry_t * excp,
+null_excp_handler (
+    struct nk_irq_action *action,
+    struct nk_regs *regs)
+  /*
+    excp_entry_t * excp,
                    excp_vec_t vector,
 		   void *state)
+    */
 {
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    return nk_monitor_excp_entry(excp, vector, state);
+    return nk_monitor_excp_entry(action_regs);
 #else
     
     cpu_id_t cpu_id = cpu_info_ready ? my_cpu_id() : 0xffffffff;
@@ -111,25 +116,25 @@ null_excp_handler (excp_entry_t * excp,
     
     printk("\n+++ UNHANDLED EXCEPTION +++\n");
     
-    if (vector < 32) {
+    if (action->ivec < 32) {
         printk("[%s] (0x%x) error=0x%x <%s>\n    RIP=%p      (core=%u, thread=%u)\n", 
-	       excp_codes[vector][EXCP_NAME],
-                vector,
-	       excp->error_code,
-	       excp_codes[vector][EXCP_MNEMONIC],
-	       (void*)excp->rip, 
+	       excp_codes[action->ivec][EXCP_NAME],
+                action->ivec,
+	       regs->error_code,
+	       excp_codes[action->ivec][EXCP_MNEMONIC],
+	       (void*)regs->rip, 
 	       cpu_id, tid);
     } else {
         printk("[Unknown Exception] (vector=0x%x)\n    RIP=(%p)     (core=%u)\n", 
-	       vector,
-	       (void*)excp->rip,
+	       action->ivec,
+	       (void*)regs->rip,
 	       cpu_id);
     }
     
 #ifdef NAUT_CONFIG_ARCH_X86
-    struct nk_regs * r = (struct nk_regs*)((char*)excp - 128);
-    nk_print_regs(r);
-    backtrace(r->rbp);
+    //struct nk_regs * r = (struct nk_regs*)((char*)excp - 128);
+    arch_print_regs(regs);
+    backtrace(regs->rbp);
 #endif
 
     panic("+++ HALTING +++\n");
@@ -365,42 +370,6 @@ int nmi_handler (excp_entry_t * excp,
     return 0;
 }
 
-
-int
-idt_assign_entry (ulong_t entry, ulong_t handler_addr, ulong_t state_addr)
-{
-
-    if (entry >= NUM_IDT_ENTRIES) {
-        ERROR_PRINT("Assigning invalid IDT entry\n");
-        return -1;
-    }
-
-    if (!handler_addr) {
-        ERROR_PRINT("attempt to assign null handler\n");
-        return -1;
-    }
-
-    idt_handler_table[entry] = handler_addr;
-    idt_state_table[entry]   = state_addr;
-
-    return 0;
-}
-
-int
-idt_get_entry (ulong_t entry, ulong_t *handler_addr, ulong_t *state_addr)
-{
-
-    if (entry >= NUM_IDT_ENTRIES) {
-        ERROR_PRINT("Getting invalid IDT entry\n");
-        return -1;
-    }
-
-    *handler_addr = idt_handler_table[entry];
-    *state_addr = idt_state_table[entry];
-
-    return 0;
-}
-
 #ifndef NAUT_CONFIG_ARCH_ARM64
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first)
 {
@@ -463,6 +432,7 @@ setup_idt (void)
     // clear the IDT out
     memset(&idt64, 0, sizeof(struct gate_desc64) * NUM_IDT_ENTRIES);
 
+    /*
     for (i = 0; i < NUM_EXCEPTIONS; i++) {
         set_intr_gate(idt64, i, (void*)(excp_start + i*16));
         idt_assign_entry(i, (ulong_t)null_excp_handler, 0);
@@ -472,36 +442,37 @@ setup_idt (void)
         set_intr_gate(idt64, i, (void*)(irq_start + (i-32)*16));
         idt_assign_entry(i, (ulong_t)null_irq_handler, 0);
     }
+    */
 
-    if (idt_assign_entry(PF_EXCP, (ulong_t)nk_pf_handler, 0) < 0) {
+    if (nk_ivec_add_callback(PF_EXCP, (ulong_t)nk_pf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign page fault handler\n");
         return -1;
     }
 
-    if (idt_assign_entry(GP_EXCP, (ulong_t)nk_gpf_handler, 0) < 0) {
+    if (nk_ivec_add_callback(GP_EXCP, (ulong_t)nk_gpf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign general protection fault handler\n");
         return -1;
     }
 
-    if (idt_assign_entry(DF_EXCP, (ulong_t)df_handler, 0) < 0) {
+    if (nk_ivec_add_callback(DF_EXCP, (ulong_t)df_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign double fault handler\n");
         return -1;
     }
 
-    if (idt_assign_entry(0xf, (ulong_t)pic_spur_int_handler, 0) < 0) {
+    if (nk_ivec_add_callback(0xf, (ulong_t)pic_spur_int_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign PIC spur int handler\n");
         return -1;
     }
 
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    if (idt_assign_entry(DB_EXCP, (ulong_t)debug_excp_handler, 0) < 0) {
+    if (nk_ivec_add_callback(DB_EXCP, (ulong_t)debug_excp_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign debug excp handler\n");
         return -1;
     }
 #endif
 
 #if defined(NAUT_CONFIG_ENABLE_MONITOR) || defined(NAUT_CONFIG_WATCHDOG)
-    if (idt_assign_entry(NMI_INT, (ulong_t)nmi_handler, 0) < 0) {
+    if (nk_ivec_add_callback(NMI_INT, (ulong_t)nmi_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign NMI handler\n");
         return -1;
     }

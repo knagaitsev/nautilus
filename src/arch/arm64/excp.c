@@ -1,10 +1,9 @@
 
 #include<nautilus/nautilus.h>
-#include<nautilus/idt.h>
+#include<nautilus/interrupt.h>
 #include<nautilus/irq.h>
 #include<nautilus/printk.h>
 
-#include<arch/arm64/gic.h>
 #include<arch/arm64/excp.h>
 
 #define EXCP_SYNDROME_BITS 6
@@ -76,3 +75,22 @@ void route_exception(struct nk_regs *regs, struct excp_entry_info *info, uint8_t
   }
 }
 
+void * route_interrupt(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el) 
+{
+  struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
+  
+  nk_irq_t irq;
+  nk_irq_dev_ack(irq_dev, &irq);
+
+  struct nk_ivec_desc *desc = nk_irq_to_desc(irq);
+  nk_handle_irq_actions(desc->actions, regs);
+
+  nk_irq_dev_eoi(irq_dev, irq);
+ 
+  void *thread = NULL;
+  if(per_cpu_get(in_timer_interrupt)) {
+    thread = nk_sched_need_resched();
+  }
+
+  return thread;
+}

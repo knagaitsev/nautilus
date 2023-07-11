@@ -173,7 +173,8 @@ void nk_dev_dump_devices()
 		     d->type==NK_DEV_CHAR ? "char" : 
 		     d->type==NK_DEV_BLK ? "block" :
 		     d->type==NK_DEV_NET ? "net" : 
-		     d->type==NK_DEV_GRAPHICS ? "graphics" : "unknown", 
+		     d->type==NK_DEV_GRAPHICS ? "graphics" : 
+                     d->type==NK_DEV_IRQ ? "irqchip" : "unknown",
 		     d->flags,
 		     d->interface,
 		     d->state);

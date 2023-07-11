@@ -8,4 +8,5 @@ obj-y += asm/ \
 		shutdown.o  \
 		arch.o \
 		irq.o \
-		fpu.o
+		fpu.o \
+                idt.o 

@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 #include <nautilus/naut_types.h>
-#include <nautilus/idt.h>
+#include <nautilus/interrupt.h>
 #include <nautilus/printk.h>
 #include <nautilus/smp.h>
     
@@ -101,8 +101,8 @@ int nk_map_page (addr_t vaddr, addr_t paddr, uint64_t flags, page_size_t ps);
 int nk_map_page_nocache (addr_t paddr, uint64_t flags, page_size_t ps);
 void nk_paging_init(struct nk_mem_info * mem, ulong_t mbd);
 
-int nk_pf_handler(excp_entry_t * excp, excp_vec_t vector, void *state);
-int nk_gpf_handler(excp_entry_t * excp, excp_vec_t vector, void *state);
+int nk_pf_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state);
+int nk_gpf_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state);
 
 uint64_t nk_paging_default_page_size();
 uint64_t nk_paging_default_cr3();
