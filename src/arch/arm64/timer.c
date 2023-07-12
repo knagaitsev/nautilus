@@ -108,7 +108,7 @@ uint64_t arch_read_timestamp(void) {
 int percpu_timer_init(void) {
 
   // install the handler
-  nk_irq_add_callback(30, arch_timer_handler, NULL);
+  nk_irq_add_handler(30, arch_timer_handler, NULL);
   nk_unmask_irq(30);
 
 #ifdef NAUT_CONFIG_DEBUG_TIMERS

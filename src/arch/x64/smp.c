@@ -1023,12 +1023,10 @@ smp_setup_xcall_bsp (struct cpu * core)
     SMP_PRINT("Setting up cross-core IPI event queue\n");
     smp_xcall_init_queue(core);
 
-#ifdef NAUT_CONFIG_ARCH_X86
-    if (nk_ivec_add_callback(IPI_VEC_XCALL, xcall_handler, NULL) != 0) {
+    if (nk_ivec_add_handler(IPI_VEC_XCALL, xcall_handler, NULL) != 0) {
         ERROR_PRINT("Could not assign interrupt handler for XCALL on core %u\n", core->id);
         return -1;
     }
-#endif
 
     return 0;
 }
@@ -1036,7 +1034,6 @@ smp_setup_xcall_bsp (struct cpu * core)
 static int
 smp_ap_setup (struct cpu * core)
 {
-#ifdef NAUT_CONFIG_ARCH_X86
     // Note that any use of SSE/AVX, for example produced by
     // clang/llvm optimation, that happens before fpu_init will
     // cause a panic.  Initialize FPU ASAP.
@@ -1110,7 +1107,6 @@ smp_ap_setup (struct cpu * core)
     }
 #endif
 
-#endif
     return 0;
 }
 

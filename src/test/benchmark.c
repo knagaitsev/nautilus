@@ -821,7 +821,7 @@ time_int80 (void)
 {
     int i;
     uint64_t start;
-    if (nk_ivec_add_callback(0x80, int80_handler, NULL)) {
+    if (nk_ivec_add_handler(0x80, int80_handler, NULL)) {
 	PRINT("FAILED TO REGISTER HANDLER FOR INT 0x80\n");
 	return;
     }

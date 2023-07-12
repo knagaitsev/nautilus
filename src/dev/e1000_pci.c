@@ -671,9 +671,9 @@ static int e1000_post_receive(void *state,
   return result;
 }
 
-static int e1000_irq_handler(excp_entry_t * excp, excp_vec_t vec, void *s) 
+static int e1000_irq_handler(struct nk_irq_action * action, struct nk_regs *regs, void *s) 
 {
-  DEBUG("e1000_irq_handler fn vector: 0x%x rip: 0x%p\n", vec, excp->rip);
+  DEBUG("e1000_irq_handler fn vector: 0x%x rip: 0x%p\n", action->ivec, arch_instr_ptr_reg(regs));
 
   struct e1000_state* state = (struct e1000_state *)s;
 

@@ -33,6 +33,7 @@
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/smp.h>
+#include <nautilus/interrupt.h>
 #include <nautilus/irq.h>
 #include <nautilus/thread.h>
 #include <nautilus/fiber.h>
@@ -322,7 +323,7 @@ init (unsigned long mbd,
     struct naut_info * naut = &nautilus_info;
 
 
-     // At this point, we have no FPU, so we need to be
+    // At this point, we have no FPU, so we need to be
     // sure that nothing we invoke could be using SSE or
     // similar due to compiler optimization
     
@@ -341,7 +342,8 @@ init (unsigned long mbd,
 
     setup_idt();
 
-    nk_int_init(&(naut->sys));
+    nk_irq_init();
+    nk_ivec_init(&(naut->sys));
 
     // Bring serial device up early so we can have output
     serial_early_init();
@@ -363,6 +365,7 @@ init (unsigned long mbd,
     nk_block_dev_init();
     nk_net_dev_init();
     nk_gpu_dev_init();
+    nk_irq_dev_init();
 
     nk_vc_print(NAUT_WELCOME);
     
@@ -619,7 +622,9 @@ init (unsigned long mbd,
     nk_syscall_init();
     init_syscall_table();
 #endif
-    
+ 
+    nk_dump_ivec_info();
+
     // nk_launch_shell("root-shell",0,script,0);
     nk_launch_shell("root-shell",0,0,0);
 

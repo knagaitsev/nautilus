@@ -346,7 +346,7 @@ static int process_used_ring(struct virtio_net_dev *d, int qidx)
     return 0;
 }
 
-static int handler(excp_entry_t *exp, excp_vec_t vec, void *priv_data)
+static int handler(struct nk_irq_action *action, struct nk_regs *regs, void *priv_data)
 {
     int rc = 0;
     
@@ -662,12 +662,19 @@ int virtio_net_init(struct virtio_pci_dev *dev)
         for (i=0;i<num_vec;i++) {
             // find a free vector
             // note that prioritization here is your problem
-            if (idt_find_and_reserve_range(1,0,&vec)) {
+            if (nk_ivec_find_range(
+			1, // number
+			0, // aligned
+			NK_IVEC_DESC_FLAG_MSI_X, // required
+			NK_IVEC_DESC_FLAG_RESERVED | NK_IVEC_DESC_FLAG_EXCEPTION, // banned
+			NK_IVEC_DESC_FLAG_RESERVED, // to set
+			0, // to clear
+			&vec)) {
                 ERROR("Cannot get vector...\n");
                 return -1;
             }
             // register your handler for that vector
-            if (register_int_handler(vec, handler, d)) {
+            if (nk_ivec_add_handler_dev(vec, handler, d, (struct nk_dev*)d->net_dev)) {
                 ERROR("Failed to register int handler\n");
                 return -1;
                 // failed....
@@ -696,7 +703,7 @@ int virtio_net_init(struct virtio_pci_dev *dev)
         DEBUG("setting up interrupts via legacy path at 0x%x\n",HACKED_LEGACY_VECTOR);
 	INFO("THIS HACKED LEGACY INTERRUPT SETUP IS PROBABLY NOT WHAT YOU WANT\n");
 
-        if (register_int_handler(HACKED_LEGACY_VECTOR, handler, d)) {
+        if (nk_ivec_add_handler_dev(HACKED_LEGACY_VECTOR, handler, d, (struct nk_dev*)d->net_dev)) {
             ERROR("Failed to register int handler\n");
             return -1;
         }

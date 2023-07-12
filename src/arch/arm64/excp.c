@@ -83,7 +83,7 @@ void * route_interrupt(struct nk_regs *regs, struct excp_entry_info *info, uint8
   nk_irq_dev_ack(irq_dev, &irq);
 
   struct nk_ivec_desc *desc = nk_irq_to_desc(irq);
-  nk_handle_irq_actions(desc->actions, regs);
+  nk_handle_irq_actions(&desc->action, regs);
 
   nk_irq_dev_eoi(irq_dev, irq);
  

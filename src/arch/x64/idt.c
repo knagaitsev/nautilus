@@ -38,14 +38,7 @@
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
 #include <nautilus/monitor.h>
 #endif
-
-#ifdef NAUT_CONFIG_ARCH_X86
-extern ulong_t idt_handler_table[NUM_IDT_ENTRIES];
-extern ulong_t idt_state_table[NUM_IDT_ENTRIES]; 
-#else
-ulong_t idt_handler_table[NUM_IDT_ENTRIES];
-ulong_t idt_state_table[NUM_IDT_ENTRIES]; 
-#endif
+#include<nautilus/interrupt.h>
 
 struct gate_desc64 idt64[NUM_IDT_ENTRIES] __align(8);
 
@@ -362,7 +355,17 @@ int nmi_handler (struct nk_irq_action *action,
     return 0;
 }
 
-#ifndef NAUT_CONFIG_ARCH_ARM64
+int route_exception(struct nk_regs *regs, nk_ivec_t ivec)
+{
+  struct nk_ivec_desc *desc = nk_ivec_to_desc(ivec);
+  int ret = nk_handle_irq_actions(desc, regs); 
+  if(ret) {
+    return ivec;
+  } else {
+    return 0;
+  }
+}
+/*
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first)
 {
   ulong_t h, s;
@@ -403,11 +406,10 @@ int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first)
 
   return -1;
 }
-#else
 int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first) {
   return arch_msi_find_and_reserve_range(numentries, aligned, first);
 }
-#endif
+*/
 
 #ifdef NAUT_CONFIG_ARCH_X86
 extern void early_irq_handlers(void);
@@ -424,47 +426,45 @@ setup_idt (void)
     // clear the IDT out
     memset(&idt64, 0, sizeof(struct gate_desc64) * NUM_IDT_ENTRIES);
 
-    /*
     for (i = 0; i < NUM_EXCEPTIONS; i++) {
         set_intr_gate(idt64, i, (void*)(excp_start + i*16));
-        idt_assign_entry(i, (ulong_t)null_excp_handler, 0);
+        //nk_ivec_set_handler_early(i, (ulong_t)null_excp_handler, 0);
     }
 
     for (i = 32; i < NUM_IDT_ENTRIES; i++) {
         set_intr_gate(idt64, i, (void*)(irq_start + (i-32)*16));
-        idt_assign_entry(i, (ulong_t)null_irq_handler, 0);
+        //nk_ivec_set_handler_early(i, (ulong_t)null_irq_handler, 0);
     }
-    */
 
-    if (nk_ivec_add_callback(PF_EXCP, nk_pf_handler, 0) < 0) {
+    if (nk_ivec_set_handler_early(PF_EXCP, nk_pf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign page fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_add_callback(GP_EXCP, nk_gpf_handler, 0) < 0) {
+    if (nk_ivec_set_handler_early(GP_EXCP, nk_gpf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign general protection fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_add_callback(DF_EXCP, df_handler, 0) < 0) {
+    if (nk_ivec_set_handler_early(DF_EXCP, df_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign double fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_add_callback(0xf, pic_spur_int_handler, 0) < 0) {
+    if (nk_ivec_set_handler_early(0xf, pic_spur_int_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign PIC spur int handler\n");
         return -1;
     }
 
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    if (nk_ivec_add_callback(DB_EXCP, debug_excp_handler, 0) < 0) {
+    if (nk_ivec_set_handler_early(DB_EXCP, debug_excp_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign debug excp handler\n");
         return -1;
     }
 #endif
 
 #if defined(NAUT_CONFIG_ENABLE_MONITOR) || defined(NAUT_CONFIG_WATCHDOG)
-    if (nk_ivec_add_callback(NMI_INT, nmi_handler, 0) < 0) {
+    if (nk_ivec_set_handler_early(NMI_INT, nmi_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign NMI handler\n");
         return -1;
     }

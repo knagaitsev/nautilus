@@ -80,6 +80,7 @@ typedef enum {
 } gate_type_t;
 
 
+/*
 struct excp_entry_state {
     ulong_t error_code;
     ulong_t rip;
@@ -91,6 +92,7 @@ struct excp_entry_state {
 
 typedef struct excp_entry_state excp_entry_t;
 typedef ulong_t excp_vec_t;
+*/
 typedef ulong_t excp_err_t;
 
 struct gate_desc64 {
@@ -124,7 +126,7 @@ struct idt_desc {
 
 int setup_idt(void);
 
-int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first);
+//int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first);
 
 int null_excp_handler(struct nk_irq_action*, struct nk_regs*, void * state_addr);
 int null_irq_handler(struct nk_irq_action*, struct nk_regs*, void * state_addr);

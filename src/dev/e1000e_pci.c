@@ -36,6 +36,7 @@
 #include <nautilus/dev.h>             // NK_DEV_REQ_*
 #include <nautilus/timer.h>           // nk_sleep(ns);
 #include <nautilus/cpu.h>             // udelay
+#include <nautilus/arch.h>
 
 #ifndef NAUT_CONFIG_DEBUG_E1000E_PCI
 #undef DEBUG_PRINT
@@ -993,10 +994,10 @@ static int e1000e_post_receive(void *vstate,
 
 enum pkt_op { op_unknown, op_tx, op_rx };
 
-static int e1000e_irq_handler(excp_entry_t * excp, excp_vec_t vec, void *s)
+static int e1000e_irq_handler(struct nk_irq_action *action, struct nk_regs *regs, void *s)
 {
   DEBUG("irq_handler fn: vector: 0x%x rip: 0x%p s: 0x%p\n",
-        vec, excp->rip, s);
+        vec, arch_instr_ptr_reg(regs), s);
 
   // #measure
   uint64_t irq_start = 0;
@@ -1362,7 +1363,14 @@ int e1000e_pci_init(struct naut_info * naut)
 	uint64_t num_vecs = pdev->msi.num_vectors_needed;
 	uint64_t base_vec = 0;
 
-	if (idt_find_and_reserve_range(num_vecs,1,&base_vec)) {
+	if (nk_ivec_find_range(
+		num_vecs,
+		1, // aligned
+		NK_IVEC_DESC_FLAG_MSI, // required flags
+		NK_IVEC_DESC_FLAG_RESERVED | NK_IVEC_DESC_FLAG_EXCEPTION, // banned flags
+		NK_IVEC_DESC_FLAG_RESERVED, // flags to set
+		0, // flags to clear
+		&base_vec)) {
 	    ERROR("Cannot find %d vectors for %s - skipping\n",num_vecs,state->name);
 	    continue;
 	}

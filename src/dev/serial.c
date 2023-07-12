@@ -371,11 +371,11 @@ static int serial_init_one(char *name, uint64_t addr, uint8_t irq, int mmio, str
 	memset(s,0,sizeof(*s));
 	return rc;
     }
-
-    nk_irq_add_callback(irq, serial_irq_handler, s);
-    nk_unmask_irq(irq);
     
     s->dev = nk_char_dev_register(name,0,&chardevops,s);
+
+    nk_irq_add_handler_dev(irq, serial_irq_handler, s, (struct nk_dev*)s->dev);
+    nk_unmask_irq(irq);
 
     if (!s->dev) { 
 	return -1;
@@ -1108,7 +1108,7 @@ void serial_init()
     nk_dev_register("serial-boot",NK_DEV_GENERIC,0,&devops,0);
 
 #if NAUT_CONFIG_SERIAL_DEBUGGER
-    nk_dev_register("serial-debug", NK_DEV_GENERIC, 0, &devops, 0);
+    struct nk_dev *debug_dev = nk_dev_register("serial-debug", NK_DEV_GENERIC, 0, &devops, 0);
 #endif
 
     // attempt to find and setup all legacy serial devices 
@@ -1149,7 +1149,7 @@ void serial_init()
     // debug port since the interrupt logic (apic, ioapic, interrupt routing)
     // has been configured
 #if NAUT_CONFIG_SERIAL_DEBUGGER
-    nk_irq_add_callback(debug_irq, debug_irq_handler, NULL);
+    nk_irq_add_handler_dev(debug_irq, debug_irq_handler, NULL, debug_dev);
     nk_unmask_irq(debug_irq);
 #endif
 

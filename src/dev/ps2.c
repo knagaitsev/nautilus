@@ -765,13 +765,13 @@ int ps2_init(struct naut_info * naut)
     return -1;
   } else {
     if (rc==HAVE_KEYBOARD || rc == HAVE_KEYBOARD_AND_MOUSE) { 
-      nk_dev_register("ps2-keyboard",NK_DEV_GENERIC,0,&kops,0);
-      nk_irq_add_callback(1, kbd_handler, NULL);
+      struct nk_dev *kbd_dev = nk_dev_register("ps2-keyboard",NK_DEV_GENERIC,0,&kops,0);
+      nk_irq_add_handler_dev(1, kbd_handler, NULL, kbd_dev);
       nk_unmask_irq(1);
     } 
     if (rc==HAVE_KEYBOARD_AND_MOUSE) { 
-      nk_dev_register("ps2-mouse",NK_DEV_GENERIC,0,&mops,0);
-      nk_irq_add_callback(12, mouse_handler, NULL);
+      struct nk_dev *mouse_dev = nk_dev_register("ps2-mouse",NK_DEV_GENERIC,0,&mops,0);
+      nk_irq_add_handler_dev(12, mouse_handler, NULL, mouse_dev);
       nk_unmask_irq(12);
     }
   }

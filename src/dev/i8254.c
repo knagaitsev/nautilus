@@ -169,12 +169,12 @@ i8254_init (struct naut_info * naut)
     DEBUG_PRINT("Gating PIT channel 0\n");
     i8254_disable();
 
-    if (nk_irq_add_callback(PIT_TIMER_IRQ, pit_irq_handler, NULL) < 0) {
+    struct nk_dev *dev = nk_dev_register("i8254",NK_DEV_TIMER,0,&ops,0);
+    
+    if (nk_irq_add_handler_dev(PIT_TIMER_IRQ, pit_irq_handler, NULL, dev) < 0) {
         ERROR_PRINT("Could not register timer interrupt handler\n");
         return -1;
-    }
-    
-    nk_dev_register("i8254",NK_DEV_TIMER,0,&ops,0);
+    }    
 
     nk_unmask_irq(PIT_TIMER_IRQ);
 

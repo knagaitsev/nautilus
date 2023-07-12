@@ -89,6 +89,7 @@ void
 ioapic_unmask_irq (struct ioapic * ioapic, uint8_t irq)
 {
     uint32_t val;
+    IOAPIC_PRINT("ioapic_unmask_irq(): irq = %u, ioapic->num_entries = %u\n", irq, ioapic->num_entries);    
     ASSERT(irq < ioapic->num_entries);
     val = ioapic_read_reg(ioapic, IOAPIC_IRQ_ENTRY_LO(irq));
     ioapic_write_reg(ioapic, IOAPIC_IRQ_ENTRY_LO(irq), val & ~IOAPIC_MASK_IRQ);
@@ -151,13 +152,14 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
 
     ioapic_write_reg(ioapic, IOAPICID_REG, ioapic_id);
 
+    // KJH - this was after the paranoid section before?
+    /* get the last entry we can access for this IOAPIC */
+    ioapic->num_entries = ioapic_get_max_entry(ioapic) + 1;
+
     /* be paranoid and mask everything right off the bat */
     for (i = 0; i < ioapic->num_entries; i++) {
         ioapic_mask_irq(ioapic, i);
     }
-
-    /* get the last entry we can access for this IOAPIC */
-    ioapic->num_entries = ioapic_get_max_entry(ioapic) + 1;
 
     ioapic->entries = malloc(sizeof(struct iored_entry)*ioapic->num_entries);
     if (!ioapic->entries) {
@@ -245,6 +247,7 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
             iored_entry->boot_info  = ioint;
             iored_entry->actual_irq = newirq;
 
+	    IOAPIC_PRINT("Mapping IRQ %u to %s\n", newirq, ioapic_dev->dev.name);
             nk_map_irq_to_irqdev(newirq, ioapic_dev);
         }
     }

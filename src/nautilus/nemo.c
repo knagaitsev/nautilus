@@ -179,7 +179,7 @@ int
 nemo_init (void)
 {
 
-	if (nk_ivec_add_callback(NEMO_INT_VEC, nemo_ipi_event_recv, NULL) != 0) {
+	if (nk_ivec_add_handler(NEMO_INT_VEC, nemo_ipi_event_recv, NULL) != 0) {
 		NEMO_ERR("Could not register Nemo interrupt handler\n");
 		return -1;
 	}

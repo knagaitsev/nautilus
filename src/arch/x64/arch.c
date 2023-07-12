@@ -112,3 +112,7 @@ int arch_little_endian(void) {
   return 1;
 }
 
+void *arch_instr_ptr_reg(struct nk_regs *regs) {
+  return regs->rip;
+}
+

@@ -788,7 +788,7 @@ LD_SCRIPT:=link/nautilus.ld.gem5
 endif
 
 ifdef NAUT_CONFIG_ARCH_X86
-LD_SCRIPT:=link/nautilus.ld
+LD_SCRIPT:=link/nautilus.ld.x64
 endif
 
 ifdef NAUT_CONFIG_ARCH_RISCV

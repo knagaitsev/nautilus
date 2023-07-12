@@ -462,7 +462,7 @@ int apic_timer_handler(struct nk_irq_action *action, struct nk_regs *regs, void 
 
 
 static void
-apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms)
+apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms, struct nk_dev *dev)
 {
     uint32_t busfreq;
     uint32_t tmp;
@@ -483,9 +483,9 @@ apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms)
 	       x2apic, tscdeadline, arat);
 
     // Note that no state is used here since APICs are per-CPU
-    if (nk_ivec_add_callback(APIC_TIMER_INT_VEC,
+    if (nk_ivec_add_handler_dev(APIC_TIMER_INT_VEC,
 			     apic_timer_handler,
-			     NULL) != 0) {
+			     NULL, dev) != 0) {
         panic("Could not register APIC timer handler\n");
     }
 
@@ -887,37 +887,41 @@ apic_init (struct cpu * core)
 
     apic_global_enable();
 
+    char n[32];
+    snprintf(n,32,"apic%u",core->id);
+    struct nk_dev *dev = nk_dev_register(n,NK_DEV_INTR,0,&ops,apic);
+
     // assign interrupt handlers
     // all cores share the same IDT/etc, so only the BSP needs to do this
     if (core->is_bsp) {
 
 	// Note that no state is used here since APICs are per-CPU
 
-        if (nk_ivec_add_callback(APIC_NULL_KICK_VEC, null_kick, NULL) != 0) {
+        if (nk_ivec_add_handler_dev(APIC_NULL_KICK_VEC, null_kick, NULL, dev) != 0) {
             panic("Could not register null kick interrupt handler\n");
         }
 
-        if (nk_ivec_add_callback(APIC_SPUR_INT_VEC, spur_int_handler, NULL) != 0) {
+        if (nk_ivec_add_handler_dev(APIC_SPUR_INT_VEC, spur_int_handler, NULL, dev) != 0) {
             panic("Could not register spurious interrupt handler\n");
         }
 
-        if (nk_ivec_add_callback(APIC_ERROR_INT_VEC, error_int_handler, NULL) != 0) {
+        if (nk_ivec_add_handler_dev(APIC_ERROR_INT_VEC, error_int_handler, NULL, dev) != 0) {
             panic("Could not register spurious interrupt handler\n");
             return;
         }
 
         /* we shouldn't ever get these, but just in case */
-        if (nk_ivec_add_callback(APIC_PC_INT_VEC, pc_int_handler, NULL) != 0) {
+        if (nk_ivec_add_handler_dev(APIC_PC_INT_VEC, pc_int_handler, NULL, dev) != 0) {
             panic("Could not register perf counter interrupt handler\n");
             return;
         }
 
-        if (nk_ivec_add_callback(APIC_THRML_INT_VEC, thermal_int_handler, NULL) != 0) {
+        if (nk_ivec_add_handler_dev(APIC_THRML_INT_VEC, thermal_int_handler, NULL, dev) != 0) {
             panic("Could not register thermal interrupt handler\n");
             return;
         }
 
-        if (nk_ivec_add_callback(APIC_EXT_LVT_DUMMY_VEC, dummy_int_handler, NULL) != 0) {
+        if (nk_ivec_add_handler_dev(APIC_EXT_LVT_DUMMY_VEC, dummy_int_handler, NULL, dev) != 0) {
             panic("Could not register dummy ext lvt handler\n");
             return;
         }
@@ -956,14 +960,10 @@ apic_init (struct cpu * core)
 
     /* pass in quantum as milliseconds */
 #ifndef NAUT_CONFIG_XEON_PHI
-    apic_timer_setup(apic, 1000/NAUT_CONFIG_HZ);
+    apic_timer_setup(apic, 1000/NAUT_CONFIG_HZ, dev);
 #endif
 
     apic_dump(apic);
-
-    char n[32];
-    snprintf(n,32,"apic%u",core->id);
-    nk_dev_register(n,NK_DEV_INTR,0,&ops,apic);
 }
 
 

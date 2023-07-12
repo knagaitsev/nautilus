@@ -96,3 +96,8 @@ int arch_little_endian(void) {
   return !ctlr.el1_big_endian;
 }
 
+void *arch_instr_ptr_reg(struct nk_regs *regs) {
+  // This isn't technically correct but until I merge excp_entry_t and nk_regs this will have to do - KJH
+  return regs->link_ptr;
+}
+

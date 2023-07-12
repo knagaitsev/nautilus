@@ -68,7 +68,11 @@ typedef unsigned long  uintptr_t;
 typedef long           intptr_t;
 
 // Must be large enough to represent every interrupt vector number for the system
+#ifdef NAUT_CONFIG_ARCH_X86
 typedef unsigned int nk_ivec_t;
+#else
+typedef unsigned int nk_ivec_t;
+#endif
 
 // Must be large enough to represent every IRQ line number in the system
 typedef unsigned int nk_irq_t;

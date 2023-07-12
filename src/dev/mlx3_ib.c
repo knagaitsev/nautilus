@@ -2942,7 +2942,7 @@ volatile int link = 0;
 
 
 static int 
-eq_irq_handler (excp_entry_t * et, excp_vec_t ev, void * state)
+eq_irq_handler (struct nk_irq_action *action, struct nk_regs *regs, void * state)
 {
 	struct mlx3_ib * mlx = (struct mlx3_ib*)state;
 	struct mlx3_eq * eq = mlx->eqs[0];

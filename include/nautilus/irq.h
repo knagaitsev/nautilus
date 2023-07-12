@@ -63,25 +63,9 @@ struct nk_bus_entry {
     struct list_head elm;
 };
 
-uint8_t nk_irq_is_assigned(uint8_t irq);
-
-/*
-uint8_t irq_to_vec (uint8_t irq);
-*/
 void irqmap_set_ioapic (uint8_t irq, struct ioapic * ioapic);
 void disable_8259pic(void);
 void imcr_begin_sym_io(void);
-
-/*
-int register_irq_handler (uint16_t irq, 
-                          int (*handler)(excp_entry_t *, excp_vec_t, void *priv_data),
-                          void * priv_data);
-int register_int_handler (uint16_t int_vec,
-                          int (*handler)(excp_entry_t *, excp_vec_t, void *priv_data),
-                          void * priv_data);
-*/
-
-int nk_int_init(struct sys_info * sys);
 
 uint8_t nk_int_matches_bus(struct nk_int_entry * entry, const char * bus_type, const uint8_t len);
 void nk_add_bus_entry(const uint8_t bus_id, const char * bus_type);

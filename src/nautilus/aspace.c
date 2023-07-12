@@ -334,14 +334,14 @@ int  nk_aspace_request_permission(nk_aspace_t *aspace, void * address, int is_wr
 
 }
 
-int nk_aspace_exception(excp_entry_t *entry, excp_vec_t vec, void *priv_data)
+int nk_aspace_exception(struct nk_irq_action *action, struct nk_regs *regs, void *priv_data)
 {
     struct cpu *cpu  = get_cpu();
     nk_aspace_t *cur = cpu->cur_aspace;
 
-    if (vec==PF_EXCP) {
+    if (action->ivec==PF_EXCP) {
 	if (cur->flags & NK_ASPACE_HOOK_PF) {
-	    return cur->interface->exception(cur->state,entry,vec);
+	    return cur->interface->exception(cur->state,action,regs);
 	} else {
 	    // cannot handle
 	    return -1;
@@ -350,7 +350,7 @@ int nk_aspace_exception(excp_entry_t *entry, excp_vec_t vec, void *priv_data)
 
     if (vec==GP_EXCP) {
 	if (cur->flags & NK_ASPACE_HOOK_GPF) {
-	    return cur->interface->exception(cur->state, entry, vec);
+	    return cur->interface->exception(cur->state,action,regs);
 	} else {
 	    // cannot handle
 	    return -1;

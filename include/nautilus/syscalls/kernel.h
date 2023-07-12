@@ -5,7 +5,7 @@
 
 #include <nautilus/nautilus.h>
 
-int nk_legacy_syscall_handler(excp_entry_t* excp, excp_vec_t vector,
+int nk_legacy_syscall_handler(struct nk_irq_action* action, struct nk_regs *regs,
                               void* state);
 
 uint64_t nk_syscall_handler(struct nk_regs* r);

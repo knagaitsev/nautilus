@@ -118,7 +118,7 @@ unmerge_from_ros (void)
 
 
 int 
-nautilus_hrt_upcall_handler (excp_entry_t * excp, excp_vec_t vec)
+nautilus_hrt_upcall_handler (struct nk_irq_action *action, struct nk_regs *regs)
 {
     uint64_t *page = (uint64_t *) ((uint64_t) nautilus_info.sys.mb_info->hrt_info->comm_page_gpa + HRT_HIHALF_OFFSET);  // fixup if using gvaoffset
     uint64_t a1, a2;

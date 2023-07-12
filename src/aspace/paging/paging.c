@@ -1071,22 +1071,22 @@ static int switch_to(void *state)
 // exp points to the hardware interrupt frame on the stack
 // vec indicates which vector happened
 //
-static int exception(void *state, excp_entry_t *exp, excp_vec_t vec)
+static int exception(void *state, struct nk_irq_action *action, struct nk_regs *regs)
 {
     nk_aspace_paging_t *p = (nk_aspace_paging_t *)state;
     struct nk_thread *thread = get_cur_thread();
     
-    // DEBUG("exception 0x%x for address space %s in context of thread %d (%s)\n",vec,ASPACE_NAME(p),thread->tid,THREAD_NAME(thread));
+    // DEBUG("exception 0x%x for address space %s in context of thread %d (%s)\n",action->ivec,ASPACE_NAME(p),thread->tid,THREAD_NAME(thread));
     
-    if (vec==GP_EXCP) {
+    if (action->ivec==GP_EXCP) {
 	ERROR("general protection fault encountered.... uh...\n");
 	ERROR("i have seen things that you people would not believe.\n");
 	panic("general protection fault delivered to paging subsystem\n");
 	return -1; // will never happen
     }
 
-    if (vec!=PF_EXCP) {
-	ERROR("Unknown exception %d delivered to paging subsystem\n",vec);
+    if (action->ivec!=PF_EXCP) {
+	ERROR("Unknown exception %d delivered to paging subsystem\n",action->ivec);
 	panic("Unknown exception delivered to paging subsystem\n");
 	return -1; // will never happen
     }
@@ -1095,7 +1095,7 @@ static int exception(void *state, excp_entry_t *exp, excp_vec_t vec)
     
     // find out what the fault address and the fault reason
     uint64_t virt_addr = read_cr2();
-    ph_pf_error_t  error; error.val = exp->error_code;
+    ph_pf_error_t  error; error.val = regs->error_code;
     DEBUG("Page fault at virt_addr = %llx, error = %llx\n", virt_addr, error.val);
     
     DEBUG("Page fault at error.present = %x, "

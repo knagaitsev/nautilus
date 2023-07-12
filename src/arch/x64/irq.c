@@ -150,11 +150,20 @@ nk_add_int_entry (int_trig_t trig_mode,
 
 
 int 
-nk_int_init (struct sys_info * sys)
+nk_ivec_init (struct sys_info * sys)
 {
     struct nk_int_info * info = &(sys->int_info);
     int i;
     uint8_t vector;
+
+    nk_alloc_ivec_descs(0, 32,
+	NULL,
+        NK_IVEC_DESC_TYPE_VALID,
+        NK_IVEC_DESC_FLAG_EXCEPTION);
+    nk_alloc_ivec_descs(32, (256-32),
+	NULL,
+        NK_IVEC_DESC_TYPE_VALID,
+        NK_IVEC_DESC_FLAG_MSI|NK_IVEC_DESC_FLAG_MSI_X);
 
     /* set it up so we get an illegal vector if we don't
      * assign IRQs properly. 0xff is reserved for APIC 

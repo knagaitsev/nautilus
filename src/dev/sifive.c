@@ -15,7 +15,7 @@
 static struct sifive_serial_regs * regs;
 static bool_t   inited = false;
 
-int sifive_handler (excp_entry_t * excp, excp_vec_t vector, void *state) {
+int sifive_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state) {
     panic("sifive_handler!\n");
     while (1) {
         uint32_t r = regs->rxfifo;

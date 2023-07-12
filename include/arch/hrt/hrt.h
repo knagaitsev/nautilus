@@ -95,7 +95,7 @@ hvm_hcall (uint64_t cmd, uint64_t a1, uint64_t a2, uint64_t a3,
     return rc;
 }
 
-int nautilus_hrt_upcall_handler (excp_entry_t * excp, excp_vec_t vec);
+int nautilus_hrt_upcall_handler (struct nk_irq_action *action, struct nk_regs *regs);
 
 int __early_init_hrt (struct naut_info * naut);
 int hrt_init_cpus (struct sys_info * sys);
