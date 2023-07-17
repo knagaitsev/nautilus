@@ -29,3 +29,6 @@
     unsigned long __v = (unsigned long)(val);                           \
     __asm__ __volatile__("csrc " #csr ", %0" : : "rK"(__v) : "memory"); \
   })
+
+#define MAX_IRQ_NUM 1024
+#define MAX_IVEC_NUM 1024

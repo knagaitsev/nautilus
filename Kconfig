@@ -10,6 +10,7 @@ menu "Platform"
 		config ARCH_RISCV
                         select USE_FDT
                         select USE_PCI_ECAM
+                        select IDENTITY_MAP_IRQ_VECTORS
 			bool
 
 		config ARCH_ARM64
@@ -1131,6 +1132,13 @@ menu Debugging
       default n
       help
         Turn on debug prints for paging subsystem
+
+    config DEBUG_INTERRUPT_FRAMEWORK
+      bool "Debug Interrupt Framework"
+      depends on DEBUG_PRINTS
+      default n
+      help
+        Turn on debug prints for the generic interrupt handling framework
 
     config DEBUG_BOOTMEM
       bool "Debug Bootmem Allocator"

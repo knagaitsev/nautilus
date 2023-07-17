@@ -115,9 +115,7 @@ numa_dtb_find_domains(struct sys_info * sys) {
 
       uint64_t id = *(uint32_t*)(numa_id_ptr);
 
-      if(arch_little_endian()) {
-        id = __builtin_bswap32(id);
-      }
+      id = be32toh(id);
 
       struct mem_region *mem = mm_boot_alloc(sizeof(struct mem_region));
       if (!mem) {

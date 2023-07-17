@@ -3,6 +3,7 @@
 
 // Gives us MAX_IRQ_NUM and MAX_IVEC_NUM
 #include<nautilus/arch.h>
+#include<nautilus/shell.h>
 #include<nautilus/naut_assert.h>
 
 #ifdef NAUT_CONFIG_DEBUG_INTERRUPT_FRAMEWORK
@@ -90,6 +91,7 @@ int nk_alloc_ivec_desc(nk_ivec_t ivec_num, struct nk_irq_dev *dev, uint16_t type
   desc->irq_dev = dev;
   desc->ivec_num = ivec_num;
   desc->type = type;
+
   desc->flags = flags;
   spinlock_init(&(desc->lock));
 
@@ -99,12 +101,13 @@ int nk_alloc_ivec_desc(nk_ivec_t ivec_num, struct nk_irq_dev *dev, uint16_t type
 
 int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
 {
-  DEBUG_PRINT("Allocating Interrupt Vectors: [%u - %u]\n", base, base+n-1); 
+  IRQ_DEBUG("Allocating Interrupt Vectors: [%u - %u]\n", base, base+n-1); 
   // This is pretty inefficient for now but it should be okay
   for(uint32_t i = 0; i < n; i++) {
 
     if(nk_alloc_ivec_desc(base + i, dev, type, flags)) 
     {
+      IRQ_ERROR("Failed to allocate ivec decriptor: %u\n", base+i);
       return -1;
     }
 
@@ -148,6 +151,8 @@ int nk_alloc_ivec_desc(nk_ivec_t num, struct nk_irq_dev *dev, uint16_t type, uin
   descriptors[num].type = type;
   descriptors[num].irq_dev = dev;
   spinlock_init(&(descriptors[num].lock));
+
+  return 0;
 }
 
 int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint16_t type, uint16_t flags)
@@ -175,28 +180,9 @@ struct nk_ivec_desc * nk_ivec_to_desc(nk_ivec_t ivec)
 
 #endif /* NAUT_CONFIG_SPARSE_INTERRUPT_IVECS */
 
-
-uint16_t nk_ivec_set_flags(nk_ivec_t ivec, uint16_t flags) 
-{
-  struct nk_ivec_desc *desc = nk_ivec_to_desc(ivec);
-  uint8_t old = __sync_fetch_and_or(&desc->flags, flags);
-  return old & flags;
-}
-uint16_t nk_ivec_clear_flags(nk_ivec_t ivec, uint16_t flags)
-{
-  struct nk_ivec_desc *desc = nk_ivec_to_desc(ivec);
-  uint8_t old = __sync_fetch_and_and(&desc->flags, ~flags);
-  return old & flags;
-}
-uint16_t nk_ivec_check_flags(nk_ivec_t ivec, uint16_t flags)
-{
-  struct nk_ivec_desc *desc = nk_ivec_to_desc(ivec);
-  return __sync_fetch_and_add(&desc->flags, 0) & flags; 
-}
-
 int nk_ivec_add_handler(nk_ivec_t vec, nk_irq_handler_t handler, void *state) 
 {
-  nk_ivec_add_handler_dev(vec, handler, state, NULL);
+  return nk_ivec_add_handler_dev(vec, handler, state, NULL);
 }
 int nk_ivec_add_handler_dev(nk_ivec_t vec, nk_irq_handler_t handler, void *state, struct nk_dev *dev)
 {
@@ -286,7 +272,7 @@ int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags,
     return -1;
   }
 
-  for (i=0;i<=max_ivec()-num_needed;i += aligned ? num_needed : 1) {
+  for (i=0;i <= (max_ivec()+1)-num_needed;i += aligned ? num_needed : 1) {
     int run_good = 1;
     for(j=0;j<num_needed;j++) {
       
@@ -308,8 +294,8 @@ int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags,
     if(run_good) {
       for(j = 0; j < num_needed; j++) {
         struct nk_ivec_desc *desc = nk_ivec_to_desc(i+j);
-	nk_ivec_set_flags(desc, set_flags);
-	nk_ivec_clear_flags(desc, clear_flags);
+	desc->flags |= set_flags;
+        desc->flags &= ~clear_flags;
 	*first = i;
 	return 0;
       }
@@ -327,6 +313,11 @@ int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags,
 int nk_handle_irq_actions(struct nk_ivec_desc * desc, struct nk_regs *regs) 
 { 
   int ret = 0;
+
+  // This is just to get a rough estimate,
+  // so we're going to tolerate not locking
+  desc->triggered_count += 1;
+
   struct nk_irq_action *action = &desc->action;
   for(int i = 0; (i < desc->num_actions) && (action != NULL); i++, action = action->next) {
 
@@ -371,7 +362,7 @@ inline int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev)
 }
 inline struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
 {
-  return nk_ivec_to_desc((nk_ivec_t)irq).irq_dev;
+  return nk_ivec_to_desc((nk_ivec_t)irq)->irq_dev;
 }
 
 #else
@@ -458,7 +449,7 @@ int nk_irq_is_assigned_to_irqdev(nk_irq_t irq)
 
 int nk_irq_add_handler(nk_irq_t irq, nk_irq_handler_t handler, void *state) 
 {
-  nk_irq_add_handler_dev(irq, handler, state, NULL);
+  return nk_irq_add_handler_dev(irq, handler, state, NULL);
 }
 int nk_irq_add_handler_dev(nk_irq_t irq, nk_irq_handler_t handler, void *state, struct nk_dev *dev)
 {
@@ -525,19 +516,24 @@ int nk_unmask_irq(nk_irq_t irq) {
 
 void nk_dump_ivec_info(void) 
 {
-  for(nk_ivec_t i = 0; i < max_ivec(); i++) 
+  for(nk_ivec_t i = 0; i < max_ivec()+1; i++) 
   {
     struct nk_ivec_desc *desc = nk_ivec_to_desc(i);
     if(desc == NULL || desc->type == NK_IVEC_DESC_TYPE_INVALID) 
     {
       continue;
     }
-    IRQ_PRINT("Interrupt Vector %u: num_actions = %u, irqdev = %s, %s%s%s%s\n",
+    
+    IRQ_PRINT("Interrupt Vector %u: type = %s, triggered count = %u, num_actions = %u, irqdev = %s, %s%s%s%s%s\n",
 		    desc->ivec_num,
+                    desc->type == NK_IVEC_DESC_TYPE_DEFAULT ? "DEFAULT" :
+                    desc->type == NK_IVEC_DESC_TYPE_EXCEPTION ? "EXCEPTION" :
+                    desc->type == NK_IVEC_DESC_TYPE_INVALID ? "INVALID" : // It should be skipped but just in case
+                    desc->type == NK_IVEC_DESC_TYPE_SPURRIOUS ? "SPURRIOUS" : "UNKNOWN",
+                    desc->triggered_count,
 		    desc->num_actions,
 		    desc->irq_dev == NULL ? "NULL" : desc->irq_dev->dev.name,
 		    desc->flags & NK_IVEC_DESC_FLAG_RESERVED ? "[RESERVED] " : "",
-		    desc->flags & NK_IVEC_DESC_FLAG_EXCEPTION ? "[EXCEPTION] " : "",
 		    desc->flags & NK_IVEC_DESC_FLAG_MSI ? "[MSI] " : "",
 		    desc->flags & NK_IVEC_DESC_FLAG_MSI_X ? "[MSI-X] " : "",
 		    desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "[PERCPU] " : "",
@@ -563,3 +559,15 @@ void nk_dump_ivec_info(void)
   }
 }
 
+static int handle_shell_interrupt(char * buf, void * priv) 
+{
+  nk_dump_ivec_info();
+  return 0;
+}
+
+static struct shell_cmd_impl interrupt_impl = {
+  .cmd = "interrupts",
+  .help_str = "dump interrupt info",
+  .handler = handle_shell_interrupt,
+};
+nk_register_shell_cmd(interrupt_impl);

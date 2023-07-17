@@ -270,7 +270,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   mm_boot_init(dtb);
 
   // Initialize SMP using the dtb
-  arch_early_init(&nautilus_info);
+  arch_smp_early_init(&nautilus_info);
 
   // Set our thread pointer id register for the BSP
   set_tpid_reg(&nautilus_info);
@@ -355,6 +355,10 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_fs_init();
   INIT_DEBUG("FS inited!\n");
+
+  global_timer_init();
+
+  nk_dump_ivec_info();
 
   nk_vc_init();
   INIT_DEBUG("VC inited!\n");

@@ -24,7 +24,6 @@
 #include <nautilus/paging.h>
 #include <nautilus/naut_string.h>
 #include <nautilus/mb_utils.h>
-#include <nautilus/idt.h>
 #include <nautilus/cpu.h>
 #include <nautilus/errno.h>
 #include <nautilus/cpuid.h>

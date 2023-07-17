@@ -24,8 +24,3 @@
 
 // RISCV HACK
 
-void
-nk_unmask_irq (uint8_t irq)
-{
-}
-

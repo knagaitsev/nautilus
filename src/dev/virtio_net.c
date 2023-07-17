@@ -662,14 +662,7 @@ int virtio_net_init(struct virtio_pci_dev *dev)
         for (i=0;i<num_vec;i++) {
             // find a free vector
             // note that prioritization here is your problem
-            if (nk_ivec_find_range(
-			1, // number
-			0, // aligned
-			NK_IVEC_DESC_FLAG_MSI_X, // required
-			NK_IVEC_DESC_FLAG_RESERVED | NK_IVEC_DESC_FLAG_EXCEPTION, // banned
-			NK_IVEC_DESC_FLAG_RESERVED, // to set
-			0, // to clear
-			&vec)) {
+            if (nk_msi_x_find_and_reserve_range(1,&vec)) {
                 ERROR("Cannot get vector...\n");
                 return -1;
             }

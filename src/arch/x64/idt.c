@@ -406,9 +406,6 @@ int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first)
 
   return -1;
 }
-int idt_find_and_reserve_range(ulong_t numentries, int aligned, ulong_t *first) {
-  return arch_msi_find_and_reserve_range(numentries, aligned, first);
-}
 */
 
 #ifdef NAUT_CONFIG_ARCH_X86

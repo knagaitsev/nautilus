@@ -2,8 +2,8 @@
 #include <arch/riscv/sbi.h>
 #include <nautilus/cpu.h>
 #include <nautilus/naut_types.h>
-#include <nautilus/percpu.h>
 #include <nautilus/fdt/fdt.h>
+#include <nautilus/endian.h>
 
 typedef struct plic_context {
   off_t enable_offset;
@@ -57,8 +57,8 @@ void plic_init(unsigned long fdt) {
 
         for (int context = 0; context < context_count; context++) {
             int c_off = context * 2;
-            int phandle = bswap_32(vals[c_off]);
-            int nr = bswap_32(vals[c_off + 1]);
+            int phandle = be32toh(vals[c_off]);
+            int nr = be32toh(vals[c_off + 1]);
             if (nr != 9) {
                 continue;
             }

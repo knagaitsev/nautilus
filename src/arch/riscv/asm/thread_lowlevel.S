@@ -1,5 +1,4 @@
 #include <asm/lowlevel.h>
-#include <nautilus/gdt.h>
 #include <nautilus/thread.h>
 
 #define CTX_SIZE (31 * SZREG)

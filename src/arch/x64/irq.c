@@ -158,12 +158,12 @@ nk_ivec_init (struct sys_info * sys)
 
     nk_alloc_ivec_descs(0, 32,
 	NULL,
-        NK_IVEC_DESC_TYPE_VALID,
-        NK_IVEC_DESC_FLAG_EXCEPTION);
+        NK_IVEC_DESC_TYPE_EXCEPTION,
+        );
     nk_alloc_ivec_descs(32, (256-32),
 	NULL,
-        NK_IVEC_DESC_TYPE_VALID,
-        NK_IVEC_DESC_FLAG_MSI|NK_IVEC_DESC_FLAG_MSI_X);
+        NK_IVEC_DESC_TYPE_DEFAULT,
+        NK_IVEC_DESC_FLAG_MSI | NK_IVEC_DESC_FLAG_MSI_X);
 
     /* set it up so we get an illegal vector if we don't
      * assign IRQs properly. 0xff is reserved for APIC 

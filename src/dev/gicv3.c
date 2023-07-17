@@ -417,7 +417,7 @@ static int dtb_find_gicv3(gicv3_t *gic, uint64_t dtb) {
   return 0;
 }
 
-int global_init_gic(uint64_t dtb) {
+int gicv3_init(uint64_t dtb) {
 
   memset(&__gic, 0, sizeof(gicv3_t));
 
@@ -518,28 +518,12 @@ int global_init_gic(uint64_t dtb) {
 }
 
 int per_cpu_init_gic(void) {
-/*
-  uint32_t gicr_wake;
-  gicr_wake = LOAD_GICR_REG(__gic, GICR_WAKER_OFFSET);
-  if(!(gicr_wake & 0b10)) {
-    GIC_DEBUG("Processor's Redistributor thought it was sleeping, Waking...\n");
-    gicr_wake |= 0b10;
-    STORE_GICR_REG(__gic, GICR_WAKER_OFFSET, gicr_wake);
-  }
-  do {
-    // Wait for the children to be marked as awake
-    gicr_wake = LOAD_GICR_REG(__gic, GICR_WAKER_OFFSET);
-  } while(gicr_wake & 0b100);
-  GIC_DEBUG("Redistributor is aware the processor is awake.\n");
-*/
-
 
   uint64_t icc_sre;
   LOAD_SYS_REG(ICC_SRE_EL1, icc_sre);
   icc_sre |= 1; // Enable ICC Register Access
   STORE_SYS_REG(ICC_SRE_EL1, icc_sre);
 
-  // Being safe before we access other registers
   asm volatile ("isb");
 
   icc_ctl_reg_t ctl_reg;
@@ -591,17 +575,6 @@ void gic_end_of_int(gic_int_info_t *info) {
     default:
       // Do nothing
   }
-}
-
-uint16_t gic_max_irq(void) {
-  return __gic.max_int_num;
-}
-
-uint32_t gic_num_msi_irq(void) {
-  return 0;
-}
-uint32_t gic_base_msi_irq(void) {
-  return 0;
 }
 
 int gic_enable_int(uint_t irq) {
@@ -659,78 +632,3 @@ static int gic_int_active(uint_t irq) {
   }
 }
 
-
-
-void gic_dump_state(void) {
-
-  GIC_PRINT("Maximum Number of Interrupts = %u (Not Counting LPI's)\n", __gic.max_int_num);
-  GIC_PRINT("Number of Security States = %u\n", __gic.num_security_states);
-
-  gicd_ctl_reg_t ctl_reg;
-  ctl_reg.raw = LOAD_GICD_REG(__gic, GICD_CTLR_OFFSET);
-  GIC_PRINT("Distributor Control Register\n");
-  GIC_PRINT("\traw = 0x%08x\n", ctl_reg.raw);
-  GIC_PRINT("\twrite pending = %u\n", ctl_reg.common.write_pending);
-
-  switch(__gic.num_security_states) {
-    case 1:
-      break;
-    case 2:
-      break;
-    default:
-      GIC_WARN("INVALID NUMBER OF SECURITY STATES!\n");
-      break;
-  }
-
-  uint64_t reg;
-  LOAD_SYS_REG(ICC_CTLR_EL1, reg);
-  GIC_PRINT("ICC_CTLR_EL1 = 0x%08x\n", reg);
-  LOAD_SYS_REG(ICC_PMR_EL1, reg);
-  GIC_PRINT("ICC_PMR_EL1 = 0x%08x\n", reg);
-  LOAD_SYS_REG(ICC_IGRPEN0_EL1, reg);
-  GIC_PRINT("ICC_IGRPEN0_EL1 = 0x%08x\n", reg);
-  LOAD_SYS_REG(ICC_IGRPEN1_EL1, reg);
-  GIC_PRINT("ICC_IGPREN1_EL1 = 0x%08x\n", reg);
-
-  GIC_PRINT("Redistributor Enabled Interrupts:\n");
-  for(uint_t i = 32; i < 32; i++) {
-    if(gic_int_enabled(i)) {
-      GIC_PRINT("\tINTERRUPT %u: ENABLED\n", i);
-    }
-  }
-
-  GIC_PRINT("Redistributor Pending Interrupts:\n");
-  for(uint_t i = 0; i < 32; i++) {
-    if(gic_int_pending(i)) {
-      GIC_PRINT("\tINTERRUPT %u: PENDING\n", i);
-    }
-  }
-
-  GIC_PRINT("Redistributor Active Interrupts:\n");
-  for(uint_t i = 0; i < 32; i++) {
-    if(gic_int_active(i)) {
-      GIC_PRINT("\tINTERRUPT %u: ACTIVE\n", i);
-    }
-  }
-
-  GIC_PRINT("Distributor Enabled Interrupts:\n");
-  for(uint_t i = 32; i < __gic.max_int_num; i++) {
-    if(gic_int_enabled(i)) {
-      GIC_PRINT("\tINTERRUPT %u: ENABLED\n", i);
-    }
-  }
-
-  GIC_PRINT("Distributor Pending Interrupts:\n");
-  for(uint_t i = 32; i < __gic.max_int_num; i++) {
-    if(gic_int_pending(i)) {
-      GIC_PRINT("\tINTERRUPT %u: PENDING\n", i);
-    }
-  }
-
-  GIC_PRINT("Distributor Active Interrupts:\n");
-  for(uint_t i = 32; i < __gic.max_int_num; i++) {
-    if(gic_int_active(i)) {
-      GIC_PRINT("\tINTERRUPT %u: ACTIVE\n", i);
-    }
-  }
-}

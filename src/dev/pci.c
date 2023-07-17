@@ -29,6 +29,7 @@
 #include <nautilus/mm.h>
 #include <nautilus/shell.h>
 #include <nautilus/dev.h>
+#include <nautilus/interrupt.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PCI
 #undef DEBUG_PRINT
@@ -1874,6 +1875,29 @@ int pci_dev_is_pending_msi_x(struct pci_dev *dev, int num)
   PCI_DEBUG("entry %d %s\n", num, val ? "pending" : "not pending");
   
   return val;
+}
+
+int nk_msi_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
+{
+  return nk_ivec_find_range(
+      num,
+      1,
+      NK_IVEC_DESC_FLAG_MSI, // Required flags
+      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU, // Banned flags
+      NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
+      0, // Flags to clear
+      first);
+}
+int nk_msi_x_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
+{
+  return nk_ivec_find_range(
+      num,
+      1,
+      NK_IVEC_DESC_FLAG_MSI_X, // Required flags
+      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU, // Banned flags
+      NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
+      0, // Flags to clear
+      first);
 }
 
 void pci_dev_dump_msi_x(struct pci_dev *dev)

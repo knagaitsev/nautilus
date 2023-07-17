@@ -43,7 +43,6 @@ configure_cpu (unsigned long fdt, int offset) {
     memset(new_cpu, 0, sizeof(struct cpu));
 
     new_cpu->id         = reg_addr;
-    new_cpu->lapic_id   = 0;
 
     new_cpu->enabled    = enabled;
     new_cpu->is_bsp     = (new_cpu->id == sys->bsp_id ? 1 : 0);
@@ -87,7 +86,7 @@ static int __early_init_dtb(struct naut_info * naut) {
 }
 
 int 
-arch_early_init (struct naut_info * naut)
+arch_smp_early_init (struct naut_info * naut)
 {
     int ret;
 

@@ -10,7 +10,7 @@
 
 excp_handler_desc_t *excp_handler_desc_table;
 
-int unhandled_excp_handler(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, uint8_t sync, void *state) {
+int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *info, uint8_t el_from, uint8_t sync, void *state) {
 
     if(el_from == 0) {
       ERROR_PRINT("--- UNKNOWN USERMODE EXCEPTION ---\n"); 
@@ -67,15 +67,15 @@ void *excp_remove_excp_handler(uint32_t syndrome) {
   return ret;
 }
 
-void route_exception(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el, uint8_t sync) {
-  int(*handler)(struct nk_regs*, struct excp_entry_info*, uint8_t, uint8_t, void*) = excp_handler_desc_table[info->esr.syndrome].handler;
+void route_exception(struct nk_regs *regs, struct excp_info *info, uint8_t el, uint8_t sync) {
+  int(*handler)(struct nk_regs*, struct excp_info*, uint8_t, uint8_t, void*) = excp_handler_desc_table[info->esr.syndrome].handler;
   int ret = (*handler)(regs, info, el, sync, excp_handler_desc_table[info->esr.syndrome].state);
   if(ret) {
     ERROR_PRINT("Exception handler returned error code: %u\n", ret);
   }
 }
 
-void * route_interrupt(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el) 
+void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el) 
 {
   struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
   
@@ -83,7 +83,7 @@ void * route_interrupt(struct nk_regs *regs, struct excp_entry_info *info, uint8
   nk_irq_dev_ack(irq_dev, &irq);
 
   struct nk_ivec_desc *desc = nk_irq_to_desc(irq);
-  nk_handle_irq_actions(&desc->action, regs);
+  nk_handle_irq_actions(desc, regs);
 
   nk_irq_dev_eoi(irq_dev, irq);
  

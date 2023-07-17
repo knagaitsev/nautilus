@@ -139,6 +139,9 @@ static inline void pl011_configure(struct pl011_uart *p) {
 
   // Disable DMA
   pl011_write_reg(p, UART_DMA_CTRL, 0);
+
+  // Re-enable fifo
+  pl011_enable_fifo(p);
   
   // Re-enable the PL011
   pl011_enable(p);
@@ -198,6 +201,14 @@ static uint32_t __pl011_uart_getchar(struct pl011_uart *p) {
   }
 
   return c;
+}
+
+static inline void pl011_uart_puts_non_blocking(struct pl011_uart *p, const char *src) {
+  while(*src != '\0') {
+    while(pl011_busy(p) || pl011_write_full(p)) {}
+    __pl011_uart_putchar(p, *src);
+    src++;
+  }
 }
 
 // Non-blocking
@@ -268,6 +279,7 @@ static int pl011_uart_dev_status(void *state) {
 
   flags = spin_lock_irq_save(&p->output_lock);
   if (!pl011_busy(p) && !pl011_write_full(p)) {
+    //pl011_uart_puts_non_blocking(p, "WRITABLE\n");
     ret |= NK_CHARDEV_WRITEABLE;
   }
   spin_unlock_irq_restore(&p->output_lock, flags);
@@ -308,25 +320,23 @@ static int pl011_interrupt_handler(struct nk_irq_action *action, struct nk_regs 
 int pl011_uart_dev_init(const char *name, struct pl011_uart *p) 
 {
 
-  // This may print so we need to unlock before calling it
-  p->dev = nk_char_dev_register(name,0,&pl011_uart_char_dev_ops, p);
+  p->dev = nk_char_dev_register(name,0,&pl011_uart_char_dev_ops,(void*)p);
 
   if(!p->dev) {
+    ERROR("Failed to allocate PL011 chardev!\n");
     return -1;
+  } else {
+    printk("Allocated PL011 chardev, lock = %u!\n", p->output_lock);
   }
-
-  spin_lock(&p->input_lock);
 
   // Clear out spurrious interrupts
   uint32_t int_status = pl011_read_reg(p, UART_RAW_INT_STAT);
   pl011_write_reg(p, UART_INT_CLR, int_status);
 
-  nk_irq_add_handler_dev(33, pl011_interrupt_handler, (void*)p, p->dev);
+  nk_irq_add_handler_dev(33, pl011_interrupt_handler, (void*)p, (struct nk_dev*)p->dev);
   nk_unmask_irq(33);
 
   pl011_write_reg(p, UART_INT_MASK, 0x50);
-
-  spin_unlock(&p->input_lock);
 
   return 0;
 }
@@ -337,6 +347,7 @@ void pl011_uart_putchar_blocking(struct pl011_uart *p, const char c) {
   __pl011_uart_putchar(p, c);
   spin_unlock_irq_restore(&p->output_lock, flags);
 }
+
 void pl011_uart_puts_blocking(struct pl011_uart *p, const char *src) {
   int flags = spin_lock_irq_save(&p->output_lock);
   while(*src != '\0') {

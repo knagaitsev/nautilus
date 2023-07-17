@@ -82,7 +82,7 @@ static int __early_init_dtb(struct naut_info * naut) {
 }
 
 int 
-arch_early_init (struct naut_info * naut)
+arch_smp_early_init (struct naut_info * naut)
 {
     int ret;
 

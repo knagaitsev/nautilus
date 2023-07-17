@@ -20,6 +20,7 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
 #ifndef __NAUTILUS_H__
 #define __NAUTILUS_H__
 

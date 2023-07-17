@@ -30,29 +30,20 @@ typedef union esr_el1 {
   };
 } esr_el1_t;
 
-struct __attribute__((packed)) excp_entry_info {
+struct __attribute__((packed)) excp_info {
   uint64_t status;
   uint64_t elr;
   esr_el1_t esr;
   uint64_t far;
 };
 
-typedef int(*irq_handler_t)(excp_entry_t *excp, ulong_t vec, void *state);
-typedef int(*excp_handler_t)(struct nk_regs *regs, struct excp_entry_info *info, uint8_t el_from, uint8_t sync, void *state);
-
-typedef struct irq_handler_desc {
-  irq_handler_t handler;
-  void *state;
-} irq_handler_desc_t;
-extern irq_handler_desc_t *irq_handler_desc_table;
+typedef int(*excp_handler_t)(struct nk_regs *regs, struct excp_info *info, uint8_t el_from, uint8_t sync, void *state);
 
 typedef struct excp_handler_desc {
   excp_handler_t handler;
   void *state;
 } excp_handler_desc_t;
 extern excp_handler_desc_t *excp_handler_desc_table;
-
-void excp_assign_irq_handler(int irq, irq_handler_t handler, void *state);
 
 // Returns the removed state of the handler if it exists
 void excp_assign_excp_handler(uint32_t syndrome, excp_handler_t handler, void *state);

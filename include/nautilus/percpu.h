@@ -1,4 +1,5 @@
 /* 
+    new_cpu->lapic_id   = 0;
  * This file is part of the Nautilus AeroKernel developed
  * by the Hobbes and V3VEE Projects with funding from the 
  * United States National  Science Foundation and the Department of Energy.  
@@ -45,6 +46,7 @@ struct cpu;
 #define __stringify(x) #x
 #define __percpu_seg tp
 
+#include <nautilus/smp.h>
 #include <nautilus/nautilus.h>
 
 #define __per_cpu_get(var, n)                                        \
@@ -102,10 +104,6 @@ do { \
 
 #define my_cpu_id() per_cpu_get(id)
 
-#ifndef __PER_CPU_H__
-#define __PER_CPU_H__
-
-#include <nautilus/smp.h>
 static inline struct cpu*
 get_cpu (void)
 {
@@ -114,10 +112,7 @@ get_cpu (void)
     return (struct cpu*) x;
 }
 
-#endif /* !__PER_CPU_H__ */
-
-#endif
-
+#endif /* NAUT_CONFIG_ARCH_RISCV */
 
 #ifdef NAUT_CONFIG_ARCH_X86
 

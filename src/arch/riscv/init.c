@@ -224,7 +224,7 @@ void init(unsigned long hartid, unsigned long fdt) {
   mm_boot_init(fdt);
 
   // Enumate CPUs and initialize them
-  smp_early_init(naut);
+  arch_smp_early_init(naut);
 
   /* this will populate NUMA-related structures */
   arch_numa_init(&naut->sys);

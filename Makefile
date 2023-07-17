@@ -181,8 +181,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 ARCH		?= $(SUBARCH)
 
-CROSS_COMPILE ?=
-#CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
+#CROSS_COMPILE ?=
+CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
 #CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/riscv64/bin/
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 
@@ -885,7 +885,7 @@ $(QEMU_FLASH):
 QEMU_GDB_FLAGS := #-gdb tcp::5060
 QEMU_DEVICES := #-display none
 QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
-QEMU_DEVICES += #-netdev socket,id=net0,listen=localhost:1234 -device e1000e,netdev=net0,mac=00:11:22:33:44:55  -device virtio-gpu-pci
+QEMU_DEVICES += -netdev socket,id=net0,listen=localhost:1234 -device e1000e,netdev=net0,mac=00:11:22:33:44:55  -device virtio-gpu-pci
 
 QEMU_MACHINE_FLAGS = virt#,dumpdtb=virt.dtb
 ifdef NAUT_CONFIG_GIC_VERSION_2
@@ -897,7 +897,7 @@ endif
 
 qemu: uImage
 ifdef NAUT_CONFIG_ARCH_RISCV
-	qemu-system-riscv64 -bios default -m 2G -M sifive_u -kernel nautilus.bin -serial mon:stdio -display none -gdb tcp::1234
+	qemu-system-riscv64 -bios none -m 2G -M sifive_u -kernel nautilus.bin -serial mon:stdio -display none -gdb tcp::1234
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
 	qemu-system-aarch64 \

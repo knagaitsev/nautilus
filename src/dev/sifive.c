@@ -15,7 +15,7 @@
 static struct sifive_serial_regs * regs;
 static bool_t   inited = false;
 
-int sifive_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state) {
+int sifive_handler (struct nk_irq_action *action, struct nk_regs *r, void *state) {
     panic("sifive_handler!\n");
     while (1) {
         uint32_t r = regs->rxfifo;
@@ -48,7 +48,7 @@ static void sifive_init(addr_t addr, uint16_t irq) {
 
     inited = true;
 
-    arch_irq_install(irq, sifive_handler);
+    nk_irq_add_handler(irq, sifive_handler, NULL);
 }
 
 int fdt_node_get_sifive(const void *fdt, int offset, int depth) {

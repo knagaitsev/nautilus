@@ -28,7 +28,6 @@ extern "C" {
 #endif
 
 #include <nautilus/naut_types.h>
-#include <nautilus/interrupt.h>
 
 /******* EXTERNAL INTERFACE *********/
 
@@ -168,12 +167,10 @@ struct cpu {
 #endif
 };
 
+struct nk_irq_action;
+struct nk_regs;
 int xcall_handler(struct nk_irq_action *, struct nk_regs *, void *);
 int smp_xcall(cpu_id_t cpu_id, nk_xcall_func_t fun, void * arg, uint8_t wait);
-
-/* ARCH-SPECIFIC */
-
-int arch_early_init (struct naut_info * naut);
 
 #ifdef __cplusplus
 }

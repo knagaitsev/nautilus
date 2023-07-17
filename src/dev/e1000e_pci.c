@@ -997,7 +997,7 @@ enum pkt_op { op_unknown, op_tx, op_rx };
 static int e1000e_irq_handler(struct nk_irq_action *action, struct nk_regs *regs, void *s)
 {
   DEBUG("irq_handler fn: vector: 0x%x rip: 0x%p s: 0x%p\n",
-        vec, arch_instr_ptr_reg(regs), s);
+        action->ivec, arch_instr_ptr_reg(regs), s);
 
   // #measure
   uint64_t irq_start = 0;
@@ -1363,14 +1363,7 @@ int e1000e_pci_init(struct naut_info * naut)
 	uint64_t num_vecs = pdev->msi.num_vectors_needed;
 	uint64_t base_vec = 0;
 
-	if (nk_ivec_find_range(
-		num_vecs,
-		1, // aligned
-		NK_IVEC_DESC_FLAG_MSI, // required flags
-		NK_IVEC_DESC_FLAG_RESERVED | NK_IVEC_DESC_FLAG_EXCEPTION, // banned flags
-		NK_IVEC_DESC_FLAG_RESERVED, // flags to set
-		0, // flags to clear
-		&base_vec)) {
+	if (nk_msi_find_and_reserve_range(num_vecs, &base_vec)) {
 	    ERROR("Cannot find %d vectors for %s - skipping\n",num_vecs,state->name);
 	    continue;
 	}
@@ -1386,7 +1379,7 @@ int e1000e_pci_init(struct naut_info * naut)
 	int failed=0;
 
 	for (i=base_vec;i<(base_vec+num_vecs);i++) {
-	    if (register_int_handler(i, e1000e_irq_handler, state)) {
+	    if (nk_ivec_add_handler_dev(i, e1000e_irq_handler, state, (struct nk_dev*)state->netdev)) {
 		ERROR("Failed to register handler for vector %d on device %s - skipping\n",i,state->name);
 		failed=1;
 		break;

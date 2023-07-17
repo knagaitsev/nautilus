@@ -61,10 +61,7 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	pmc.o \
 	setjmp.o \
 
-obj-$(NAUT_CONFIG_ARCH_RISCV) += \
-	fdt/
-
-obj-$(NAUT_CONFIG_ARCH_ARM64) += \
+obj-$(NAUT_CONFIG_USE_FDT) += \
 	fdt/
 
 obj-$(NAUT_CONFIG_PROFILE) += instrument.o

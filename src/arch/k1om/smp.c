@@ -26,7 +26,7 @@
 #include <arch/k1om/xeon_phi.h>
 
 int 
-arch_early_init (struct naut_info * naut)
+arch_smp_early_init (struct naut_info * naut)
 {
     return __early_init_sfi(naut);
 }

@@ -314,17 +314,22 @@ static int gicv2_dev_int_desc_init(struct nk_irq_dev *dev, struct gicv2 *gic)
 {
 
   // Set up 0-15 for SGI
-  nk_alloc_ivec_descs(0, 16, dev, NK_IVEC_DESC_TYPE_VALID, NK_IVEC_DESC_FLAG_PERCPU | NK_IVEC_DESC_FLAG_IPI);
+  nk_alloc_ivec_descs(0, 16, dev, NK_IVEC_DESC_TYPE_DEFAULT, NK_IVEC_DESC_FLAG_PERCPU | NK_IVEC_DESC_FLAG_IPI);
   GIC_DEBUG("Set Up SGI Vectors\n");
   
   // Set up 16-31 for PPI
-  nk_alloc_ivec_descs(16, 16, dev, NK_IVEC_DESC_TYPE_VALID, NK_IVEC_DESC_FLAG_PERCPU);
+  nk_alloc_ivec_descs(16, 16, dev, NK_IVEC_DESC_TYPE_DEFAULT, NK_IVEC_DESC_FLAG_PERCPU);
   GIC_DEBUG("Set Up PPI Vectors\n");
 
   // Set up the correct number of SPI
   GIC_DEBUG("gic->max_irq = %u\n", gic->max_irq);
-  nk_alloc_ivec_descs(32, gic->max_irq - 32, dev, NK_IVEC_DESC_TYPE_VALID, 0);
+  nk_alloc_ivec_descs(32, gic->max_irq - 32, dev, NK_IVEC_DESC_TYPE_DEFAULT, 0);
   GIC_DEBUG("Set Up SPI Vectors\n");
+
+  // Add the special INTIDS
+  GIC_DEBUG("Set Up Special Interrupt Vectors!\n");
+  nk_alloc_ivec_descs(1020, 4, dev, NK_IVEC_DESC_TYPE_SPURRIOUS, 0);
+
 
   // Now go through and set the MSI flag as appropriate
   for(struct gic_msi_frame *frame = gic->msi_frame; frame != NULL; frame = frame->next) 
@@ -332,14 +337,14 @@ static int gicv2_dev_int_desc_init(struct nk_irq_dev *dev, struct gicv2 *gic)
     GIC_DEBUG("Setting up MSI Frame: [%u - %u]\n", frame->base_irq, frame->base_irq + frame->num_irq - 1);
     for(uint32_t i = 0; i < frame->num_irq; i++) 
     {
-      struct nk_int_desc *desc = nk_ivec_to_desc(i + frame->base_irq);
+      struct nk_ivec_desc *desc = nk_ivec_to_desc(i + frame->base_irq);
 
       if(desc == NULL) {
         GIC_ERROR("MSI frame contains values outside of the range of SPI interrupts! IRQ NO. = %u\n", i+frame->base_irq);
         continue;
       }
 
-      nk_ivec_set_flags(desc, NK_IVEC_DESC_FLAG_MSI);
+      desc->flags |= NK_IVEC_DESC_FLAG_MSI|NK_IVEC_DESC_FLAG_MSI_X;
     }
   }
 
@@ -415,7 +420,9 @@ static int gicv2_dev_eoi_irq(void *state, nk_irq_t irq) {
 static int gicv2_dev_enable_irq(void *state, nk_irq_t irq) {
 
   GICD_BITMAP_SET(*(struct gicv2*)state, irq, GICD_ISENABLER_0_OFFSET);
-  GICD_BYTEMAP_WRITE(*(struct gicv2*)state, irq, GICD_ITARGETSR_0_OFFSET, ((1<<((struct gicv2*)state)->cpu_num)-1));
+  if(irq >= 32) {
+    GICD_BYTEMAP_WRITE(*(struct gicv2*)state, irq, GICD_ITARGETSR_0_OFFSET, ((1<<((struct gicv2*)state)->cpu_num)-1));
+  }
   return 0;
 
 }

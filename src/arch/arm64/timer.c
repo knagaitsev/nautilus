@@ -10,10 +10,10 @@
 #define DEBUG_PRINT(fmt, args...)
 #endif
 
-#define TIMER_PRINT(fmt, args...) INFO_PRINT("Timer: " fmt, ##args)
-#define TIMER_DEBUG(fmt, args...) DEBUG_PRINT("Timer: " fmt, ##args)
-#define TIMER_ERROR(fmt, args...) ERROR_PRINT("Timer: " fmt, ##args)
-#define TIMER_WARN(fmt, args...) WARN_PRINT("Timer: " fmt, ##args)
+#define TIMER_PRINT(fmt, args...) INFO_PRINT("timer: " fmt, ##args)
+#define TIMER_DEBUG(fmt, args...) DEBUG_PRINT("timer: " fmt, ##args)
+#define TIMER_ERROR(fmt, args...) ERROR_PRINT("timer: " fmt, ##args)
+#define TIMER_WARN(fmt, args...) WARN_PRINT("timer: " fmt, ##args)
 
 static inline void print_timer_regs(void) {
   TIMER_PRINT("CNTPCT_EL0 = %u\n", ({uint64_t reg; asm volatile("mrs %0, CNTPCT_EL0" : "=r" (reg)); reg;}));
@@ -105,11 +105,18 @@ uint64_t arch_read_timestamp(void) {
   return phys;
 }
 
-int percpu_timer_init(void) {
-
+int global_timer_init(void) {
+  
   // install the handler
-  nk_irq_add_handler(30, arch_timer_handler, NULL);
-  nk_unmask_irq(30);
+  if(nk_irq_add_handler(30, arch_timer_handler, NULL)) {
+    TIMER_ERROR("Failed to install the timer IRQ handler!\n");
+    return -1;
+  }
+
+  return 0;
+}
+
+int percpu_timer_init(void) {
 
 #ifdef NAUT_CONFIG_DEBUG_TIMERS
   print_timer_regs();
@@ -117,6 +124,9 @@ int percpu_timer_init(void) {
 
   // Enable the timer
   asm volatile ("mrs x0, CNTP_CTL_EL0; orr x0, x0, 1; msr CNTP_CTL_EL0, x0" ::: "x0");
+
+  nk_unmask_irq(30);
+
   return 0;
 }
 

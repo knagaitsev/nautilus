@@ -1,4 +1,6 @@
 #include <nautilus/arch.h>
+#include <nautilus/cpu_state.h>
+#include <nautilus/fdt/fdt_numa.h>
 
 void arch_enable_ints(void)  { set_csr(sstatus, SSTATUS_SIE); }
 void arch_disable_ints(void) { clear_csr(sstatus, SSTATUS_SIE); }
@@ -9,14 +11,9 @@ int  arch_ints_enabled(void) { return read_csr(sstatus) & SSTATUS_SIE; };
 void arch_irq_enable(int irq) { plic_enable(irq, 1); }
 void arch_irq_disable(int irq) { 
     printk("im disabling irq=%d\n", irq);
-    plic_disable(irq); }
-void arch_irq_install(int irq, int (*handler)(excp_entry_t *, excp_vec_t, void *), void *state) {
-    printk("registering int handler! irq=%d, handler=%p, state=%p\n", irq, handler);
-    register_int_handler(irq, handler, state);
-    arch_irq_enable(irq);
+    plic_disable(irq); 
 }
-void arch_irq_uninstall(int irq) { /* TODO */ }
-
+    
 uint32_t arch_cycles_to_ticks(uint64_t cycles) { /* TODO */ return cycles; }
 uint32_t arch_realtime_to_ticks(uint64_t ns) { return ((ns*RISCV_CLOCKS_PER_SECOND)/1000000000ULL); }
 uint64_t arch_realtime_to_cycles(uint64_t ns) { /* TODO */ return arch_realtime_to_ticks(ns); }
@@ -60,7 +57,7 @@ void arch_set_timer(uint32_t ticks) {
 
 int  arch_read_timer(void) { /* TODO */ return 0; }
 
-int  arch_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
+int  arch_timer_handler(struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
     uint64_t time_to_next_ns;
 
@@ -84,6 +81,10 @@ int  arch_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
 }
 
 uint64_t arch_read_timestamp() { return read_csr(time); }
+
+int arch_numa_init(struct sys_info *sys) {
+  return fdt_numa_init(sys);
+}
 
 void arch_print_regs(struct nk_regs * r) {
 
@@ -117,7 +118,7 @@ void arch_halt(void) {
     // asm volatile ("hlt");
 }
 
-void arch_little_endian(void) {
+int arch_little_endian(void) {
   // TODO: actually check the architecture endianness
   return 1;
 }

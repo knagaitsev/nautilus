@@ -15,7 +15,7 @@ void arch_enable_ints(void);
 void arch_disable_ints(void);
 int arch_ints_enabled(void);
 
-int arch_early_init(struct naut_info *naut);
+int arch_early_smp_init(struct naut_info *naut);
 int arch_numa_init(struct sys_info *sys);
 
 void arch_detect_mem_map(mmap_info_t *mm_info, mem_map_entry_t *memory_map,
