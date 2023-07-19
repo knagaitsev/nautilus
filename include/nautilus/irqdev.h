@@ -18,7 +18,6 @@ struct nk_irq_dev_int {
   int (*ack_irq)(void *state, nk_irq_t *irq);
   int (*eoi_irq)(void *state, nk_irq_t irq);
 
-  // These apply for all cores serviced by this device
   int (*enable_irq)(void *state, nk_irq_t irq);
   int (*disable_irq)(void *state, nk_irq_t irq);
   

@@ -33,9 +33,10 @@ typedef int(*nk_irq_handler_t)(struct nk_irq_action *, struct nk_regs *, void *s
  */
 #define NK_IRQ_ACTION_FLAG_RESERVED (1<<1)
 #define NK_IRQ_ACTION_FLAG_NO_IRQ   (1<<2) // This action isn't associated with any IRQ
+#define NK_IRQ_ACTION_FLAG_MASKED   (1<<3) // This action is masked
 
 #define NK_IRQ_ACTION_TYPE_INVALID       0
-#define NK_IRQ_ACTION_TYPE_HANDLER      1
+#define NK_IRQ_ACTION_TYPE_HANDLER       1
 
 struct nk_irq_action {
 
@@ -75,11 +76,12 @@ int nk_handle_irq_actions(struct nk_ivec_desc *desc, struct nk_regs *regs);
  *
  */
 
-#define NK_IVEC_DESC_FLAG_RESERVED  (1<<0)
-#define NK_IVEC_DESC_FLAG_MSI       (1<<1)
-#define NK_IVEC_DESC_FLAG_MSI_X     (1<<2)
-#define NK_IVEC_DESC_FLAG_PERCPU    (1<<3)
-#define NK_IVEC_DESC_FLAG_IPI       (1<<4)
+#define NK_IVEC_DESC_FLAG_RESERVED     (1<<0)
+#define NK_IVEC_DESC_FLAG_MSI          (1<<1)
+#define NK_IVEC_DESC_FLAG_MSI_X        (1<<2)
+#define NK_IVEC_DESC_FLAG_PERCPU       (1<<3)
+#define NK_IVEC_DESC_FLAG_IPI          (1<<4)
+#define NK_IVEC_DESC_FLAG_NMI          (1<<5)
 
 #define NK_IVEC_DESC_TYPE_INVALID        0 // This IVEC # isn't backed by the hardware
 #define NK_IVEC_DESC_TYPE_DEFAULT        1
@@ -90,12 +92,16 @@ struct nk_ivec_desc {
 
   struct nk_irq_dev *irq_dev;
 
+  // This field is reserved for use by the owning irq_dev
+  uint64_t irq_dev_data;
+
   // This is a linked list but we need the first
   // entry to be within the descriptor so we
   // can statically allocate atleast 1 action per
   // vector.
   struct nk_irq_action action;
   uint32_t num_actions;
+  uint32_t num_unmasked_actions;
 
   spinlock_t lock;
 
@@ -148,6 +154,9 @@ int nk_irq_init(void);
 
 int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec);
 nk_ivec_t nk_irq_to_ivec(nk_irq_t);
+#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
+nk_irq_t nk_ivec_to_irq(nk_ivec_t);
+#endif
 
 int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev);
 struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t);

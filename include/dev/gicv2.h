@@ -3,6 +3,31 @@
 
 #include<nautilus/naut_types.h>
 
+#ifndef NAUT_CONFIG_DEBUG_PRINTS
+#undef DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...)
+#endif
+
+#define GIC_PRINT(fmt, args...) printk("[GICv2] " fmt, ##args)
+#define GIC_DEBUG(fmt, args...) DEBUG_PRINT("[GICv2] " fmt, ##args)
+#define GIC_ERROR(fmt, args...) ERROR_PRINT("[GICv2] " fmt, ##args)
+#define GIC_WARN(fmt, args...) WARN_PRINT("[GICv2] " fmt, ##args)
+
+struct gicv2 {
+
+  uint64_t dist_base;
+  uint64_t cpu_base;
+
+  uint32_t max_spi;
+  uint32_t num_cpus;
+
+  uint8_t security_ext;
+
+#ifdef NAUT_CONFIG_GIC_VERSION_2M
+  struct gicv2m_msi_frame *msi_frame;
+#endif
+};
+
 int gicv2_init(uint64_t dtb);
 
 #endif

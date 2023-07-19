@@ -186,12 +186,12 @@ struct nk_prog_info;
 struct sys_info {
 
     struct cpu * cpus[NAUT_CONFIG_MAX_CPUS];
+    uint32_t num_cpus;
+    
 #ifdef NAUT_CONFIG_ARCH_X86
     struct ioapic * ioapics[NAUT_CONFIG_MAX_IOAPICS];
-#endif
-
-    uint32_t num_cpus;
     uint32_t num_ioapics;
+#endif
 
     uint64_t flags;
 #define NK_SYS_LEGACY 1  // system has dual PIC and ISA devices
@@ -207,8 +207,6 @@ struct sys_info {
     struct pci_info * pci;
     struct hpet_dev * hpet;
 
-    struct multiboot_info * mb_info;
-
     struct nk_int_info int_info;
 
     struct nk_locality_info locality_info;
@@ -219,7 +217,11 @@ struct sys_info {
 
     struct nk_prog_info * prog_info;
 
+#ifdef NAUT_CONFIG_USE_FDT
     struct dtb_fdt_header * dtb; /* Device tree binary */
+#endif
+
+    struct multiboot_info * mb_info;
 };
 
 struct cmdline_state;

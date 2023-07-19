@@ -28,8 +28,13 @@
 #define TCR_TTBR1_GRANULE_SIZE_16KB 0b01
 #define TCR_TTBR1_GRANULE_SIZE_64KB 0b11
 
+#define NON_SHAREABLE    0b00
+#define INNER_SHAREABLE  0b11
+#define OUTER_SHAREABLE  0b10
+
 #define TCR_DEFAULT_CACHEABILITY 0b11
 #define TCR_DEFAULT_SHAREABILITY 0b11
+
 
 typedef union tc_reg {
   uint64_t raw;
@@ -439,7 +444,7 @@ static page_table_descriptor_t *generate_minimal_page_table(void) {
     l1_table[i].desc_type = PAGE_TABLE_DESC_TYPE_BLOCK;
     l1_table[i].mair_index = MAIR_DEVICE_INDEX;
     l1_table[i].access_perm = 0;
-    l1_table[i].shareable_attr = 0b11;
+    l1_table[i].shareable_attr = OUTER_SHAREABLE;
     l1_table[i].priv_exec_never = 1;
     l1_table[i].unpriv_exec_never = 1;
     l1_table[i].access_flag = 1;
@@ -519,7 +524,11 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
 
         desc->mair_index = MAIR_NORMAL_INDEX;
         desc->access_perm = 0;
-        desc->shareable_attr = 0b11;
+#if NAUT_CONFIG_MAX_CPUS == 1
+        desc->shareable_attr = NON_SHAREABLE;
+#else
+        desc->shareable_attr = INNER_SHAREABLE;
+#endif
         desc->priv_exec_never = 1;
         desc->unpriv_exec_never = 1;
 
@@ -569,6 +578,41 @@ static int handle_text_memory_regions(page_table_descriptor_t *table) {
 
 }
 
+static int handle_rodata_memory_regions(page_table_descriptor_t *table) {
+  extern int _rodataStart;
+  extern int _rodataEnd;
+
+  uint64_t start = &_rodataStart;
+  uint64_t end = &_rodataEnd;
+
+  uint32_t block_size = PAGE_SIZE_4KB;
+
+  page_table_descriptor_t*(*drill_func)(page_table_descriptor_t*, void*) = NULL;  
+
+  __efficient_drill_helper(&start, &end, &drill_func, &block_size);
+
+  for(; start < end; start += block_size) {
+    
+    page_table_descriptor_t *desc;
+    desc = (*drill_func)(table, (void*)start);
+
+    if(desc == NULL) {
+      // An actual error not just a warning
+      PAGING_ERROR("Failed to drill page for text memory!\n");
+      return -1;
+    }
+
+    // Read only
+    desc->access_perm |= 0b10;
+
+    // Don't modify identity mapping
+  }
+
+  return 0;
+
+}
+
+
 static page_table_descriptor_t *low_mem_table;
 static page_table_descriptor_t *high_mem_table;
 
@@ -595,6 +639,11 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
 
   if(handle_text_memory_regions(low_mem_table)) {
     PAGING_ERROR("Failed to handle text page regions! (GOING TO CRASH IF WE CONTINUE ENABLING PAGING)\n");
+    return -1;
+  }
+
+  if(handle_rodata_memory_regions(low_mem_table)) {
+    PAGING_WARN("Failed to handle rodata page regions! (Read only sections may be modified without an exception!)\n");
     return -1;
   }
 

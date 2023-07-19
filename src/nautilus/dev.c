@@ -153,8 +153,6 @@ void nk_dev_wait(struct nk_dev *d,
 
 void nk_dev_signal(struct nk_dev *d)
 {
-    ERROR_PRINT("dev signal d->waiting_threads->lock=%d\n",d->waiting_threads->lock);
-    ERROR_PRINT("dev signal d->waiting_threads->num_wait=%d\n",d->waiting_threads->num_wait);
     nk_wait_queue_wake_all(d->waiting_threads);
 }
 

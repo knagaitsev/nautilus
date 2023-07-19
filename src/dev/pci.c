@@ -66,13 +66,16 @@ pci_cfg_readw (uint8_t bus,
 
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
-    uint16_t read = *(volatile uint16_t*)(pci_ecam_base_addr + (void*)addr);
-//    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
+    uint16_t read = *(volatile uint16_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr);
     return read;
-#else
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     ret = inl(PCI_CFG_DATA_PORT);
     return (ret >> ((off & 0x2) * 8)) & 0xffff;
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
 #endif
 }
 
@@ -96,12 +99,15 @@ pci_cfg_readl (uint8_t bus,
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
     uint32_t read;
-    read = *(volatile uint32_t*)(pci_ecam_base_addr + (void*)addr);
-//    printk("pci_cfg_reall(%u,%u,%u,%u) = %u\n",bus,slot,fun,off,read);
+    read = *(volatile uint32_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr);
     return read;
-#else
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     return inl(PCI_CFG_DATA_PORT);
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
 #endif
 }
 
@@ -126,10 +132,14 @@ pci_cfg_writew (uint8_t bus,
            PCI_ENABLE_BIT;
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
-    *(volatile uint16_t*)(pci_ecam_base_addr + (void*)addr) = val;
-#else
+    *(volatile uint16_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr) = val;
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     outw(val,PCI_CFG_DATA_PORT);
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
 #endif
 }
 
@@ -153,10 +163,14 @@ pci_cfg_writel (uint8_t bus,
            PCI_ENABLE_BIT;
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
-    *(volatile uint32_t*)(pci_ecam_base_addr + (void*)addr) = val;
-#else
+    *(volatile uint32_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr) = val;
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     outl(val, PCI_CFG_DATA_PORT);
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
 #endif
 }
 
@@ -1883,7 +1897,7 @@ int nk_msi_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
       num,
       1,
       NK_IVEC_DESC_FLAG_MSI, // Required flags
-      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU, // Banned flags
+      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU|NK_IVEC_DESC_FLAG_NMI, // Banned flags
       NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
       0, // Flags to clear
       first);
@@ -1894,7 +1908,7 @@ int nk_msi_x_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
       num,
       1,
       NK_IVEC_DESC_FLAG_MSI_X, // Required flags
-      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU, // Banned flags
+      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU|NK_IVEC_DESC_FLAG_NMI, // Banned flags
       NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
       0, // Flags to clear
       first);

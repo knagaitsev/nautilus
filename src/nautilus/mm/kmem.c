@@ -37,7 +37,7 @@
 #include <nautilus/percpu.h>
 #include <nautilus/shell.h>
 
-#include <dev/gpio.h>
+#include <dev/port_gpio.h>
 
 #ifdef NAUT_CONFIG_ALLOCS
 #include <nautilus/alloc.h>

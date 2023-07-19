@@ -34,6 +34,9 @@ SECTIONS
     *(.data .data.*)
   }
 
+  _dataEnd = .;
+
+  _rodataStart = .;
   .rodata : {
     . = ALIGN(16);
     *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */
@@ -49,9 +52,10 @@ SECTIONS
 
   .shell_cmds ALIGN(0x1000) : {
     __start_shell_cmds = .;
-    *(.shell_cmds*);
+    KEEP(*(SORT_BY_NAME(.shell_cmd.*)));
     __stop_shell_cmds = .;
   }
+  _rodataEnd = .;
 
   _loadEnd = .;
 
@@ -64,8 +68,6 @@ SECTIONS
   }
 
   _bssEnd = .;
-
-  _dataEnd = .;
 
   PROVIDE(kernel_end = .);
 }

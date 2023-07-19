@@ -39,9 +39,9 @@
 #include<dev/pl011.h>
 #include<dev/pci.h>
 
-#ifdef NAUT_CONFIG_GIC_VERSION_2
+#if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
 #include<dev/gicv2.h>
-#elif NAUT_CONFIG_GIC_VERSION_3
+#elif defined(NAUT_CONFIG_GIC_VERSION_3)
 #include<dev/gicv3.h>
 #endif
 
@@ -221,8 +221,8 @@ vga_make_entry (char c, uint8_t color)
 //
 
 
-extern void *_bssEnd;
-extern void *_bssStart;
+extern void* _bssEnd[];
+extern void* _bssStart[];
 
 extern spinlock_t printk_lock;
 
@@ -290,11 +290,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   per_cpu_paging_init();
 
-#ifdef NAUT_CONFIG_GIC_VERSION_2
+#if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
   if(gicv2_init(dtb)) {
     panic("Failed to initialize GICv2!\n");  
   }
-#elif NAUT_CONFIG_GIC_VERSION_3
+#elif defined(NAUT_CONFIG_GIC_VERSION_3)
   if(gicv3_init(dtb)) {
     panic("Failed to initialize GICv3!\n");  
   }

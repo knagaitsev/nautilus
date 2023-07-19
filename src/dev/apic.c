@@ -41,7 +41,7 @@
 #error "APIC requires that the architecture is set to ARCH_X86!"
 #endif
 
-#include <dev/gpio.h>
+#include <dev/port_gpio.h>
 
 #ifndef NAUT_CONFIG_DEBUG_APIC
 #undef DEBUG_PRINT

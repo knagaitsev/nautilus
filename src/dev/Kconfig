@@ -44,32 +44,39 @@ endmenu
 
 choice 
     prompt "GIC Version"
-    depends on ARM64_GENERIC
-    default GIC_VERSION_2 
+    depends on ARCH_ARM64
+    default GIC_VERSION_2M
 
     config GIC_VERSION_2
       bool "Arm GICv2"
+
+    config GIC_VERSION_2M
+      bool "Arm GICv2m"
+      select HAS_MSI
       
     config GIC_VERSION_3
-      bool "Arm GICv3 (WIP)"
+      bool "Arm GICv3"
+      select HAS_MSI
 
 endchoice
 
 config DEBUG_PL011_UART
     bool "Debug PL011 UART"
-    depends on ARM64_GENERIC
+    depends on ARCH_ARM64
     default n
     help
       Turn on debug prints for the PL011 UART Serial Port
 
 config APIC_FORCE_XAPIC_MODE
     bool "Force APIC to use XAPIC mode"
+    depends on ARCH_X86
     default n
     help
        Force the use of XAPIC mode even if X2APIC mode is available
 
 config APIC_TIMER_CALIBRATE_INDEPENDENTLY
     bool "Calibrate APIC timer independently on each core"
+    depends on ARCH_X86
     default n
     help
       If set, each core's APIC timer is independently calibrated
@@ -79,21 +86,21 @@ config APIC_TIMER_CALIBRATE_INDEPENDENTLY
 
 config DEBUG_APIC
     bool "Debug APIC"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help
         Turn on debug prints for the LAPIC driver
 
 config DEBUG_IOAPIC
     bool "Debug IOAPIC"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help 
         Turn on debug prints for the IOAPIC driver
 
 config DEBUG_PCI
     bool "Debug PCI"
-    depends on DEBUG_PRINTS
+    depends on HAS_PCI && DEBUG_PRINTS
     default n
     help 
         Turn on debug prints for PCI devices
@@ -106,47 +113,47 @@ config DISABLE_PS2_MOUSE
         This is useful on bizarro platforms that have broken or
         disabled PS2 emulation where we can't detect it
 
-
 config DEBUG_PS2
     bool "Debug PS2 interface (Keyboard/Mouse)"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help
         Turn on debug prints for the keyboard/mouse on the PS/2 interface
 
-config GPIO
-    bool "GPIO support"
+config PARALLEL_PORT_GPIO
+    bool "Parallel Port GPIO Support"
+    depends on ARCH_X86
     default n
     help
        Provide parallel port GPIO device driver
 
-config GPIO_PORT
+config PARALLEL_PORT_GPIO_PORT
     hex "Port"
     default 0xe010
-    depends on GPIO
+    depends on PARALLEL_PORT_GPIO
     help
        Parallel port I/O port to use
        Common: 0x378  = first legacy parallel port
                0x278  = second legacy parallel port
                0xd010 = port in NU test Phi (lspci to find out)
 
-config DEBUG_GPIO
+config DEBUG_PARALLEL_PORT_GPIO
     bool "Debug GPIO interface (parallel port)"
-    depends on DEBUG_PRINTS && GPIO
+    depends on DEBUG_PRINTS && PARALLEL_PORT_GPIO
     default n
     help
         Turn on debug prints for the parallel port GPIO device
 
 config DEBUG_PIT
     bool "Debug PIT"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help
       Turn on debug prints for the i8253/8254 PIT
 
 config HPET
     bool "HPET Support"
-    depends on X86_64_HOST
+    depends on ARCH_X86
     default n
     help
       Includes HPET timer support in Nautilus
@@ -160,7 +167,7 @@ config DEBUG_HPET
 
 config VIRTIO_PCI
     bool "Core Virtio PCI Driver"
-    depends on X86_64_HOST || ARM64_GENERIC
+    depends on HAS_PCI && HAS_MSI
     default n
     help
       Adds the basic Virtio PCI interface
@@ -216,7 +223,7 @@ config DEBUG_VIRTIO_GPU
 
 config E1000_PCI
     bool "E1000 PCI NIC Driver"
-    depends on X86_64_HOST || ARM64_GENERIC
+    depends on HAS_PCI
     default n
     help
       Adds the basic E1000 PCI network interface driver
@@ -230,7 +237,7 @@ config DEBUG_E1000_PCI
 
 config E1000E_PCI
     bool "E1000E PCI NIC Driver"
-    depends on X86_64_HOST || ARM64_GENERIC
+    depends on HAS_PCI
     default n
     help
       Adds the basic E1000E PCI network interface driver
@@ -244,7 +251,7 @@ config DEBUG_E1000E_PCI
 
 config MLX3_PCI
     bool "Mellanox ConnectX-3 PCI Driver"
-    depends on X86_64_HOST
+    depends on HAS_PCI
     default n
     help
       Adds experimental driver for the Mellanox ConnectX-3 HCA Adapter
@@ -280,6 +287,7 @@ config DEBUG_RAMDISK
 
 config ATA
     bool "ATA Support"
+    depends on ARCH_X86
     default n
     help 
        Adds very primitive ATA suppor 

@@ -5,6 +5,12 @@ menu "Platform"
 
 
 		config ARCH_X86
+                        select HAS_PMIO
+                        select HAS_MSI
+                        select HAS_PCI
+                        select HAS_CONTIGUOUS_CPU_ID
+                        select USE_PCI_CAM
+                        select USE_MULTIBOOT
 			bool
 
 		config ARCH_RISCV
@@ -15,6 +21,7 @@ menu "Platform"
 
 		config ARCH_ARM64
 			bool
+                        select HAS_PCI
                         select USE_FDT
                         select USE_PCI_ECAM
                         select SPARSE_IRQ_VECTORS
@@ -1880,17 +1887,53 @@ endmenu
 
 # --- Invisible Options ---
 
+# Features
+
+config HAS_PMIO
+    def_bool n
+    help
+      Does the current configuration have support for Port Mapped I/O?
+
+config HAS_PCI
+    def_bool n
+    help
+      Does the current configuration have support for PCI devices?
+
+config HAS_MSI
+    def_bool n
+    help
+      Does the current configuration have support for MSI interrupts? (set by the architecture or irq device)
+
+# Multi Processing
+
+config HAS_CONTIGUOUS_CPU_ID
+    def_bool n
+    help
+      cpu_id_t values are all contiguous for this architecture
+
 # FDT
 config USE_FDT
     def_bool n
     help
       Use the Open Firmware device tree to discover devices.
 
+# Multiboot
+config USE_MULTIBOOT
+    def_bool n
+    help
+      Use Mutliboot when booting the system
+
 # PCI
+config USE_PCI_CAM
+    def_bool n
+    depends on HAS_PMIO
+    help
+      Use the Port Mapped I/O to access PCI configuration space
+
 config USE_PCI_ECAM
     def_bool n
     help
-      Use the "Enhanced Configuration Access Mechanism" to access PCI configuration space
+      Use the MMIO "Enhanced Configuration Access Mechanism" to access PCI configuration space
 
 # IRQ
 config IDENTITY_MAP_IRQ_VECTORS
@@ -1906,7 +1949,7 @@ config SPARSE_IRQ_VECTORS
 
 config SPARSE_IRQ
     def_bool n
-    depends on !IDENTITY_MAP_IRQ_VECTORS
+    depends on !USE_IDENTITY_MAP_IRQ_VECTORS
     help
       Store the mapping between IRQ's and vectors using a sparse data structure.
 

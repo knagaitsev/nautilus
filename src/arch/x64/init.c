@@ -113,8 +113,8 @@
 #include <dev/ioapic.h>
 #include <dev/i8254.h>
 #include <dev/ps2.h>
-#ifdef NAUT_CONFIG_GPIO
-#include <dev/gpio.h>
+#ifdef NAUT_CONFIG_PARALLEL_PORT_GPIO
+#include <dev/port_gpio.h>
 #endif
 #include <dev/serial.h>
 #include <dev/vga.h>
@@ -350,9 +350,9 @@ init (unsigned long mbd,
 
     nk_mtrr_init();
 
-#ifdef NAUT_CONFIG_GPIO
-    nk_gpio_init();
-    nk_gpio_cpu_mask_add(1); // consider cpu 1 writes only
+#ifdef NAUT_CONFIG_PARALLEL_PORT_GPIO
+    nk_port_gpio_init();
+    nk_port_gpio_cpu_mask_add(1); // consider cpu 1 writes only
 #endif
 
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING 

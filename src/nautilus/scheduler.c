@@ -64,7 +64,7 @@
 #include <nautilus/shell.h>
 #include <nautilus/topo.h>
 #include <nautilus/libccompat.h>
-#include <dev/gpio.h>
+#include <dev/port_gpio.h>
 
 #ifdef NAUT_CONFIG_ARCH_X86
 #include <dev/apic.h>
@@ -4905,7 +4905,7 @@ handle_threads (char * buf, void * priv)
     return 0;
 }
 
-static struct shell_cmd_impl threads_impl = {
+const static struct shell_cmd_impl threads_impl = {
     .cmd      = "threads",
     .help_str = "threads [n]",
     .handler  = handle_threads,

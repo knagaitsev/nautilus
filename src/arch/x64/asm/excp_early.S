@@ -137,7 +137,7 @@ skip_cat_entry:
 
 #endif
 
-#if GPIO_OUTPUT && defined(NAUT_CONFIG_GPIO)
+#if GPIO_OUTPUT && defined(NAUT_CONFIG_PARALLEL_PORT_GPIO)
     movq $0x10, %rdi   // bit 4
     movq $0x0, %rsi    // or it high
     callq nk_gpio_output_mask
@@ -238,7 +238,7 @@ EE_skip_signal_delivery:
 #endif /* if not enabled, just fall through like usual */
 
 thr_return:
-#if GPIO_OUTPUT && defined(NAUT_CONFIG_GPIO)
+#if GPIO_OUTPUT && defined(NAUT_CONFIG_PARALLEL_PORT_GPIO)
     movq $0x10, %rdi   // bit 4
     notq %rdi          // clear
     movq $0x1, %rsi    // and it low

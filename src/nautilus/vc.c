@@ -48,6 +48,14 @@
 #endif
 
 #ifdef NAUT_CONFIG_ARCH_X86
+#define VC_WIDTH VGA_WIDTH
+#define VC_HEIGHT VGA_HEIGHT
+#else
+#define VC_WIDTH 200
+#define VC_HEIGHT 1000
+#endif
+
+#ifdef NAUT_CONFIG_ARCH_X86
 #define INTERRUPT __attribute__((target("no-sse")))
 #else
 #define INTERRUPT
@@ -125,7 +133,7 @@ struct nk_virtual_console {
     nk_scancode_t s_queue[Scancode_QUEUE_SIZE];
     nk_keycode_t k_queue[Keycode_QUEUE_SIZE];
   } keyboard_queue;
-  uint16_t BUF[VGA_WIDTH * VGA_HEIGHT];
+  uint16_t BUF[VC_WIDTH * VC_HEIGHT];
   uint8_t cur_x, cur_y, cur_attr, fill_attr;
   uint16_t head, tail;
   struct nk_vc_ops *ops;
@@ -182,7 +190,7 @@ static void vc_timer_callback(void *state)
 {
     struct nk_virtual_console *vc = (struct nk_virtual_console *)state;
 
-    nk_vc_display_str_specific(vc,vc->name,strlen(vc->name),0xf0,VGA_WIDTH-strlen(vc->name),0);
+    nk_vc_display_str_specific(vc,vc->name,strlen(vc->name),0xf0,VC_WIDTH-strlen(vc->name),0);
 
     nk_timer_reset(vc->timer, VC_TIMER_NS);
     nk_timer_start(vc->timer);
@@ -226,7 +234,7 @@ struct nk_virtual_console *nk_create_vc (char *name,
 #endif
 
   // clear to new attr
-  for (i = 0; i < VGA_HEIGHT*VGA_WIDTH; i++) {
+  for (i = 0; i < VC_HEIGHT*VC_WIDTH; i++) {
     new_vc->BUF[i] = vga_make_entry(' ', new_vc->cur_attr);
   }
 
@@ -390,19 +398,17 @@ INTERRUPT static int _vc_scrollup_specific(struct nk_virtual_console *vc)
   }
 #endif
 
-#ifdef NAUT_CONFIG_ARCH_X86
   for (i=0;
-       i<VGA_WIDTH*(VGA_HEIGHT-1);
+       i<VC_WIDTH*(VC_HEIGHT-1);
        i++) {
-    vc->BUF[i] = vc->BUF[i+VGA_WIDTH];
+    vc->BUF[i] = vc->BUF[i+VC_WIDTH];
   }
 
-  for (i = VGA_WIDTH*(VGA_HEIGHT-1);
-       i < VGA_WIDTH*VGA_HEIGHT;
+  for (i = VC_WIDTH*(VC_HEIGHT-1);
+       i < VC_WIDTH*VC_HEIGHT;
        i++) {
     vc->BUF[i] = vga_make_entry(' ', vc->fill_attr);
   }
-#endif
 
   if(vc == cur_vc) {
     copy_vc_to_display(vc);
@@ -453,10 +459,10 @@ static int _vc_display_char_specific(struct nk_virtual_console *vc, uint8_t c, u
 
   uint16_t val = vga_make_entry(c, attr);
 
-  if(x >= VGA_WIDTH || y >= VGA_HEIGHT) {
+  if(x >= VC_WIDTH || y >= VC_HEIGHT) {
     return -1;
   } else {
-    vc->BUF[y * VGA_WIDTH + x] = val;
+    vc->BUF[(y * VC_WIDTH) + x] = val;
     if(vc == cur_vc) {
 #ifdef NAUT_CONFIG_X86_64_HOST
       vga_write_screen(x,y,val);
@@ -523,7 +529,7 @@ int nk_vc_display_str_specific(struct nk_virtual_console *vc,
 {
   int rc = 0;
   uint16_t i;
-  uint16_t limit = (x+(uint16_t)n) > VGA_WIDTH ? VGA_WIDTH : x+(uint16_t)n;
+  uint16_t limit = (x+(uint16_t)n) > VC_WIDTH ? VC_WIDTH : x+(uint16_t)n;
 
   if (vc) {
     BUF_LOCK_CONF;
@@ -540,7 +546,7 @@ int nk_vc_display_str(uint8_t *c, uint8_t n, uint8_t attr, uint8_t x, uint8_t y)
 {
   int rc=0;
   uint16_t i;
-  uint16_t limit = (x+(uint16_t)n) > VGA_WIDTH ? VGA_WIDTH : x+(uint16_t)n;
+  uint16_t limit = (x+(uint16_t)n) > VC_WIDTH ? VC_WIDTH : x+(uint16_t)n;
   struct nk_virtual_console *vc = get_cur_thread()->vc;
 
   if (!vc) {
@@ -684,7 +690,7 @@ INTERRUPT static int _vc_putchar_specific(struct nk_virtual_console *vc, uint8_t
     }
 #endif
     vc->cur_y++;
-    if (vc->cur_y == VGA_HEIGHT) {
+    if (vc->cur_y == VC_HEIGHT) {
       _vc_scrollup_specific(vc);
       vc->cur_y--;
     }
@@ -701,7 +707,7 @@ INTERRUPT static int _vc_putchar_specific(struct nk_virtual_console *vc, uint8_t
 
   _vc_display_char_specific(vc, c, vc->cur_attr, vc->cur_x, vc->cur_y);
   vc->cur_x++;
-  if (vc->cur_x == VGA_WIDTH) {
+  if (vc->cur_x == VC_WIDTH) {
     vc->cur_x = 0;
 #ifdef NAUT_CONFIG_XEON_PHI
     if (vc==cur_vc) {
@@ -709,7 +715,7 @@ INTERRUPT static int _vc_putchar_specific(struct nk_virtual_console *vc, uint8_t
     }
 #endif
     vc->cur_y++;
-    if (vc->cur_y == VGA_HEIGHT) {
+    if (vc->cur_y == VC_HEIGHT) {
       _vc_scrollup_specific(vc);
       vc->cur_y--;
     }
@@ -947,7 +953,7 @@ static int _vc_clear_specific(struct nk_virtual_console *vc, uint8_t attr)
   vc->cur_attr = attr;
   vc->fill_attr = attr;
 
-  for (i = 0; i < VGA_HEIGHT*VGA_WIDTH; i++) {
+  for (i = 0; i < VC_HEIGHT*VC_WIDTH; i++) {
     vc->BUF[i] = val;
   }
 
@@ -1555,6 +1561,32 @@ static void chardev_consoles_putchar(struct nk_virtual_console *vc, char data)
     _chardev_consoles_print(vc,&data,1);
 }
 
+static void vc_copy_to_chardev_console(struct chardev_console *c) 
+{
+  // When we switch VC's try to output the buffer so we can potentially see past output
+  // (this is a rough system but it's for debugging so any output at all is appreciated)
+  for(int y = 0; y < VC_HEIGHT && y <= c->cur_vc->cur_y; y++) {
+    for(int x = 0; x < VC_WIDTH; x++) {
+      if((y == VC_HEIGHT-1 || y >= c->cur_vc->cur_y) && x >= c->cur_vc->cur_x)
+      {
+        break;
+      }
+      uint16_t vga = c->cur_vc->BUF[x + (y*VC_WIDTH)];
+      uint8_t ascii = vga & 0b1111111;
+      if(ascii != '\n') {
+	char_dev_write_all(c->dev,1,&ascii,NK_DEV_REQ_BLOCKING);
+      } else {
+        break;
+      }
+    }
+    if(y < VC_HEIGHT-1 && y < c->cur_vc->cur_y)
+    {
+      uint8_t bp = '\n';
+      char_dev_write_all(c->dev,1,&bp,NK_DEV_REQ_BLOCKING);
+    }
+  }
+}
+
 static int chardev_console_handle_input(struct chardev_console *c, uint8_t data)
 {
     if (c->cur_vc->type == COOKED) {
@@ -1562,7 +1594,11 @@ static int chardev_console_handle_input(struct chardev_console *c, uint8_t data)
 	if (data=='\r') {
 	    return 0; // ignore
 	} else {
-	    return nk_enqueue_keycode(c->cur_vc,data);
+	    int ret = nk_enqueue_keycode(c->cur_vc,data);
+            if(ret) {
+              printk("Failed to enqueue keycode: %c\n", data);
+            }
+            return ret;
 	}
     } else {
 	// raw data not currently handled
@@ -1724,6 +1760,8 @@ static void chardev_console(void *in, void **out)
 		char_dev_write_all(c->dev,strlen(buf),buf,NK_DEV_REQ_BLOCKING);
 
 	    }
+
+            vc_copy_to_chardev_console(c);
 
 	    cur = 0;
 

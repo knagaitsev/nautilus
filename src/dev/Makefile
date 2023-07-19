@@ -15,7 +15,9 @@ obj-$(NAUT_CONFIG_ARCH_ARM64) += pl011.o \
 	pci.o
 
 obj-$(NAUT_CONFIG_GIC_VERSION_2) += gicv2.o
+obj-$(NAUT_CONFIG_GIC_VERSION_2M) += gicv2.o gicv2m.o
 obj-$(NAUT_CONFIG_GIC_VERSION_3) += gicv3.o
+obj-$(NAUT_CONFIG_GIC_VERSION_3_ITS) += gicv3.o gicv3-its.o
 
 obj-$(NAUT_CONFIG_HPET) += hpet.o
 
@@ -38,5 +40,5 @@ ifdef NAUT_CONFIG_LOAD_LUA
 obj-y +=lua_script.o
 endif
 
-obj-$(NAUT_CONFIG_GPIO) += gpio.o
+obj-$(NAUT_CONFIG_PARALLEL_PORT_GPIO) += port_gpio.o
 

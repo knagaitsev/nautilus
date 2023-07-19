@@ -70,7 +70,7 @@ ENTRY(nk_thread_switch)
 	
 ENTRY(nk_thread_switch_intr_entry)
 
-#if GPIO_OUTPUT && defined(NAUT_CONFIG_GPIO)
+#if GPIO_OUTPUT && defined(NAUT_CONFIG_PARALLEL_PORT_GPIO)
     // GPIO output
     pushq %rdi
     movq $0x8, %rdi   // bit 3 set
@@ -224,7 +224,7 @@ TL_skip_signal_delivery:
     callq nk_thr_switch_prof_exit
 #endif
 
-#if GPIO_OUTPUT && defined(NAUT_CONFIG_GPIO)
+#if GPIO_OUTPUT && defined(NAUT_CONFIG_PARALLEL_PORT_GPIO)
     movq $0x18, %rdi   // bit 3+4 (irq goes low too)
     notq %rdi         // clear
     movq $0x1, %rsi    // and it low

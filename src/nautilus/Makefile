@@ -44,7 +44,6 @@ obj-y += \
 	dtoa.o \
 	module.o \
 	linker.o \
-	prog.o \
 	getopt.o \
 	cmdline.o \
 	lru_cache.o
@@ -60,6 +59,7 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	nemo.o \
 	pmc.o \
 	setjmp.o \
+	prog.o \
 
 obj-$(NAUT_CONFIG_USE_FDT) += \
 	fdt/

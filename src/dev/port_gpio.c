@@ -23,9 +23,9 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/dev.h>
 #include <nautilus/shell.h>
-#include <dev/gpio.h>
+#include <dev/port_gpio.h>
 
-#ifndef NAUT_CONFIG_DEBUG_GPIO
+#ifndef NAUT_CONFIG_DEBUG_PARALLEL_PORT_GPIO
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...) 
 #endif
@@ -66,32 +66,32 @@ static inline int gpio_my_cpu_id()
     }
 }
 
-void     nk_gpio_init()
+void     nk_port_gpio_init()
 {
     memset(&state,0,sizeof(state));
-    state.port = NAUT_CONFIG_GPIO_PORT;
+    state.port = NAUT_CONFIG_PARALLEL_PORT_GPIO_PORT;
     spinlock_init(&state.lock);
 
-    nk_gpio_cpu_mask_add(gpio_my_cpu_id());
-    nk_gpio_output_set(0x0);
-    nk_gpio_cpu_mask_remove(gpio_my_cpu_id());
+    nk_port_gpio_cpu_mask_add(gpio_my_cpu_id());
+    nk_port_gpio_output_set(0x0);
+    nk_port_gpio_cpu_mask_remove(gpio_my_cpu_id());
 
     INFO("inited\n");
 }
     
-void     nk_gpio_deinit()
+void     nk_port_gpio_deinit()
 {
-    if (!nk_gpio_cpu_mask_check(gpio_my_cpu_id())) { 
-	nk_gpio_cpu_mask_add(gpio_my_cpu_id());
-	nk_gpio_output_set(0x0);
-	nk_gpio_cpu_mask_remove(gpio_my_cpu_id());
+    if (!nk_port_gpio_cpu_mask_check(gpio_my_cpu_id())) { 
+	nk_port_gpio_cpu_mask_add(gpio_my_cpu_id());
+	nk_port_gpio_output_set(0x0);
+	nk_port_gpio_cpu_mask_remove(gpio_my_cpu_id());
     } else {
-	nk_gpio_output_set(0x0);
+	nk_port_gpio_output_set(0x0);
     }
     INFO("deinited\n");
 }
 
-void     nk_gpio_cpu_mask_set(uint8_t *mask)
+void     nk_port_gpio_cpu_mask_set(uint8_t *mask)
 {
     STATE_LOCK_CONF;
 
@@ -102,7 +102,7 @@ void     nk_gpio_cpu_mask_set(uint8_t *mask)
     STATE_UNLOCK(&state);
 }
 
-void     nk_gpio_cpu_mask_get(uint8_t *mask)
+void     nk_port_gpio_cpu_mask_get(uint8_t *mask)
 {
     STATE_LOCK_CONF;
 
@@ -113,7 +113,7 @@ void     nk_gpio_cpu_mask_get(uint8_t *mask)
     STATE_UNLOCK(&state);
 }
 
-void     nk_gpio_cpu_mask_add(uint64_t cpu_num)
+void     nk_port_gpio_cpu_mask_add(uint64_t cpu_num)
 {
     STATE_LOCK_CONF;
 
@@ -124,7 +124,7 @@ void     nk_gpio_cpu_mask_add(uint64_t cpu_num)
     STATE_UNLOCK(&state);
 }
 
-void     nk_gpio_cpu_mask_remove(uint64_t cpu_num)
+void     nk_port_gpio_cpu_mask_remove(uint64_t cpu_num)
 {
     STATE_LOCK_CONF;
 
@@ -135,12 +135,12 @@ void     nk_gpio_cpu_mask_remove(uint64_t cpu_num)
     STATE_UNLOCK(&state);
 }
 
-static int _nk_gpio_cpu_mask_check(uint64_t cpu_num)
+static int _nk_port_gpio_cpu_mask_check(uint64_t cpu_num)
 {
     return (state.cpu_mask[cpu_num/8] >> (cpu_num % 8)) & 0x1;
 }
 
-int nk_gpio_cpu_mask_check(uint64_t cpu_num)
+int nk_port_gpio_cpu_mask_check(uint64_t cpu_num)
 {
     int rc;
 
@@ -148,20 +148,20 @@ int nk_gpio_cpu_mask_check(uint64_t cpu_num)
 
     STATE_LOCK(&state);
 
-    rc = _nk_gpio_cpu_mask_check(cpu_num);
+    rc = _nk_port_gpio_cpu_mask_check(cpu_num);
     
     STATE_UNLOCK(&state);
 
     return rc;
 }
 
-void     nk_gpio_output_mask(uint64_t mask, gpio_mask_t op)
+void     nk_port_gpio_output_mask(uint64_t mask, gpio_mask_t op)
 {
     STATE_LOCK_CONF;
 
     STATE_LOCK(&state);
 
-    if (_nk_gpio_cpu_mask_check(gpio_my_cpu_id())) { 
+    if (_nk_port_gpio_cpu_mask_check(gpio_my_cpu_id())) { 
 	switch (op) { 
 	case GPIO_OR:
 	    state.cur_out |= mask;
@@ -194,7 +194,7 @@ void     nk_gpio_output_mask(uint64_t mask, gpio_mask_t op)
 
 }
 
-uint64_t nk_gpio_input_get()
+uint64_t nk_port_gpio_input_get()
 {
     ERROR("unimplemented\n");
     return -1ULL;
@@ -206,19 +206,19 @@ handle_gpio (char * buf, void * priv)
     char what[80];
     uint64_t val;
     uint64_t i;
-    int set = nk_gpio_cpu_mask_check(my_cpu_id());
+    int set = nk_port_gpio_cpu_mask_check(my_cpu_id());
 
     if ((sscanf(buf,"gpio %s %lx", what, &val)==2) && what[0]=='s') {
         nk_vc_printf("sweeping gpio output from 0 to %lx with ~10 us delay\n",val);
         if (!set) {
-            nk_gpio_cpu_mask_add(my_cpu_id());
+            nk_port_gpio_cpu_mask_add(my_cpu_id());
         }
         for (i=0;i<val;i++) { 
-            nk_gpio_output_set(i);
+            nk_port_gpio_output_set(i);
             udelay(10);
         }
         if (!set) {
-            nk_gpio_cpu_mask_remove(my_cpu_id());
+            nk_port_gpio_cpu_mask_remove(my_cpu_id());
         }
         return 0;
     }
@@ -226,17 +226,17 @@ handle_gpio (char * buf, void * priv)
     if ((sscanf(buf,"gpio %s %lx", what, &val)==2) && what[0]=='o') {
         nk_vc_printf("setting gpio output to %lx\n",val);
         if (!set) {
-            nk_gpio_cpu_mask_add(my_cpu_id());
+            nk_port_gpio_cpu_mask_add(my_cpu_id());
         }
-        nk_gpio_output_set(val);
+        nk_port_gpio_output_set(val);
         if (!set) {
-            nk_gpio_cpu_mask_remove(my_cpu_id());
+            nk_port_gpio_cpu_mask_remove(my_cpu_id());
         }
         return 0;
     }
 
     if ((sscanf(buf,"gpio %s",what)==1) && what[0]=='i') {
-        val = nk_gpio_input_get();
+        val = nk_port_gpio_input_get();
         nk_vc_printf("gpio input is %llx\n",val);
         return 0;
     }

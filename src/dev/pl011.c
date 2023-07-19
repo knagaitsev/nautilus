@@ -5,6 +5,7 @@
 #include<nautilus/chardev.h>
 #include<nautilus/spinlock.h>
 #include<nautilus/fdt/fdt.h>
+#include<nautilus/backtrace.h>
 
 #define UART_DATA        0x0
 #define UART_RECV_STATUS 0x4
@@ -55,6 +56,14 @@
 #define UART_CTRL_LOOPBACK_ENABLE_BITMASK (1<<7)
 #define UART_CTRL_TRANS_ENABLE_BITMASK (1<<8)
 #define UART_CTRL_RECV_ENABLE_BITMASK (1<<9)
+
+#define UART_INT_RECV         (1<<4)
+#define UART_INT_TRANS        (1<<5)
+#define UART_INT_RECV_TIMEOUT (1<<6)
+#define UART_INT_FRAMING_ERR  (1<<7)
+#define UART_INT_PARITY_ERR   (1<<8)
+#define UART_INT_BREAK_ERR    (1<<9)
+#define UART_INT_OVERRUN_ERR  (1<<10)
 
 #ifndef NAUT_CONFIG_DEBUG_PL011_UART
 #undef DEBUG_PRINT
@@ -141,7 +150,7 @@ static inline void pl011_configure(struct pl011_uart *p) {
   pl011_write_reg(p, UART_DMA_CTRL, 0);
 
   // Re-enable fifo
-  pl011_enable_fifo(p);
+  //pl011_enable_fifo(p);
   
   // Re-enable the PL011
   pl011_enable(p);
@@ -272,14 +281,13 @@ static int pl011_uart_dev_status(void *state) {
   int flags;
 
   flags = spin_lock_irq_save(&p->input_lock);
-  if(!pl011_busy(p) && !pl011_read_empty(p)) {
+  if(!pl011_read_empty(p)) {
     ret |= NK_CHARDEV_READABLE;
   }
   spin_unlock_irq_restore(&p->input_lock, flags);
 
   flags = spin_lock_irq_save(&p->output_lock);
-  if (!pl011_busy(p) && !pl011_write_full(p)) {
-    //pl011_uart_puts_non_blocking(p, "WRITABLE\n");
+  if (!pl011_write_full(p)) {
     ret |= NK_CHARDEV_WRITEABLE;
   }
   spin_unlock_irq_restore(&p->output_lock, flags);
@@ -310,7 +318,9 @@ static int pl011_interrupt_handler(struct nk_irq_action *action, struct nk_regs 
     return 0;
   }
 
-  nk_dev_signal(p->dev);
+  if(int_status & (UART_INT_RECV | UART_INT_RECV_TIMEOUT)) {
+    nk_dev_signal(p->dev);
+  }
 
   pl011_write_reg(p, UART_INT_CLR, int_status);
 
@@ -325,8 +335,6 @@ int pl011_uart_dev_init(const char *name, struct pl011_uart *p)
   if(!p->dev) {
     ERROR("Failed to allocate PL011 chardev!\n");
     return -1;
-  } else {
-    printk("Allocated PL011 chardev, lock = %u!\n", p->output_lock);
   }
 
   // Clear out spurrious interrupts

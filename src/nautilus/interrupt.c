@@ -225,6 +225,14 @@ int nk_ivec_add_handler_dev(nk_ivec_t vec, nk_irq_handler_t handler, void *state
   }
 
   desc->num_actions += 1;
+
+#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
+  // KJH - This is a dirty hack to get around how x86 made most drivers expect "vectors" to always be enabled always
+  //       So if we assign a handler through the "ivec" interface instead of the IRQ interface, we need to enable 
+  //       the actual IRQ vector if we are identity mapping
+  nk_unmask_irq(nk_ivec_to_irq(vec));
+#endif
+
   spin_unlock(&desc->lock);
 
   return 0;
@@ -252,6 +260,13 @@ int nk_ivec_set_handler_early(nk_ivec_t vec, nk_irq_handler_t handler, void *sta
   desc->action.ivec = vec;
 
   desc->num_actions += 1;
+
+#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
+  // KJH - This is a dirty hack to get around how x86 made most drivers expect "vectors" to always be enabled always
+  //       So if we assign a handler through the "ivec" interface instead of the IRQ interface, we need to enable 
+  //       the actual IRQ vector if we are identity mapping
+  nk_unmask_irq(nk_ivec_to_irq(vec));
+#endif
 
   spin_unlock(&desc->lock);
 
@@ -296,9 +311,9 @@ int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags,
         struct nk_ivec_desc *desc = nk_ivec_to_desc(i+j);
 	desc->flags |= set_flags;
         desc->flags &= ~clear_flags;
-	*first = i;
-	return 0;
       }
+      *first = i;
+      return 0;
     }
   }
 
@@ -350,6 +365,10 @@ inline nk_ivec_t nk_irq_to_ivec(nk_irq_t irq)
 { 
   return (nk_ivec_t)irq; 
 }
+inline nk_irq_t nk_ivec_to_irq(nk_ivec_t ivec) 
+{
+  return (nk_irq_t)ivec;
+}
 inline struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq) 
 { 
   return nk_ivec_to_desc((nk_ivec_t)irq); 
@@ -362,7 +381,13 @@ inline int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev)
 }
 inline struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
 {
-  return nk_ivec_to_desc((nk_ivec_t)irq)->irq_dev;
+  struct nk_ivec_desc *desc = nk_ivec_to_desc((nk_ivec_t)irq);
+  if(desc->flags & NK_IVEC_DESC_FLAG_PERCPU) {
+    return per_cpu_get(irq_dev);
+  }
+  else {
+    return desc->irq_dev;
+  }
 }
 
 #else
@@ -523,38 +548,65 @@ void nk_dump_ivec_info(void)
     {
       continue;
     }
-    
-    IRQ_PRINT("Interrupt Vector %u: type = %s, triggered count = %u, num_actions = %u, irqdev = %s, %s%s%s%s%s\n",
+
+#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
+    nk_irq_t irq = nk_ivec_to_irq(i);
+    struct nk_irq_dev *dev = nk_irq_to_irqdev(irq);
+    int status = nk_irq_dev_irq_status(dev, irq);
+#endif
+   
+    IRQ_PRINT("Interrupt Vector %u: type = %s, triggered count = %u, num_actions = %u, irqdev = %s, "
+#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
+              "irq = %u, %s%s%s"       
+#endif
+              "%s%s%s%s%s%s\n",
 		    desc->ivec_num,
                     desc->type == NK_IVEC_DESC_TYPE_DEFAULT ? "DEFAULT" :
                     desc->type == NK_IVEC_DESC_TYPE_EXCEPTION ? "EXCEPTION" :
-                    desc->type == NK_IVEC_DESC_TYPE_INVALID ? "INVALID" : // It should be skipped but just in case
+                    desc->type == NK_IVEC_DESC_TYPE_INVALID ? "INVALID" : // It should be skipped but check just in case there's a bug
                     desc->type == NK_IVEC_DESC_TYPE_SPURRIOUS ? "SPURRIOUS" : "UNKNOWN",
                     desc->triggered_count,
 		    desc->num_actions,
-		    desc->irq_dev == NULL ? "NULL" : desc->irq_dev->dev.name,
+		    desc->irq_dev != NULL ? desc->irq_dev->dev.name : desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "PERCPU" : "NULL",
+#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
+                    irq,
+                    status & IRQ_DEV_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
+                    status & IRQ_DEV_STATUS_PENDING ? "[PENDING] " : "",
+                    status & IRQ_DEV_STATUS_ACTIVE ? "[ACTIVE] " : "",
+#endif
 		    desc->flags & NK_IVEC_DESC_FLAG_RESERVED ? "[RESERVED] " : "",
 		    desc->flags & NK_IVEC_DESC_FLAG_MSI ? "[MSI] " : "",
 		    desc->flags & NK_IVEC_DESC_FLAG_MSI_X ? "[MSI-X] " : "",
 		    desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "[PERCPU] " : "",
-		    desc->flags & NK_IVEC_DESC_FLAG_IPI ? "[IPI] " : ""
+		    desc->flags & NK_IVEC_DESC_FLAG_IPI ? "[IPI] " : "",
+                    desc->flags & NK_IVEC_DESC_FLAG_NMI ? "[NMI] " : ""
 		    );
 
     struct nk_irq_action *action = &desc->action;
     for(int act_num = 0; (act_num < desc->num_actions) && (action != NULL); act_num++, action = action->next) 
     {
-      IRQ_PRINT("\tAction %u: type = %s, handler = %p, handler_state = %p, device = %s\n",
+      IRQ_PRINT("\tAction %u: type = %s, handler = %p, handler_state = %p, device = %s %s%s\n",
 		act_num,
 		action->type == NK_IRQ_ACTION_TYPE_HANDLER ? "handler" : "invalid",
 		action->handler,
 		action->handler_state,
-		action->dev == NULL ? "NULL" : action->dev->name);
+		action->dev == NULL ? "NULL" : action->dev->name,
+                action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED]" : "",
+                action->flags & NK_IRQ_ACTION_FLAG_NO_IRQ ? "[NO IRQ]" : ""
+                );
+#ifndef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
       if(!(action->flags & NK_IRQ_ACTION_FLAG_NO_IRQ)) {
         struct nk_irq_dev *dev = nk_irq_to_irqdev(action->irq);
-	IRQ_PRINT("\t\tirq = %u, irq_dev = %s\n",
+        int status = nk_irq_dev_irq_status(dev, action->irq);
+	IRQ_PRINT("\t\tirq = %u, irq_dev = %s, %s%s%s\n",
 			action->irq,
-			dev == NULL ? "NULL" : dev->dev.name);	
+			dev == NULL ? "NULL" : desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "PERCPU" : dev->dev.name,
+                        status & IRQ_DEV_STATUS_ENABLED ? "[ENABLED]" : "[DISABLED]",
+                        status & IRQ_DEV_STATUS_PENDING ? "[PENDING]" : "",
+                        status & IRQ_DEV_STATUS_ACTIVE ? "[ACTIVE]" : ""
+                 );	
       }
+#endif
     }    
   }
 }
@@ -567,7 +619,7 @@ static int handle_shell_interrupt(char * buf, void * priv)
 
 static struct shell_cmd_impl interrupt_impl = {
   .cmd = "interrupts",
-  .help_str = "dump interrupt info",
+  .help_str = "interrupts",
   .handler = handle_shell_interrupt,
 };
 nk_register_shell_cmd(interrupt_impl);

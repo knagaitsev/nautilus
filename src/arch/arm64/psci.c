@@ -96,11 +96,9 @@ static struct shell_cmd_impl reboot_impl = {
     .handler = reboot_handler,
 };
 nk_register_shell_cmd(reboot_impl);
-
 static struct shell_cmd_impl off_impl = {
     .cmd = "off",
     .help_str = "off",
     .handler = off_handler,
 };
 nk_register_shell_cmd(off_impl);
-
