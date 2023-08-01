@@ -4,7 +4,7 @@ menu "Serial Options"
 
 config SERIAL_REDIRECT
     bool "Serial Redirect"
-    depends on !HVM_HRT
+    depends on !HVM_HRT && ARCH_X86
     default n
     help
         Redirect printing to serial device
@@ -25,7 +25,7 @@ config SERIAL_REDIRECT_PORT
 
 config SERIAL_DEBUGGER
     bool "Serial Debugger"
-    depends on ENABLE_REMOTE_DEBUGGING
+    depends on ENABLE_REMOTE_DEBUGGING && ARCH_X86
     default n
     help
         Provide a simple serial interface to a remote debugger
@@ -60,12 +60,61 @@ choice
 
 endchoice
 
-config DEBUG_PL011_UART
-    bool "Debug PL011 UART"
+config DEBUG_GIC
+    bool "Debug GIC"
     depends on ARCH_ARM64
     default n
     help
-      Turn on debug prints for the PL011 UART Serial Port
+      Debug the Generic Interrupt Controller for the ARM64 Architecture
+
+config GENERIC_8250_UART
+    bool
+    default n
+    help
+      Include a base 8250 UART implementation which can be used by other UART drivers
+
+config DW_8250_UART
+    bool "DesignWare UART"
+    depends on USE_FDT
+    select GENERIC_8250_UART
+    default n
+    help
+      Driver for the Designware Serial UART
+
+config DW_8250_UART_EARLY_OUTPUT
+    bool "DesignWare UART Early Output"
+    depends on DW_8250_UART
+    default n
+    help
+      Register the DesignWare 8250 UART for output before the virtual console system is active
+
+config DEBUG_DW_8250_UART
+    bool "Debug DesignWare UART"
+    depends on DEBUG_PRINTS && DW_8250_UART
+    default n
+    help
+      Debug the DesignWare UART Driver
+
+config PL011_UART
+    bool "PL011 UART"
+    depends on ARCH_ARM64 && USE_FDT
+    default n
+    help
+      Include support for the Primecell PL011 UART
+
+config PL011_UART_EARLY_OUTPUT
+    bool "PL011 Early Output"
+    depends on PL011_UART
+    default n
+    help
+      Register the PL011 for output before the virtual console system is active
+
+config DEBUG_PL011_UART
+    bool "Debug PL011 UART"
+    depends on PL011_UART && DEBUG_PRINTS
+    default n
+    help
+      Turn on debug prints for the Primecell PL011 UART
 
 config APIC_FORCE_XAPIC_MODE
     bool "Force APIC to use XAPIC mode"

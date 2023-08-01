@@ -1,11 +1,7 @@
 
-#define PAGE_SIZE_4KB 0x1000
-#define PAGE_SIZE_16KB 0x4000
-#define PAGE_SIZE_64KB 0x10000
-
 #include<nautilus/naut_types.h>
 #include<nautilus/nautilus.h>
-#include<nautilus/fdt/fdt.h>
+#include<nautilus/of/fdt.h>
 #include<nautilus/macros.h>
 
 #include<arch/arm64/sys_reg.h>
@@ -19,6 +15,16 @@
 #define PAGING_DEBUG(fmt, args...) DEBUG_PRINT("paging: " fmt, ##args)
 #define PAGING_ERROR(fmt, args...) ERROR_PRINT("paging: " fmt, ##args)
 #define PAGING_WARN(fmt, args...) WARN_PRINT("paging: " fmt, ##args)
+
+#ifndef PAGE_SIZE_4KB
+#define PAGE_SIZE_4KB 0x1000
+#endif
+#ifndef PAGE_SIZE_16KB
+#define PAGE_SIZE_16KB 0x4000
+#endif
+#ifndef PAGE_SIZE_64KB
+#define PAGE_SIZE_64KB 0x10000
+#endif
 
 #define TCR_TTBR0_GRANULE_SIZE_4KB 0b00
 #define TCR_TTBR0_GRANULE_SIZE_16KB 0b10
@@ -74,31 +80,35 @@ _Static_assert(sizeof(tc_reg_t) == 8, "TCR structure is not exactly 8 bytes wide
 
 #define PAGE_TABLE_DESC_TYPE_L3_VALID 0b11
 
-typedef union page_table_descriptor {
-  uint64_t raw;
-  struct {
-    uint_t desc_type : 2;
-    uint_t mair_index : 3;
-    uint_t non_secure : 1;
-    uint_t access_perm : 2;
-    uint_t shareable_attr : 2;
-    uint_t access_flag : 1;
-    uint_t not_global : 1;
+// struct containing anonymous union containing struct is probably bad design
+// but I really like writing "struct pt_desc" more than "union pt_desc"
+struct pt_desc {
+  union {
+    uint64_t raw;
+    struct {
+      uint_t desc_type : 2;
+      uint_t mair_index : 3;
+      uint_t non_secure : 1;
+      uint_t access_perm : 2;
+      uint_t shareable_attr : 2;
+      uint_t access_flag : 1;
+      uint_t not_global : 1;
 
-    uint64_t address_data : 36;
+      uint64_t address_data : 36;
 
-    uint_t __res0_1 : 4;
+      uint_t __res0_1 : 4;
 
-    uint_t priv_exec_never : 1;
-    uint_t unpriv_exec_never : 1;
-    uint_t extra_data : 4;
-    uint_t __res0_2 : 6;
+      uint_t priv_exec_never : 1;
+      uint_t unpriv_exec_never : 1;
+      uint_t extra_data : 4;
+      uint_t __res0_2 : 6;
+    };
   };
-} page_table_descriptor_t;
+};
 
-_Static_assert(sizeof(page_table_descriptor_t) == 8, "Page table descriptor structure is not 8 bytes wide!\n");
+_Static_assert(sizeof(struct pt_desc) == 8, "Page table descriptor structure is not 8 bytes wide!\n");
 
-#define TABLE_DESC_PTR(table) (page_table_descriptor_t*)((table).raw & 0x0000FFFFFFFFF000)
+#define TABLE_DESC_PTR(table) (struct pt_desc*)((table).raw & 0x0000FFFFFFFFF000)
 
 #define L0_INDEX_4KB(addr) ((((uint64_t)addr) >> 39) & 0x1FF)
 #define L1_INDEX_4KB(addr) ((((uint64_t)addr) >> 30) & 0x1FF)
@@ -131,7 +141,7 @@ typedef union mair_reg {
 
 _Static_assert(sizeof(mair_reg_t) == 8, "MAIR Register Structure is not 8 bytes wide!");
 
-static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t table_level) {
+static inline int block_to_table(struct pt_desc *block_desc, uint_t table_level) {
 
   PAGING_DEBUG("block_to_table\n");
   if(table_level == 3) {
@@ -163,13 +173,13 @@ static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t tab
     uint64_t paddr = (uint64_t)TABLE_DESC_PTR(*block_desc);
     PAGING_DEBUG("\tCurrent PADDR = %p\n", paddr);
  
-    page_table_descriptor_t *new_table = malloc(sizeof(page_table_descriptor_t) * 512);
+    struct pt_desc *new_table = malloc(sizeof(struct pt_desc) * 512);
    
     if(new_table == NULL) {
       return -1;
     }
 
-    if((uint64_t)new_table & ((sizeof(page_table_descriptor_t) * 512)-1)) {
+    if((uint64_t)new_table & ((sizeof(struct pt_desc) * 512)-1)) {
       PAGING_ERROR("Block to Table Allocation Produced Unaligned Table!\n");
       free(new_table);
       return -1;
@@ -209,7 +219,7 @@ static inline int block_to_table(page_table_descriptor_t *block_desc, uint_t tab
   return 0;
 }
 
-static inline page_table_descriptor_t *drill_page_4kb(page_table_descriptor_t *table, void *vaddr)
+static inline struct pt_desc *drill_page_4kb(struct pt_desc *table, void *vaddr)
 {
   PAGING_DEBUG("drill_page_4kb\n");
   table += L0_INDEX_4KB(vaddr);
@@ -243,7 +253,7 @@ static inline page_table_descriptor_t *drill_page_4kb(page_table_descriptor_t *t
   return table;
 }
 
-static inline page_table_descriptor_t *drill_page_2mb(page_table_descriptor_t *table, void *vaddr)
+static inline struct pt_desc *drill_page_2mb(struct pt_desc *table, void *vaddr)
 {
   PAGING_DEBUG("drill_page_2mb\n");
   table += L0_INDEX_4KB(vaddr);
@@ -269,7 +279,7 @@ static inline page_table_descriptor_t *drill_page_2mb(page_table_descriptor_t *t
   return table;
 }
 
-static inline page_table_descriptor_t *drill_page_1gb(page_table_descriptor_t *table, void *vaddr)
+static inline struct pt_desc *drill_page_1gb(struct pt_desc *table, void *vaddr)
 {
   PAGING_DEBUG("drill_page_1gb\n");
   table += L0_INDEX_4KB(vaddr);
@@ -322,16 +332,16 @@ static void dump_tc_reg(tc_reg_t tc) {
 
 }
 
-static void dump_page_table(page_table_descriptor_t *l0_table) {
+static void dump_page_table(struct pt_desc *l0_table) {
   for(uint64_t i0 = 0; i0 < 512; i0++) {
     if(l0_table[i0].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
-      page_table_descriptor_t *l1_table = TABLE_DESC_PTR(l0_table[i0]);
+      struct pt_desc *l1_table = TABLE_DESC_PTR(l0_table[i0]);
       for(uint64_t i1 = 0; i1 < 512; i1++) {
         if(l1_table[i1].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
-          page_table_descriptor_t *l2_table = TABLE_DESC_PTR(l1_table[i1]);
+          struct pt_desc *l2_table = TABLE_DESC_PTR(l1_table[i1]);
           for(uint64_t i2 = 0; i2 < 512; i2++) {
             if(l2_table[i2].desc_type == PAGE_TABLE_DESC_TYPE_TABLE) {
-              page_table_descriptor_t *l3_table = TABLE_DESC_PTR(l2_table[i2]);
+              struct pt_desc *l3_table = TABLE_DESC_PTR(l2_table[i2]);
               for(uint64_t i3 = 0; i3 < 512; i3++) {
                 PAGING_PRINT("\t\t\tVA[0x%016x - 0x%016x] -> PA[0x%016x - 0x%016x] 4KB%s%s%s%s%s\n",
                     VADDR_L3_4KB(i0, i1, i2, i3),
@@ -383,9 +393,9 @@ static void dump_page_table(page_table_descriptor_t *l0_table) {
   }
 }
 
-static page_table_descriptor_t *generate_invalid_page_table(void) {
+static struct pt_desc *generate_invalid_page_table(void) {
 
-  page_table_descriptor_t *l0_table = malloc(sizeof(page_table_descriptor_t) * 512);
+  struct pt_desc *l0_table = malloc(sizeof(struct pt_desc) * 512);
 
   if(l0_table == NULL) {
     goto err_exit_nalloc;
@@ -408,15 +418,15 @@ err_exit_nalloc:
 }
 
 // Creates a page table with the first 4TB identity mapped to nGnRnE device memory
-static page_table_descriptor_t *generate_minimal_page_table(void) {
+static struct pt_desc *generate_minimal_page_table(void) {
 
-  page_table_descriptor_t *l0_table = malloc(sizeof(page_table_descriptor_t) * 512);
+  struct pt_desc *l0_table = malloc(sizeof(struct pt_desc) * 512);
 
   if(l0_table == NULL) {
     goto err_exit_nalloc;
   }
 
-  if((uint64_t)l0_table & ((sizeof(page_table_descriptor_t)*512)-1)) {
+  if((uint64_t)l0_table & ((sizeof(struct pt_desc)*512)-1)) {
     PAGING_ERROR("L0 Page Table Allocation was Unaligned!\n");
     goto err_exit_l0;
   }
@@ -426,7 +436,7 @@ static page_table_descriptor_t *generate_minimal_page_table(void) {
   }
 
   // Initialize the first 4TB as device memory
-  page_table_descriptor_t *l1_table = malloc(sizeof(page_table_descriptor_t) * 512);
+  struct pt_desc *l1_table = malloc(sizeof(struct pt_desc) * 512);
 
   if(l1_table == NULL) {
     goto err_exit_l0;
@@ -453,7 +463,6 @@ static page_table_descriptor_t *generate_minimal_page_table(void) {
     l1_table[i].raw |= (i*PAGE_SIZE_1GB) & ~0xFFF;
   }
 
-good_exit:
   return l0_table;
 
 err_exit_l1:
@@ -465,7 +474,7 @@ err_exit_nalloc:
 }
 
 // Helper function to try and use the largest page sizes possible
-inline static void __efficient_drill_helper(uint64_t *start, uint64_t *end, void **drill_func, uint32_t *block_size) {
+inline static void __efficient_drill_helper(uint64_t *start, uint64_t *end, struct pt_desc*(**drill_func)(struct pt_desc*,void*), uint32_t *block_size) {
 
     if(ALIGNED_1GB(*start) &&
        ALIGNED_1GB(*end)) {
@@ -495,7 +504,7 @@ inline static void __efficient_drill_helper(uint64_t *start, uint64_t *end, void
 }
    
 // Drills pages for the normal memory regions in the map using 1GB pages
-static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fdt) {
+static int handle_normal_memory_regions(struct pt_desc *table, void *fdt) {
 
   int offset = fdt_node_offset_by_prop_value(fdt, -1, "device_type", "memory", 7); 
 
@@ -507,7 +516,7 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
 
       uint32_t block_size = PAGE_SIZE_4KB;
 
-      page_table_descriptor_t*(*drill_func)(page_table_descriptor_t*, void*) = NULL;
+      struct pt_desc*(*drill_func)(struct pt_desc*, void*) = NULL;
    
       uint64_t start = reg.address;
       uint64_t end = reg.address + reg.size;
@@ -515,7 +524,7 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
       __efficient_drill_helper(&start, &end, &drill_func, &block_size);
 
       for(; start < end; start += block_size) {
-        page_table_descriptor_t *desc;
+        struct pt_desc *desc;
         desc = (*drill_func)(table, (void*)start);
 
         if(desc == NULL) {
@@ -544,22 +553,22 @@ static int handle_normal_memory_regions(page_table_descriptor_t *table, void *fd
   return 0;
 }
 
-static int handle_text_memory_regions(page_table_descriptor_t *table) {
-  extern int _textStart;
-  extern int _textEnd;
+static int handle_text_memory_regions(struct pt_desc *table) {
+  extern int _textStart[];
+  extern int _textEnd[];
 
-  uint64_t start = &_textStart;
-  uint64_t end = &_textEnd;
+  uint64_t start = (uint64_t)_textStart;
+  uint64_t end = (uint64_t)_textEnd;
 
   uint32_t block_size = PAGE_SIZE_4KB;
 
-  page_table_descriptor_t*(*drill_func)(page_table_descriptor_t*, void*) = NULL;  
+  struct pt_desc*(*drill_func)(struct pt_desc*, void*) = NULL;  
 
   __efficient_drill_helper(&start, &end, &drill_func, &block_size);
 
   for(; start < end; start += block_size) {
     
-    page_table_descriptor_t *desc;
+    struct pt_desc *desc;
     desc = (*drill_func)(table, (void*)start);
 
     if(desc == NULL) {
@@ -578,22 +587,22 @@ static int handle_text_memory_regions(page_table_descriptor_t *table) {
 
 }
 
-static int handle_rodata_memory_regions(page_table_descriptor_t *table) {
-  extern int _rodataStart;
-  extern int _rodataEnd;
+static int handle_rodata_memory_regions(struct pt_desc *table) {
+  extern int _rodataStart[];
+  extern int _rodataEnd[];
 
-  uint64_t start = &_rodataStart;
-  uint64_t end = &_rodataEnd;
+  uint64_t start = (uint64_t)_rodataStart;
+  uint64_t end = (uint64_t)_rodataEnd;
 
   uint32_t block_size = PAGE_SIZE_4KB;
 
-  page_table_descriptor_t*(*drill_func)(page_table_descriptor_t*, void*) = NULL;  
+  struct pt_desc*(*drill_func)(struct pt_desc*, void*) = NULL;  
 
   __efficient_drill_helper(&start, &end, &drill_func, &block_size);
 
   for(; start < end; start += block_size) {
     
-    page_table_descriptor_t *desc;
+    struct pt_desc *desc;
     desc = (*drill_func)(table, (void*)start);
 
     if(desc == NULL) {
@@ -613,8 +622,8 @@ static int handle_rodata_memory_regions(page_table_descriptor_t *table) {
 }
 
 
-static page_table_descriptor_t *low_mem_table;
-static page_table_descriptor_t *high_mem_table;
+static struct pt_desc *low_mem_table;
+static struct pt_desc *high_mem_table;
 
 int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
  

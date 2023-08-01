@@ -765,9 +765,17 @@ apic_dump (struct apic_dev * apic)
 
 }
 
-static struct nk_dev_int ops = {
-    .open = 0,
-    .close = 0,
+static int apic_dev_get_characteristics(void *state, struct nk_irq_dev_characteristics *c)
+{
+  memset(c, 0, sizeof(c));
+  return 0;
+}
+
+
+
+static struct nk_irq_dev_int ops = {
+  .get_characteristics = apic_dev_get_characteristics
+  // Leave the rest as NULL
 };
 
 void
@@ -889,7 +897,7 @@ apic_init (struct cpu * core)
 
     char n[32];
     snprintf(n,32,"apic%u",core->id);
-    struct nk_dev *dev = nk_dev_register(n,NK_DEV_INTR,0,&ops,apic);
+    struct nk_irq_dev *dev = nk_irq_dev_register(n,0,&ops,(void*)apic);
 
     // assign interrupt handlers
     // all cores share the same IDT/etc, so only the BSP needs to do this

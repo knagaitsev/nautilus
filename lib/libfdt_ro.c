@@ -48,7 +48,7 @@
  *     OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  *     EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <nautilus/fdt/fdt.h>
+#include <lib/libfdt.h>
 
 int fdt_nodename_eq(const void *fdt, int offset,
 			    const char *s, int len)

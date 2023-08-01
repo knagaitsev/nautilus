@@ -134,8 +134,6 @@ struct nk_dev *nk_dev_find(char *name)
     return target;
 }
 
-
-
 void nk_dev_wait(struct nk_dev *d,
 		 int (*cond_check)(void *state),
 		 void *state)
@@ -168,7 +166,6 @@ void nk_dev_dump_devices()
 		     d->type==NK_DEV_GENERIC ? "generic" : 
 		     d->type==NK_DEV_BUS ? "bus" : 
 		     d->type==NK_DEV_TIMER ? "timer" : 
-		     d->type==NK_DEV_INTR ? "interrupt" : 
 		     d->type==NK_DEV_CHAR ? "char" : 
 		     d->type==NK_DEV_BLK ? "block" :
 		     d->type==NK_DEV_NET ? "net" : 
@@ -182,6 +179,11 @@ void nk_dev_dump_devices()
     STATE_UNLOCK();
 }
 
+static uint32_t next_serial_device_number;
+uint32_t nk_dev_get_serial_device_number(void) 
+{
+  return __sync_fetch_and_add(&next_serial_device_number, 1);
+}
 
 static int
 handle_devs (char * buf, void * priv)

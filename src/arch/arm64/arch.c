@@ -1,7 +1,7 @@
 
 #include<nautilus/arch.h>
-#include<nautilus/fdt/fdt_numa.h>
-#include<nautilus/fdt/fdt_mem.h>
+#include<nautilus/of/numa.h>
+#include<nautilus/of/mem.h>
 
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/unimpl.h>

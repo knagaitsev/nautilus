@@ -2,6 +2,10 @@
 #include<nautilus/arch.h>
 #include<nautilus/timer.h>
 #include<nautilus/percpu.h>
+#include<nautilus/dev.h>
+#include<nautilus/interrupt.h>
+
+#include<nautilus/of/dt.h>
 
 #define NS_PER_S 1000000000ULL
 
@@ -105,15 +109,62 @@ uint64_t arch_read_timestamp(void) {
   return phys;
 }
 
-int global_timer_init(void) {
-  
+static struct nk_dev_int arch_timer_int = {};
+
+static nk_irq_t arch_timer_irq_num;
+
+int arm_timer_init_one(struct nk_dev_info *info) {
+
+  int did_register = 0;
+
+  nk_irq_t irqs[4];
+
+  if(nk_dev_info_read_irqs_exact(info, irqs, 4)) {
+    TIMER_ERROR("Could not get interrupts from device info!\n");
+    goto err_exit;
+  }
+
+  TIMER_DEBUG("Found interrupts: Secure(%u), Insecure(%u), Virtual(%u), Hyper(%u)\n",
+      irqs[0],irqs[1],irq[2],irq[3]);
+
+  struct nk_dev *dev = nk_dev_register("arch-timer", NK_DEV_TIMER, 0, &arch_timer_int, NULL);
+
+  if(dev == NULL) {
+    TIMER_ERROR("Failed to register timer device!\n");
+    goto err_exit;
+  }
+
+  did_register = 1;
+
+  arch_timer_irq_num = irqs[1];
+
   // install the handler
-  if(nk_irq_add_handler(30, arch_timer_handler, NULL)) {
+  if(nk_irq_add_handler_dev(arch_timer_irq_num, arch_timer_handler, NULL, dev)) {
     TIMER_ERROR("Failed to install the timer IRQ handler!\n");
-    return -1;
+    goto err_exit;
   }
 
   return 0;
+
+err_exit:
+  if(did_register) {
+    nk_dev_unregister(dev);
+  }
+  return -1;
+}
+
+static struct of_dev_id timer_of_dev_ids[] = {
+  {.compatible = "arm,armv7-timer"},
+  {.compatible = "arm,armv8-timer"}
+};
+static struct of_dev_match timer_of_match = {
+  .ids = timer_of_dev_ids,
+  .num_ids = sizeof(timer_of_dev_ids)/sizeof(struct of_dev_id),
+  .max_num_matches = 1
+};
+
+int global_timer_init(void) {
+  return of_for_each_match(&timer_of_match, arm_timer_init_one);
 }
 
 int percpu_timer_init(void) {
@@ -125,7 +176,7 @@ int percpu_timer_init(void) {
   // Enable the timer
   asm volatile ("mrs x0, CNTP_CTL_EL0; orr x0, x0, 1; msr CNTP_CTL_EL0, x0" ::: "x0");
 
-  nk_unmask_irq(30);
+  nk_unmask_irq(arch_timer_irq_num);
 
   return 0;
 }

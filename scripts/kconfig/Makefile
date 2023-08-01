@@ -64,7 +64,7 @@ else
 endif
 
 %_defconfig: $(obj)/conf
-	$(Q)$< -D $@ Kconfig
+	$(Q)$< -D setups/$@ Kconfig
 
 # Help text used by make help
 help:
