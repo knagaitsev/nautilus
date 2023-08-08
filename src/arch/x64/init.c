@@ -361,11 +361,12 @@ init (unsigned long mbd,
 
 
     nk_dev_init();
+    nk_irq_dev_init();
+    nk_gpio_dev_init();
     nk_char_dev_init();
     nk_block_dev_init();
     nk_net_dev_init();
     nk_gpu_dev_init();
-    nk_irq_dev_init();
 
     nk_vc_print(NAUT_WELCOME);
     

@@ -103,6 +103,35 @@ struct nk_dev *nk_dev_register(char *name, nk_dev_type_t type, uint64_t flags, s
     return d;
 }
 
+int nk_dev_register_pre_allocated(struct nk_dev *d, char *name, nk_dev_type_t type, uint64_t flags, struct nk_dev_int *inter, void *state)
+{
+    STATE_LOCK_CONF;
+    char buf[NK_WAIT_QUEUE_NAME_LEN]; 
+    memset(d,0,sizeof(*d));
+
+    snprintf(buf,NK_WAIT_QUEUE_NAME_LEN,"%s-wait", name);
+    d->waiting_threads = nk_wait_queue_create(buf);
+    
+    if (!d->waiting_threads) { 
+	ERROR("Failed to allocate wait queue\n");
+	return -1;
+    }
+
+    strncpy(d->name,name,DEV_NAME_LEN); d->name[DEV_NAME_LEN-1] = 0;
+    d->type = type;
+    d->flags = flags;
+    d->state = state;
+    d->interface = inter;
+
+    STATE_LOCK();
+    list_add(&d->dev_list_node,&dev_list);
+    STATE_UNLOCK();
+    
+    INFO("Added device with name %s, type %lu, flags 0x%lx\n", d->name, d->type,d->flags);
+    
+    return 0;
+}
+
 int            nk_dev_unregister(struct nk_dev *d)
 {
     STATE_LOCK_CONF;
@@ -115,6 +144,20 @@ int            nk_dev_unregister(struct nk_dev *d)
     nk_wait_queue_destroy(d->waiting_threads);
     INFO("Unregistered device %s\n",d->name);
     free(d);
+    return 0;
+}
+
+int nk_dev_unregister_pre_allocated(struct nk_dev *d)
+{
+    STATE_LOCK_CONF;
+    
+    STATE_LOCK();
+    list_del(&d->dev_list_node);
+    STATE_UNLOCK();
+
+    nk_wait_queue_wake_all(d->waiting_threads);
+    nk_wait_queue_destroy(d->waiting_threads);
+    INFO("Unregistered device %s\n",d->name);
     return 0;
 }
 
@@ -170,6 +213,7 @@ void nk_dev_dump_devices()
 		     d->type==NK_DEV_BLK ? "block" :
 		     d->type==NK_DEV_NET ? "net" : 
 		     d->type==NK_DEV_GRAPHICS ? "graphics" : 
+                     d->type==NK_DEV_GPIO ? "gpio" :
                      d->type==NK_DEV_IRQ ? "irqchip" : "unknown",
 		     d->flags,
 		     d->interface,

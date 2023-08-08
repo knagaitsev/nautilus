@@ -259,6 +259,8 @@ phi_cons_init (void)
     }
 
     phi_cons_notify_redraw();
+
+    nk_pre_vc_register(phi_cons_putchar, phi_cons_print);
 }
 
     

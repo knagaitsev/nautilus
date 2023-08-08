@@ -10,7 +10,8 @@
 
 #define DW_8250_IIR_BUSY 0x7
 
-struct dw_8250 {
+struct dw_8250 
+{
   struct generic_8250 generic;
 };
 
@@ -117,6 +118,7 @@ static int dw_8250_fdt_init(uint64_t dtb, uint64_t offset, struct dw_8250 *dw) {
       dw->generic.reg_width = *reg_width_ptr;
     }
 
+    return 0;
 }
 
 static struct dw_8250 pre_vc_dw_8250;
@@ -128,15 +130,26 @@ static void dw_8250_early_putchar(char c) {
 
 int dw_8250_pre_vc_init(uint64_t dtb) 
 {
+  memset(&pre_vc_dw_8250, 0, sizeof(struct dw_8250));
+
+  // KJH - HACK for getting to rockpro64 uart2
+  int uart_num = 2;
+  // UART 0
   int offset = fdt_node_offset_by_compatible((void*)dtb, -1, "snps,dw-apb-uart");
+  for(int i = 0; i < uart_num; i++) {
+    offset = fdt_node_offset_by_compatible((void*)dtb, offset, "snps,dw-apb-uart");
+  }
+
   if(offset < 0) {
     return -1;
   }
+
   pre_vc_dw_8250_dtb_offset = offset;
 
   if(dw_8250_fdt_init(dtb, offset, &pre_vc_dw_8250)) {
     return -1;
   }
+
   pre_vc_dw_8250.generic.flags |= GENERIC_8250_FLAG_NO_INTERRUPTS;
   if(generic_8250_configure(&pre_vc_dw_8250.generic)) {
     return -1;
@@ -145,6 +158,7 @@ int dw_8250_pre_vc_init(uint64_t dtb)
   if(nk_pre_vc_register(dw_8250_early_putchar, NULL)) {
     return -1;
   }
+
   return 0;
 }
 #endif

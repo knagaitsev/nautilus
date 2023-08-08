@@ -890,7 +890,7 @@ QEMU_DEVICES := #-display none
 QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
 QEMU_DEVICES += -device virtio-gpu-pci #-netdev socket,id=net0,listen=localhost:4756 -device e1000e,netdev=net0,mac=00:11:22:33:44:55
 
-QEMU_MACHINE_FLAGS = virt
+QEMU_MACHINE_FLAGS = virt#,virtualization=on
 ifdef NAUT_CONFIG_GIC_VERSION_2
 	QEMU_MACHINE_FLAGS := $(QEMU_MACHINE_FLAGS),gic-version=2
 endif

@@ -764,15 +764,7 @@ int nk_vc_putchar(uint8_t c)
       chardev_consoles_putchar(vc, c);
     }
   } else {
-#ifdef NAUT_CONFIG_X86_64_HOST
-    vga_putchar(c);
-#endif
-#ifdef NAUT_CONFIG_HVM_HRT
-    hrt_putchar(c);
-#endif
-#ifdef NAUT_CONFIG_XEON_PHI
-    phi_cons_putchar(c);
-#endif
+    // VGA, phi_cons, hrt, and early UART's
     nk_pre_vc_putchar(c);
   }
 
@@ -829,15 +821,7 @@ int nk_vc_print(char *s)
       BUF_UNLOCK(vc);
     }
   } else {
-#ifdef NAUT_CONFIG_X86_64_HOST
-    vga_print(s);
-#endif
-#ifdef NAUT_CONFIG_HVM_HRT
-    hrt_print(s);
-#endif
-#ifdef NAUT_CONFIG_XEON_PHI
-    phi_cons_print(s);
-#endif
+    // VGA, phi_cons, hrt, and early UART's
     nk_pre_vc_puts(s);
   }
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_SERIAL_MIRROR_ALL

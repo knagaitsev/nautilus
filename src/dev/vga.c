@@ -129,6 +129,8 @@ void vga_early_init()
   vga_attr = 0x08;
   vga_clear_screen(vga_make_entry(' ', vga_attr));
   vga_set_cursor(vga_x,vga_y);
+
+  nk_pre_vc_register(vga_putchar, vga_print);
 }
 
 static struct nk_dev_int ops = {

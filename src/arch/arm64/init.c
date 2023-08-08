@@ -239,7 +239,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Zero out .bss
   nk_low_level_memset(_bssStart, 0, (off_t)_bssEnd - (off_t)_bssStart);
-  
+ 
   // Enable the FPU
   fpu_init(&nautilus_info, 0);
 
@@ -248,7 +248,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   mpid_reg_t mpid_reg;
   load_mpid_reg(&mpid_reg);
   nautilus_info.sys.bsp_id = mpid_reg.aff0; 
- 
+
   // Initialize pre vc output
 #ifdef NAUT_CONFIG_PL011_UART_EARLY_OUTPUT
   pl011_uart_pre_vc_init(dtb); 
@@ -261,6 +261,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   printk(NAUT_WELCOME);
 
+  printk("initializing in EL%u\n", arm64_get_current_el());
+
   per_cpu_sys_ctrl_reg_init();
 
   //INIT_PRINT("--- Device Tree ---\n");
@@ -269,6 +271,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   // Init devices
   nk_dev_init();
   nk_irq_dev_init();
+  nk_gpio_dev_init();
   nk_char_dev_init();
   nk_block_dev_init();
   nk_net_dev_init();
@@ -293,6 +296,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Needs kmem to unflatten the device tree
   of_init((void*)dtb);
+
+  nk_gpio_init();
 
   // Do this early to speed up the boot process with data caches enabled
   if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
@@ -337,6 +342,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Swap stacks (now we definitely cannot return from this function
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
+  INIT_DEBUG("Swapped to the thread stack!\n");
 
   nk_thread_name(get_cur_thread(), "init");
 

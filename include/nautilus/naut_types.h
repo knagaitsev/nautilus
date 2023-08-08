@@ -77,6 +77,8 @@ typedef unsigned int nk_ivec_t;
 // Must be large enough to represent every IRQ line number in the system
 typedef unsigned int nk_irq_t;
 
+typedef uint32_t nk_gpio_t;
+
 typedef uint32_t cpu_id_t;
 
 // Declare these so pointers can be passed to irq handlers without needing to include the full <nautilus/interrupts.h>

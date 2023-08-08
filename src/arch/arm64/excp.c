@@ -94,3 +94,10 @@ void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el)
 
   return thread;
 }
+
+int arm64_get_current_el(void) {
+  uint64_t current_el;
+  asm volatile ("mrs %0, CurrentEL" : "=r" (current_el));
+  return (current_el >> 2) & 3;
+}
+

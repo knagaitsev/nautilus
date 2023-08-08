@@ -237,14 +237,14 @@ static int output_buffer_full(struct generic_8250 *uart) {
  */
 
 void generic_8250_direct_putchar(struct generic_8250 *uart, uint8_t c) 
-{  
+{   
+  generic_8250_write_reg(uart,GENERIC_8250_THR,c);
+
   uint8_t ls;
   do {
     ls = (uint8_t)generic_8250_read_reg(uart,GENERIC_8250_LSR);
   }
   while (!(ls & GENERIC_8250_LSR_XMIT_EMPTY));
-
-  generic_8250_write_reg(uart,GENERIC_8250_THR,c);
 }
 
 

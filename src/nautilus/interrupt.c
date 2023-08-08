@@ -47,15 +47,20 @@ static inline void update_max_irq(nk_irq_t irq) {
 #define SPARSE_IVEC_NUM_ENTRIES_PER_LEVEL (1<<SPARSE_IVEC_BITS_PER_LEVEL)
 #define SPARSE_IVEC_INDEX_MASK (SPARSE_IVEC_NUM_ENTRIES_PER_LEVEL-1)
 
+#include<nautilus/radix_tree.h>
+
 _Static_assert(((SPARSE_IVEC_BITS_PER_LEVEL*SPARSE_IVEC_NUM_LEVELS) == SPARSE_IVEC_BITS), 
     "Sparse IVEC: IVEC_BITS is not divisible by the number of levels in the radix tree!");
 
 static void *sparse_ivec_radix_tree_base = NULL;
 
+static struct nk_radix_tree sparse_ivec_radix_tree;
+
 int nk_alloc_ivec_desc(nk_ivec_t ivec_num, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
 {
   update_max_ivec(ivec_num);
 
+  /*
   void **radix_tree = &sparse_ivec_radix_tree_base;
 
   for(int i = SPARSE_IVEC_NUM_LEVELS-1; i >= 0; i--) {
@@ -87,6 +92,20 @@ int nk_alloc_ivec_desc(nk_ivec_t ivec_num, struct nk_irq_dev *dev, uint16_t type
   }
 
   struct nk_ivec_desc *desc = (struct nk_ivec_desc*)(*radix_tree);
+  */
+
+  struct nk_ivec_desc *desc = malloc(sizeof(struct nk_ivec_desc)); 
+  if(desc == NULL) {
+    IRQ_ERROR("Failed to allocate ivec_desc!\n");
+    return -1;
+  }
+  memset((void*)desc, 0, sizeof(struct nk_ivec_desc));
+
+  if(nk_radix_tree_insert(&sparse_ivec_radix_tree, ivec_num, (void*)desc)) {
+    IRQ_ERROR("Failed to insert ivec_desc into radix tree!\n");
+    free(desc);
+    return -1;
+  }
 
   desc->irq_dev = dev;
   desc->ivec_num = ivec_num;
@@ -102,8 +121,9 @@ int nk_alloc_ivec_desc(nk_ivec_t ivec_num, struct nk_irq_dev *dev, uint16_t type
 int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
 {
   IRQ_DEBUG("Allocating Interrupt Vectors: [%u - %u]\n", base, base+n-1); 
-  // This is pretty inefficient for now but it should be okay
-  for(uint32_t i = 0; i < n; i++) {
+
+  for(uint32_t i = 0; i < n; i++) 
+  {
 
     if(nk_alloc_ivec_desc(base + i, dev, type, flags)) 
     {
@@ -118,21 +138,7 @@ int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint
 
 struct nk_ivec_desc * nk_ivec_to_desc(nk_ivec_t ivec_num) 
 {
-  void **radix_tree = &sparse_ivec_radix_tree_base;
-
-  for(int i = SPARSE_IVEC_NUM_LEVELS-1; i >= 0; i--) {
-
-    if(*radix_tree == NULL) {
-      return (struct nk_ivec_desc*)*radix_tree;
-    }
-
-    nk_ivec_t index = ((ivec_num >> (SPARSE_IVEC_BITS_PER_LEVEL * i)) & SPARSE_IVEC_INDEX_MASK);
-
-    radix_tree = ((void**)*radix_tree) + index;
-
-  }
-
-  return (struct nk_ivec_desc*)(*radix_tree);
+  return (struct nk_ivec_desc*)nk_radix_tree_get(&sparse_ivec_radix_tree, (unsigned long)ivec_num);
 }
 
 #else /* NAUT_CONFIG_SPARSE_IRQ_VECTORS */

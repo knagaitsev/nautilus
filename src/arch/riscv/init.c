@@ -214,6 +214,8 @@ void init(unsigned long hartid, unsigned long fdt) {
   // asm volatile ("wfi");
 
   nk_dev_init();
+  nk_irq_dev_init();
+  nk_gpio_dev_init();
   nk_char_dev_init();
   nk_block_dev_init();
   nk_net_dev_init();

@@ -42,9 +42,16 @@ config SERIAL_DEBUGGER_PORT
       
 endmenu      
 
+config ARM_GIC
+    bool "ARM Generic Interrupt Controller Driver"
+    depends on ARCH_ARM64
+    default y
+    help
+      Provide a driver for the ARM Generic Interrupt Controller (GIC)
+
 choice 
     prompt "GIC Version"
-    depends on ARCH_ARM64
+    depends on ARCH_ARM64 && ARM_GIC
     default GIC_VERSION_2M
 
     config GIC_VERSION_2
@@ -62,7 +69,7 @@ endchoice
 
 config DEBUG_GIC
     bool "Debug GIC"
-    depends on ARCH_ARM64
+    depends on ARCH_ARM64 && ARM_GIC
     default n
     help
       Debug the Generic Interrupt Controller for the ARM64 Architecture

@@ -82,6 +82,12 @@ int nk_handle_irq_actions(struct nk_ivec_desc *desc, struct nk_regs *regs);
 #define NK_IVEC_DESC_FLAG_PERCPU       (1<<3)
 #define NK_IVEC_DESC_FLAG_IPI          (1<<4)
 #define NK_IVEC_DESC_FLAG_NMI          (1<<5)
+#define NK_IVEC_DESC_FLAG_EDGE         (1<<6)
+#define NK_IVEC_DESC_FLAG_EDGE_RISING  (1<<7)
+#define NK_IVEC_DESC_FLAG_EDGE_FALLING (1<<8)
+#define NK_IVEC_DESC_FLAG_LEVEL        (1<<9)
+#define NK_IVEC_DESC_FLAG_LEVEL_LOW    (1<<10)
+#define NK_IVEC_DESC_FLAG_LEVEL_HIGH   (1<<11)
 
 #define NK_IVEC_DESC_TYPE_INVALID        0 // This IVEC # isn't backed by the hardware
 #define NK_IVEC_DESC_TYPE_DEFAULT        1

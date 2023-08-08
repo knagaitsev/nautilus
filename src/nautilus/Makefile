@@ -5,6 +5,8 @@ obj-y += \
 	vc.o \
 	queue.o \
 	irqdev.o \
+	gpio.o \
+	gpiodev.o \
 	interrupt.o \
 	naut_string.o \
 	cpuid.o \
@@ -16,6 +18,7 @@ obj-y += \
 	msg_queue.o \
 	hashtable.o \
 	rbtree.o \
+	radix_tree.o \
 	random.o \
 	smp.o \
 	idle.o \
