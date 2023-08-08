@@ -174,7 +174,7 @@ skip_cat_entry:
     jl irq_err
 #endif
 
-    callq route_exception    # rdi = nk_regs, rsi = ivec
+    callq route_interrupt_vector # rdi = nk_regs, rsi = ivec
 
     testq %rax, %rax
     jnz irq_err
@@ -338,7 +338,7 @@ skip_per_cpu_update1:
     movq %rsp, %rdi # pointer to register struct
     movq 120(%rsp), %rsi # excp vector
 
-    callq route_exception   # rdi = register struct, rsi = ivec num
+    callq route_interrupt_vector # rdi = register struct, rsi = ivec num
     testq %rax, %rax
     jnz excp_err
 

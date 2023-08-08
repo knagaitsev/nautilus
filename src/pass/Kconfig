@@ -1,0 +1,9 @@
+menu "Compiler Passes"
+
+config CARAT_PASS
+  def_bool n
+  depends on CARAT_RT
+  help
+    Enables the CARAT LLVM Pass
+
+endmenu

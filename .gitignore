@@ -50,3 +50,5 @@ scripts/kconfig/lkc_defs.h
 
 Image
 uImage
+
+output.txt

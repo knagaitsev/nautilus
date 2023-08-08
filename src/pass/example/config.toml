@@ -1,0 +1,9 @@
+
+name = 'example'
+version = '1.0'
+kconfig = 'EXAMPLE_PASS'
+llvm = 16
+
+[depends.carat]
+version = '*.*.*'
+

@@ -355,7 +355,7 @@ int nmi_handler (struct nk_irq_action *action,
     return 0;
 }
 
-int route_exception(struct nk_regs *regs, nk_ivec_t ivec)
+int route_interrupt_vector(struct nk_regs *regs, nk_ivec_t ivec)
 {
   struct nk_ivec_desc *desc = nk_ivec_to_desc(ivec);
   int ret = nk_handle_irq_actions(desc, regs); 

@@ -327,6 +327,11 @@ int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags,
 
 int nk_handle_irq_actions(struct nk_ivec_desc * desc, struct nk_regs *regs) 
 { 
+
+  if(desc->ivec_num != 240) {
+    printk("Interrupt Vector: %u\n", desc->ivec_num);
+  }
+
   int ret = 0;
 
   // This is just to get a rough estimate,

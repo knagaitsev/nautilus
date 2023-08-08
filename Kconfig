@@ -1868,6 +1868,8 @@ source "src/fs/Kconfig"
 
 source "src/net/Kconfig"
 
+source "src/pass/Kconfig"
+
 menu "Languages"
 
 	config LOAD_LUA

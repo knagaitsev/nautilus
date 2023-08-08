@@ -1,0 +1,8 @@
+
+name = "carat"
+kconfig = 'CARAT_PASS'
+object = 'carat.so'
+build = 'make'
+
+[llvm]
+major = 16

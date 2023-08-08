@@ -159,8 +159,9 @@ nk_ivec_init (struct sys_info * sys)
     nk_alloc_ivec_descs(0, 32,
 	NULL,
         NK_IVEC_DESC_TYPE_EXCEPTION,
+	0
         );
-    nk_alloc_ivec_descs(32, (256-32),
+    nk_alloc_ivec_descs(32, 256-32,
 	NULL,
         NK_IVEC_DESC_TYPE_DEFAULT,
         NK_IVEC_DESC_FLAG_MSI | NK_IVEC_DESC_FLAG_MSI_X);
