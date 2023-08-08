@@ -1,4 +1,6 @@
 
+#include<nautilus/nautilus.h>
+#include<nautilus/naut_types.h>
 #include<nautilus/gpio.h>
 #include<nautilus/spinlock.h>
 #include<nautilus/radix_tree.h>
@@ -114,9 +116,9 @@ int nk_gpio_write_output(nk_gpio_t num, int val)
 {
   struct nk_gpio_desc *desc = nk_gpio_get_desc(num);
   if(desc->dev == NULL) {
-    if(desc->flags & NK_GPIO_FLAG_ACTIVE_HIGH) {
+    if(desc->flags & NK_GPIO_ACTIVE_HIGH) {
       desc->raw_state = val == NK_GPIO_HIGH ? NK_GPIO_ACTIVE : NK_GPIO_INACTIVE;
-    } else if(desc->flags & NK_GPIO_FLAG_ACTIVE_LOW) {
+    } else if(desc->flags & NK_GPIO_ACTIVE_LOW) {
       desc->raw_state = val == NK_GPIO_LOW ? NK_GPIO_ACTIVE : NK_GPIO_INACTIVE;
     } else {
       return -1;
@@ -130,9 +132,9 @@ int nk_gpio_read_input(nk_gpio_t num, int *val)
 {
   struct nk_gpio_desc *desc = nk_gpio_get_desc(num);
   if(desc->dev == NULL) {
-    if(desc->flags & NK_GPIO_FLAG_ACTIVE_HIGH) {
+    if(desc->flags & NK_GPIO_ACTIVE_HIGH) {
       *val = desc->raw_state == NK_GPIO_HIGH ? NK_GPIO_ACTIVE : NK_GPIO_INACTIVE;
-    } else if(desc->flags & NK_GPIO_FLAG_ACTIVE_LOW) {
+    } else if(desc->flags & NK_GPIO_ACTIVE_LOW) {
       *val = desc->raw_state == NK_GPIO_LOW ? NK_GPIO_ACTIVE : NK_GPIO_INACTIVE;
     } else {
       return -1;

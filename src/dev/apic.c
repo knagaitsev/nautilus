@@ -31,6 +31,8 @@
 #include <nautilus/shell.h>
 #include <nautilus/timer.h>
 #include <nautilus/dev.h>
+#include <nautilus/irqdev.h>
+#include <nautilus/interrupt.h>
 #include <dev/apic.h>
 #include <dev/i8254.h>
 #include <lib/bitops.h>

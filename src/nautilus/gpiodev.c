@@ -131,22 +131,18 @@ int nk_gpio_dev_get_characteristics(struct nk_gpio_dev *dev, struct nk_gpio_dev_
   }
 #endif
 
-declare_gpio_dev_method_int(nk_gpio_dev_set_output, set_output);
-declare_gpio_dev_method_noargs(nk_gpio_dev_set_input, set_input);
-declare_gpio_dev_method_intptr(nk_gpio_dev_get_type, get_type);
-
-declare_gpio_dev_method_noargs(nk_gpio_dev_set_active_low, set_active_low);
-declare_gpio_dev_method_noargs(nk_gpio_dev_set_active_high, set_active_high);
-declare_gpio_dev_method_intptr(nk_gpio_dev_get_active_type, get_active_type);
-
-declare_gpio_dev_method_noargs(nk_gpio_dev_set_open_drain, set_open_drain);
-declare_gpio_dev_method_noargs(nk_gpio_dev_set_open_source, set_open_source);
-declare_gpio_dev_method_intptr(nk_gpio_dev_get_open_type, get_open_type);
-
-declare_gpio_dev_method_noargs(nk_gpio_dev_set_pull_up, set_pull_up);
-declare_gpio_dev_method_noargs(nk_gpio_dev_set_pull_down, set_pull_down);
-declare_gpio_dev_method_intptr(nk_gpio_dev_get_pull_type, get_pull_type);
-
 declare_gpio_dev_method_int(nk_gpio_dev_write_output, write_output);
 declare_gpio_dev_method_intptr(nk_gpio_dev_read_input, read_input);
+
+declare_gpio_dev_method_int(nk_gpio_dev_set_io_type, set_io_type);
+declare_gpio_dev_method_intptr(nk_gpio_dev_get_io_type, get_io_type);
+
+declare_gpio_dev_method_int(nk_gpio_dev_set_polarity, set_polarity);
+declare_gpio_dev_method_intptr(nk_gpio_dev_get_polarity, get_polarity);
+
+declare_gpio_dev_method_int(nk_gpio_dev_set_open_type, set_open_type);
+declare_gpio_dev_method_intptr(nk_gpio_dev_get_open_type, get_open_type);
+
+declare_gpio_dev_method_int(nk_gpio_dev_set_pull_type, set_pull_type);
+declare_gpio_dev_method_intptr(nk_gpio_dev_get_pull_type, get_pull_type);
 

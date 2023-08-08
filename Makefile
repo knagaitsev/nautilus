@@ -182,7 +182,7 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 ARCH		?= $(SUBARCH)
 
 #CROSS_COMPILE ?=
-CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
+#CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
 #CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/riscv64/bin/
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 

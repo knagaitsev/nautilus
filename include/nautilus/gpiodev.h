@@ -4,8 +4,13 @@
 #include<nautilus/dev.h>
 #include<nautilus/naut_types.h>
 
+// Linux splits these into two different types of devices entirely
+#define NK_GPIO_DEV_TYPE_PINCTRL 0b01
+#define NK_GPIO_DEV_TYPE_GPIO    0b10
+#define NK_GPIO_DEV_TYPE_DUAL    0b11
+
 struct nk_gpio_dev_characteristics {
-  // None for now
+  int type : 2;
 };
 
 struct nk_gpio_dev_int 
@@ -13,24 +18,29 @@ struct nk_gpio_dev_int
   struct nk_dev_int dev_int;
 
   int (*get_characteristics)(void *state, struct nk_gpio_dev_characteristics *c);
-  int (*set_output)(void *state, nk_gpio_t, int val);
-  int (*set_input)(void *state, nk_gpio_t);
-  int (*get_type)(void *state, nk_gpio_t, int *type);
 
-  int (*set_active_high)(void *state, nk_gpio_t);
-  int (*set_active_low)(void *state, nk_gpio_t);
-  int (*get_active_type)(void *state, nk_gpio_t, int *flag);
-
-  int (*set_open_drain)(void *state, nk_gpio_t);
-  int (*set_open_source)(void *state, nk_gpio_t);
-  int (*get_open_type)(void *state, nk_gpio_t, int *flag);
-
-  int (*set_pull_up)(void *state, nk_gpio_t);
-  int (*set_pull_down)(void *state, nk_gpio_t);
-  int (*get_pull_type)(void *state, nk_gpio_t, int *flag);
+  // GPIO Functions
 
   int (*write_output)(void *state, nk_gpio_t, int val);
   int (*read_input)(void *state, nk_gpio_t, int* val);
+
+  // NK_GPIO_OUTPUT or NK_GPIO_INPUT
+  int (*set_io_type)(void *state, nk_gpio_t, int type);
+  int (*get_io_type)(void *state, nk_gpio_t, int *type);
+  
+  // Pin Ctrl Functions
+
+  // NK_GPIO_ACTIVE_HIGH or NK_GPIO_ACTIVE_LOW
+  int (*set_polarity)(void *state, nk_gpio_t, int polarity);
+  int (*get_polarity)(void *state, nk_gpio_t, int *polarity);
+
+  // NK_GPIO_OPEN_DRAIN or NK_GPIO_OPEN_SOURCE
+  int (*set_open_type)(void *state, nk_gpio_t, int open);
+  int (*get_open_type)(void *state, nk_gpio_t, int *open);
+
+  // NK_GPIO_PULL_UP or NK_GPIO_PULL_DOWN
+  int (*set_pull_type)(void *state, nk_gpio_t, int pull);
+  int (*get_pull_type)(void *state, nk_gpio_t, int *pull);
 };
 
 struct nk_gpio_dev 

@@ -179,7 +179,7 @@ int nk_irq_dev_translate_irqs(struct nk_irq_dev *dev, nk_dev_info_type_t type, v
     return -1;
   }
 #else
-  return di->translate_irq(d->state, type, raw_irqs, raw_irqs_len, irq_buf, irq_buf_count);
+  return di->translate_irqs(d->state, type, raw_irqs, raw_irqs_len, irq_buf, irq_buf_count);
 #endif
 }
 

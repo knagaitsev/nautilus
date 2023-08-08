@@ -111,12 +111,11 @@ struct generic_8250 {
   nk_irq_t uart_irq;
 
   void * reg_base;
-  int reg_size;
   int reg_shift;
   int reg_width;
 
-  int baudrate;
-  int baudrate_divisor_multiplier;
+  int baud_rate;
+  int baud_rate_divisor_multiplier;
 
   int features;
   int flags;

@@ -4,7 +4,7 @@ menu "Serial Options"
 
 config SERIAL_REDIRECT
     bool "Serial Redirect"
-    depends on !HVM_HRT && ARCH_X86
+    depends on !HVM_HRT && ARCH_X86 && !PC_8250_UART
     default n
     help
         Redirect printing to serial device
@@ -25,7 +25,7 @@ config SERIAL_REDIRECT_PORT
 
 config SERIAL_DEBUGGER
     bool "Serial Debugger"
-    depends on ENABLE_REMOTE_DEBUGGING && ARCH_X86
+    depends on ENABLE_REMOTE_DEBUGGING && ARCH_X86 && !PC_8250_UART
     default n
     help
         Provide a simple serial interface to a remote debugger
@@ -79,6 +79,29 @@ config GENERIC_8250_UART
     default n
     help
       Include a base 8250 UART implementation which can be used by other UART drivers
+
+config PC_8250_UART
+    bool "PC 8250 UART"
+    depends on ARCH_X86 && !STANDALONE_SERIAL_DRIVER
+    select GENERIC_8250_UART
+    default n
+    help
+      Driver for PC serial ports based on the generic 8250 framework in Nautilus.
+      Selecting this disables the original serial port driver.
+
+config PC_8250_UART_EARLY_OUTPUT
+    bool "PC 8250 UART Early Output"
+    depends on PC_8250_UART
+    default n
+    help
+      Use one of the PC COM Ports for Early Output
+
+config PC_8250_UART_EARLY_COM_PORT
+    int "PC 8250 UART Early COM Port"
+    depends on PC_8250_UART_EARLY_OUTPUT
+    default 1
+    help
+      Specify which COM port should be used for early output
 
 config DW_8250_UART
     bool "DesignWare UART"
