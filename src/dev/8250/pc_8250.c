@@ -6,7 +6,8 @@
 
 struct pc_8250 {
   struct generic_8250 generic;
-  int dynamic_alloc;
+  int dynamic_alloc : 1;
+  int early_output_disabled : 1;
 };
 
 #define COM1_3_IRQ 4
@@ -41,20 +42,25 @@ static struct pc_8250 pre_vc_pc_8250 = {
     .reg_shift = 0,
     .reg_width = 1,
     .baud_rate = 115200,
+    .output_buffer_size = 0,
+    .output_buffer = NULL,
+    .input_buffer_size = 0,
+    .input_buffer = NULL,
     .flags = GENERIC_8250_FLAG_PORT_IO | GENERIC_8250_FLAG_NO_INTERRUPTS,
     .ops = &generic_8250_default_ops
   },
-  .dynamic_alloc = 0
+  .dynamic_alloc = 0,
+  .early_output_disabled = 0
 };
 
 static void pc_8250_early_putchar(char c) {
-  generic_8250_direct_putchar(&pre_vc_pc_8250.generic, c);
+  if(!pre_vc_pc_8250.early_output_disabled) {
+    generic_8250_direct_putchar(&pre_vc_pc_8250.generic, c);
+  }
 }
 
 int pc_8250_pre_vc_init(void)
 {
-  memset(&pre_vc_pc_8250, 0, sizeof(struct pc_8250));
-
   if(generic_8250_configure(&pre_vc_pc_8250)) {
     return -1;
   }
@@ -75,7 +81,9 @@ int pc_8250_init(void)
   for(int i = 1; i <= 4; i++) {
 #ifdef NAUT_CONFIG_PC_8250_SPEC_EARLY_PORT
     if(i == NAUT_CONFIG_PC_8250_EARLY_PORT) {
+      pre_vc_pc_8250.early_output_disabled = 1;
       com_ports[i-1] = &pre_vc_pc_8250;
+      memset(&pre_vc_pc_8250.generic, 0, sizeof(struct generic_8250));
       continue;
     }
 #endif
@@ -88,11 +96,28 @@ int pc_8250_init(void)
       }
       return -1;
     }
+    memset(com_ports[i-1], 0, sizeof(struct pc_8250));
     com_ports[i-1]->dynamic_alloc = 1;
+    com_ports[i-1]->early_output_disabled = 1;
   }
 
+  com_ports[0]->generic.uart_irq = COM1_3_IRQ;
+  com_ports[0]->generic.reg_base = COM1_ADDR;
+  com_ports[1]->generic.uart_irq = COM2_4_IRQ;
+  com_ports[1]->generic.reg_base = COM2_ADDR;
+  com_ports[2]->generic.uart_irq = COM1_3_IRQ;
+  com_ports[2]->generic.reg_base = COM3_ADDR;
+  com_ports[3]->generic.uart_irq = COM2_4_IRQ;
+  com_ports[3]->generic.reg_base = COM4_ADDR;
+
   int num_failed = 0;
-  for(int i = 0; i < 4; i++) {
+  for(int i = 0; i < 4; i++) { 
+  
+    com_ports[i]->generic.reg_shift = 0;
+    com_ports[i]->generic.reg_width = 1;
+    com_ports[i]->generic.baud_rate = 115200;
+    com_ports[i]->generic.flags = GENERIC_8250_FLAG_PORT_IO;
+    com_ports[i]->generic.ops = &generic_8250_default_ops;
 
     char name_buf[DEV_NAME_LEN];
     snprintf(name_buf,DEV_NAME_LEN,"serial%u",nk_dev_get_serial_device_number());

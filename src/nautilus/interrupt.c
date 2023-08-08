@@ -1,4 +1,3 @@
-
 #include<nautilus/interrupt.h>
 
 // Gives us MAX_IRQ_NUM and MAX_IVEC_NUM
@@ -147,7 +146,7 @@ struct nk_ivec_desc * nk_ivec_to_desc(nk_ivec_t ivec_num)
 #error "MAX_IVEC_NUM is undefined!"
 #endif
 
-static struct nk_ivec_desc descriptors[MAX_IVEC_NUM];
+static struct nk_ivec_desc descriptors[MAX_IVEC_NUM+1];
 
 int nk_alloc_ivec_desc(nk_ivec_t num, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
 {
@@ -180,7 +179,10 @@ int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint
 struct nk_ivec_desc * nk_ivec_to_desc(nk_ivec_t ivec) 
 {
   struct nk_ivec_desc *desc = descriptors + ivec;
-  ASSERT(desc->ivec_num != ivec);
+  if(desc->ivec_num != ivec) {
+    panic("desc->ivec_num (%u) != ivec (%u)\n", desc->ivec_num, ivec);
+    return NULL;
+  }
   return desc; 
 }
 
@@ -334,9 +336,11 @@ int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags,
 int nk_handle_irq_actions(struct nk_ivec_desc * desc, struct nk_regs *regs) 
 { 
 
+  /*
   if(desc->ivec_num != 240) {
     printk("Interrupt Vector: %u\n", desc->ivec_num);
   }
+  */
 
   int ret = 0;
 
@@ -552,6 +556,7 @@ int nk_unmask_irq(nk_irq_t irq) {
 
 void nk_dump_ivec_info(void) 
 {
+  IRQ_PRINT("--- Interrupt Vector Information: (total = %u) ---\n", max_ivec()+1);
   for(nk_ivec_t i = 0; i < max_ivec()+1; i++) 
   {
     struct nk_ivec_desc *desc = nk_ivec_to_desc(i);
@@ -608,13 +613,16 @@ void nk_dump_ivec_info(void)
 #ifndef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
       if(!(action->flags & NK_IRQ_ACTION_FLAG_NO_IRQ)) {
         struct nk_irq_dev *dev = nk_irq_to_irqdev(action->irq);
-        int status = nk_irq_dev_irq_status(dev, action->irq);
+	int status = 0;
+	if(dev != NULL) {
+          status = nk_irq_dev_irq_status(dev, action->irq);
+	}
 	IRQ_PRINT("\t\tirq = %u, irq_dev = %s, %s%s%s\n",
 			action->irq,
 			dev == NULL ? "NULL" : desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "PERCPU" : dev->dev.name,
-                        status & IRQ_DEV_STATUS_ENABLED ? "[ENABLED]" : "[DISABLED]",
-                        status & IRQ_DEV_STATUS_PENDING ? "[PENDING]" : "",
-                        status & IRQ_DEV_STATUS_ACTIVE ? "[ACTIVE]" : ""
+                        dev == NULL ? "" : status & IRQ_DEV_STATUS_ENABLED ? "[ENABLED]" : "[DISABLED]",
+                        dev == NULL ? "" : status & IRQ_DEV_STATUS_PENDING ? "[PENDING]" : "",
+                        dev == NULL ? "" : status & IRQ_DEV_STATUS_ACTIVE ? "[ACTIVE]" : ""
                  );	
       }
 #endif

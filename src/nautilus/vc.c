@@ -987,82 +987,77 @@ int nk_vc_clear(uint8_t attr)
   return 0;
 }
 
-#define PRE_VC_BUFFER_SIZE 512
-int __pre_vc_registered = 0;
-char __pre_vc_buffer[PRE_VC_BUFFER_SIZE];
-int __pre_vc_buffer_head = 0;
-void(*__pre_vc_putchar)(char);
-void(*__pre_vc_puts)(char*);
+#define NAUT_CONFIG_MAX_PRE_VC 4
+static int pre_vcs_registered = 0;
+
+static void(*pre_vc_putchar_ptr[NAUT_CONFIG_MAX_PRE_VC])(char);
+static void(*pre_vc_puts_ptr[NAUT_CONFIG_MAX_PRE_VC])(char*);
 
 int nk_pre_vc_register(void(*putchar)(char), void(*puts)(char*)) 
 {
   // No real locking because this should be occuring very very early in "init"
   // without threading or multiple processors
-  if(__pre_vc_registered) {
+  if(pre_vcs_registered >= NAUT_CONFIG_MAX_PRE_VC) {
     return -1;
   }
-  __pre_vc_registered = 1;
 
-  __pre_vc_putchar = putchar;
-  __pre_vc_puts = puts;
+  int num = pre_vcs_registered;
+  pre_vc_putchar_ptr[num] = putchar;
+  pre_vc_puts_ptr[num] = puts;
  
-  // Clamp the cursor
-  __pre_vc_buffer_head = __pre_vc_buffer_head < PRE_VC_BUFFER_SIZE ? __pre_vc_buffer_head : PRE_VC_BUFFER_SIZE-1;
-  __pre_vc_buffer[__pre_vc_buffer_head] = '\0';
- 
-  // print the buffer
-  nk_pre_vc_puts(__pre_vc_buffer);
+  pre_vcs_registered += 1;
+
   return 0;
 }
-int nk_pre_vc_puts(char *s) 
+int _pre_vc_puts(char *s, int i) 
 {
-  if(__pre_vc_registered) 
-  {
-    if(__pre_vc_puts != NULL) {
-      __pre_vc_puts(s);
-      return 0;
-    } else if(__pre_vc_putchar != NULL) {
-      while(*s != '\0') {
-        __pre_vc_putchar(*s);
-        s++;
-      }
-      return 0;
-    } else {
-      return -1;
-    }
-  } else {
-    // Copy as much as possible into the pre vc buffer
-    while(*s != '\0' && __pre_vc_buffer_head < PRE_VC_BUFFER_SIZE) {
-      __pre_vc_buffer[__pre_vc_buffer_head] = *s;
-      __pre_vc_buffer_head++;
+  if(pre_vc_puts_ptr[i] != NULL) {
+    pre_vc_puts_ptr[i](s);
+    return 0;
+  } else if(pre_vc_putchar_ptr[i] != NULL) {
+    while(*s != '\0') {
+      pre_vc_putchar_ptr[i](*s);
       s++;
     }
     return 0;
+  } else {
+    return -1;
   }
 }
+
+int nk_pre_vc_puts(char *s) 
+{
+  // Print to any registered pre_vc's
+  for(int i = 0; i < pre_vcs_registered; i++) {
+    _pre_vc_puts(s, i);
+  }
+
+  return 0;
+}
+int _pre_vc_putchar(char c, int i)
+{
+  if(pre_vc_putchar_ptr[i] != NULL) {
+    pre_vc_putchar_ptr[i](c);
+    return 0;
+  } else if(pre_vc_puts_ptr[i] != NULL) {
+    char buf[2];
+    buf[0] = c;
+    buf[1] = '\0';
+    pre_vc_puts_ptr[i](buf);
+    return 0;
+  } else {
+      return -1;
+  }
+}
+
 int nk_pre_vc_putchar(char c)
 {
-  if(__pre_vc_registered) 
-  {
-    if(__pre_vc_putchar != NULL) {
-      __pre_vc_putchar(c);
-      return 0;
-    } else if(__pre_vc_puts != NULL) {
-      char buf[2];
-      buf[0] = c;
-      buf[1] = '\0';
-      __pre_vc_puts(buf);
-      return 0;
-    } else {
-      return -1;
-    }
-  } else {
-    if(c != '\0' && __pre_vc_buffer_head < PRE_VC_BUFFER_SIZE) {
-      __pre_vc_buffer[__pre_vc_buffer_head] = c;
-      __pre_vc_buffer_head++;
-    }
-    return 0;
+  // Print to all pre_vc's
+  for(int i = 0; i < pre_vcs_registered; i++) {
+    _pre_vc_putchar(c, i);
   }
+
+  return 0;
 }
 
 // called assuming lock is held

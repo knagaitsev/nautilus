@@ -13,6 +13,7 @@
 struct dw_8250 
 {
   struct generic_8250 generic;
+  int early_output_disabled : 1;
 };
 
 int dw_8250_interrupt_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state)
@@ -102,6 +103,7 @@ static int dw_8250_fdt_init(uint64_t dtb, uint64_t offset, struct dw_8250 *dw) {
     }
 
     dw->generic.reg_base = reg.address;
+    dw->generic.ops = dw_8250_ops;
     
     int lenp;
     uint32_t *reg_shift_ptr = fdt_getprop((void*)dtb, offset, "reg-shift", &lenp);
@@ -125,7 +127,9 @@ static struct dw_8250 pre_vc_dw_8250;
 static int pre_vc_dw_8250_dtb_offset = -1;
 
 static void dw_8250_early_putchar(char c) {
-  generic_8250_direct_putchar(&pre_vc_dw_8250.generic, c);
+  if(pre_vc_dw_8250.early_output_disabled == 0) {
+    generic_8250_direct_putchar(&pre_vc_dw_8250.generic, c);
+  }
 }
 
 int dw_8250_pre_vc_init(uint64_t dtb) 
@@ -155,6 +159,8 @@ int dw_8250_pre_vc_init(uint64_t dtb)
     return -1;
   }
 
+  pre_vc_dw_8250.early_output_disabled = 0;
+
   if(nk_pre_vc_register(dw_8250_early_putchar, NULL)) {
     return -1;
   }
@@ -174,9 +180,12 @@ static int dw_8250_dev_init_one(struct nk_dev_info *info)
 #ifdef NAUT_CONFIG_DW_8250_UART_EARLY_OUTPUT
   if(info->type == NK_DEV_INFO_OF && ((struct dt_node*)info->state)->dtb_offset == pre_vc_dw_8250_dtb_offset) {
      dw = &pre_vc_dw_8250;
+     dw->early_output_disabled = 1;
+     memset(&pre_vc_dw_8250.generic, 0, sizeof(struct generic_8250));
   } else {
      dw = malloc(sizeof(struct dw_8250));
      memset(dw, 0, sizeof(struct dw_8250));
+     dw->early_output_disabled = 1;
      if(dw == NULL) {
        goto err_exit;
      }

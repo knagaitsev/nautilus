@@ -335,6 +335,9 @@ init (unsigned long mbd,
 
     vga_early_init();
 
+    nk_irq_init();
+    nk_ivec_init(&(naut->sys));
+
     // At this point we have VGA output only
     
     fpu_init(naut, FPU_BSP_INIT);
@@ -345,10 +348,7 @@ init (unsigned long mbd,
     spinlock_init(&printk_lock);
 
     setup_idt();
-
-    nk_irq_init();
-    nk_ivec_init(&(naut->sys));
-
+    
 #ifdef NAUT_CONFIG_PC_8250_UART
 #ifdef NAUT_CONFIG_PC_8250_UART_EARLY_OUTPUT
     pc_8250_pre_vc_init();
@@ -432,18 +432,20 @@ init (unsigned long mbd,
 
     disable_8259pic();
 
-    i8254_init(naut);
-
     /* from this point on, we can use percpu macros (even if the APs aren't up) */
 
     sysinfo_init(&(naut->sys));
 
-    ioapic_init(&(naut->sys));
-
     nk_wait_queue_init();
 
+    // These register devices so need to happen after we have waitqueues
+    i8254_init(naut);
+    ioapic_init(&(naut->sys));
+
+    printk("4\n");
     nk_future_init();
     
+    printk("5\n");
     nk_timer_init();
 
     apic_init(naut->sys.cpus[0]);
@@ -484,6 +486,7 @@ init (unsigned long mbd,
     smp_setup_xcall_bsp(naut->sys.cpus[0]);
 
     nk_cpu_topo_discover(naut->sys.cpus[0]); 
+
 #ifdef NAUT_CONFIG_HPET
     nk_hpet_init();
 #endif
@@ -640,9 +643,9 @@ init (unsigned long mbd,
     nk_syscall_init();
     init_syscall_table();
 #endif
- 
-    nk_dump_ivec_info();
 
+    nk_dump_ivec_info();
+ 
     // nk_launch_shell("root-shell",0,script,0);
     nk_launch_shell("root-shell",0,0,0);
 

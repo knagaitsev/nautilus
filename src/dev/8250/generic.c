@@ -100,7 +100,7 @@ void generic_8250_write_reg(struct generic_8250 *uart, uint32_t reg_offset, uint
      case 8:
 #ifdef NAUT_CONFIG_HAS_PORT_IO
        if(uart->flags & GENERIC_8250_FLAG_PORT_IO) {
-         val = 0;
+         panic("generic 8250: trying to write an 8 byte value using Port IO!\n");
        } else {
          *(volatile uint64_t*)((void*)addr) = (uint64_t)val;
        }
@@ -108,6 +108,8 @@ void generic_8250_write_reg(struct generic_8250 *uart, uint32_t reg_offset, uint
        *(volatile uint64_t*)((void*)addr) = (uint64_t)val;
 #endif
        break;
+     default:
+       panic("generic 8250: Invalid Reg Width!\n");
    }
 }
 
@@ -122,23 +124,35 @@ int generic_8250_init(struct generic_8250 *uart)
       uart->output_buffer_size = GENERIC_8250_DEFAULT_BUFFER_SIZE;
     }
     uart->output_buffer = malloc(uart->output_buffer_size);
-    uart->output_buffer_head = 0;
-    uart->output_buffer_tail = 0;
+    if(uart->output_buffer == NULL) {
+      return -1;
+    }
   }
+  uart->output_buffer_head = 0;
+  uart->output_buffer_tail = 0;
+
+  printk("generic 8250 output buffer with size: %u, buffer = %p\n", uart->output_buffer_size, uart->output_buffer);
+
   if(uart->input_buffer == NULL) {
     if(uart->input_buffer_size == 0) {
       uart->input_buffer_size = GENERIC_8250_DEFAULT_BUFFER_SIZE;
     }
     uart->input_buffer = malloc(uart->input_buffer_size);
-    uart->input_buffer_head = 0;
-    uart->input_buffer_tail = 0;
+    if(uart->input_buffer == NULL) {
+      return -1;
+    }
   }
+  uart->input_buffer_head = 0;
+  uart->input_buffer_tail = 0;
+
+  printk("generic 8250 input buffer with size: %u, buffer = %u\n", uart->input_buffer_size, uart->input_buffer);
 
   if(uart->ops->configure) {
     uart->ops->configure(uart);
   }
 
   if(uart->ops->interrupt_handler != NULL) {
+    printk("generic 8250 adding handler for IRQ: %u\n", uart->uart_irq);
     nk_irq_add_handler_dev(uart->uart_irq, 
                            uart->ops->interrupt_handler,
                            uart,
@@ -201,35 +215,35 @@ int generic_8250_probe_fifo(struct generic_8250 *uart)
  */
 
 static void input_buffer_push(struct generic_8250 *uart, uint8_t val) {
-  uart->input_buffer[uart->input_buffer_tail] = val;
-  uart->input_buffer_tail = (uart->input_buffer_tail+1) % uart->input_buffer_size;
+  uart->input_buffer[uart->input_buffer_tail % uart->input_buffer_size] = val;
+  uart->input_buffer_tail++;
 }
 static uint8_t input_buffer_pull(struct generic_8250 *uart) {
-  uint8_t ret = uart->input_buffer[uart->input_buffer_head];
-  uart->input_buffer_head = (uart->input_buffer_head+1) % uart->input_buffer_size;
+  uint8_t ret = uart->input_buffer[uart->input_buffer_head % uart->input_buffer_size];
+  uart->input_buffer_head++;
   return ret;
 }
 static int input_buffer_empty(struct generic_8250 *uart) {
-  return uart->input_buffer_head == uart->input_buffer_tail;
+  return (uart->input_buffer_head % uart->input_buffer_size) == (uart->input_buffer_tail % uart->input_buffer_size);
 }
 static int input_buffer_full(struct generic_8250 *uart) {
-  return ((uart->input_buffer_tail+1)&uart->input_buffer_size) == uart->input_buffer_head;
+  return ((uart->input_buffer_tail+1) % uart->input_buffer_size) == (uart->input_buffer_head % uart->input_buffer_size);
 }
 
 static void output_buffer_push(struct generic_8250 *uart, uint8_t val) {
-  uart->output_buffer[uart->output_buffer_tail] = val;
-  uart->output_buffer_tail = (uart->output_buffer_tail+1) % uart->output_buffer_size;
+  uart->output_buffer[uart->output_buffer_tail % uart->output_buffer_size] = val;
+  uart->output_buffer_tail++;
 }
 static uint8_t output_buffer_pull(struct generic_8250 *uart) {
-  uint8_t ret = uart->output_buffer[uart->output_buffer_head];
-  uart->output_buffer_head = (uart->output_buffer_head+1) % uart->output_buffer_size;
+  uint8_t ret = uart->output_buffer[uart->output_buffer_head % uart->output_buffer_size];
+  uart->output_buffer_head++;
   return ret;
 }
 static int output_buffer_empty(struct generic_8250 *uart) {
-  return uart->output_buffer_head == uart->output_buffer_tail;
+  return (uart->output_buffer_head % uart->output_buffer_size) == (uart->output_buffer_tail % uart->output_buffer_size);
 }
 static int output_buffer_full(struct generic_8250 *uart) {
-  return ((uart->output_buffer_tail+1)&uart->output_buffer_size) == uart->output_buffer_head;
+  return ((uart->output_buffer_tail+1) % uart->output_buffer_size) == (uart->output_buffer_head % uart->output_buffer_size);
 }
 
 /*
@@ -238,13 +252,13 @@ static int output_buffer_full(struct generic_8250 *uart) {
 
 void generic_8250_direct_putchar(struct generic_8250 *uart, uint8_t c) 
 {   
-  generic_8250_write_reg(uart,GENERIC_8250_THR,c);
-
   uint8_t ls;
   do {
     ls = (uint8_t)generic_8250_read_reg(uart,GENERIC_8250_LSR);
   }
   while (!(ls & GENERIC_8250_LSR_XMIT_EMPTY));
+  
+  generic_8250_write_reg(uart,GENERIC_8250_THR,c);
 }
 
 
@@ -362,7 +376,6 @@ int generic_8250_kick_output(struct generic_8250 *uart)
 
 int generic_8250_interrupt_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state) 
 {
-
   struct generic_8250 *uart = (struct generic_8250*)state;
 
   uint8_t iir;

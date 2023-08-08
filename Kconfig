@@ -5,9 +5,9 @@ menu "Platform"
 
 
 		config ARCH_X86
-                        select HAS_PMIO
                         select HAS_MSI
                         select HAS_PCI
+			select HAS_PORT_IO
                         select HAS_CONTIGUOUS_CPU_ID
                         select USE_PCI_CAM
                         select USE_MULTIBOOT
@@ -1913,7 +1913,7 @@ endmenu
 
 # Features
 
-config HAS_PMIO
+config HAS_PORT_IO
     def_bool n
     help
       Does the current configuration have support for Port Mapped I/O?
@@ -1950,7 +1950,7 @@ config USE_MULTIBOOT
 # PCI
 config USE_PCI_CAM
     def_bool n
-    depends on HAS_PMIO
+    depends on HAS_PORT_IO
     help
       Use the Port Mapped I/O to access PCI configuration space
 

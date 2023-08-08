@@ -149,6 +149,10 @@ panic (const char * fmt, ...)
     vprintk(fmt, arg);
     va_end(arg);
 
+#ifdef NAUT_CONFIG_ARCH_X86
+    backtrace_here();
+#endif
+
    arch_disable_ints();
 
    while(1);

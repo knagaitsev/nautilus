@@ -68,6 +68,7 @@ void
 ioapic_mask_irq (struct ioapic * ioapic, uint8_t irq)
 {
     uint32_t val;
+    IOAPIC_PRINT("ioapic_mask_irq(): irq = %u, ioapic->num_entries = %u\n", irq, ioapic->num_entries);    
     ASSERT(irq < ioapic->num_entries);
     val = ioapic_read_reg(ioapic, IOAPIC_IRQ_ENTRY_LO(irq));
     ioapic_write_reg(ioapic, IOAPIC_IRQ_ENTRY_LO(irq), val | IOAPIC_MASK_IRQ);
@@ -87,6 +88,13 @@ ioapic_get_max_entry (struct ioapic * ioapic)
     return ((ioapic_read_reg(ioapic, IOAPICVER_REG) >> 16) & 0xff);
 }
 
+static
+int ioapic_irq_enabled(struct ioapic *ioapic, uint8_t irq) 
+{
+  ASSERT(irq < ioapic->num_entries);
+  return ioapic->entries[irq].enabled;
+}
+
 void 
 ioapic_unmask_irq (struct ioapic * ioapic, uint8_t irq)
 {
@@ -102,6 +110,20 @@ static int
 ioapic_dev_unmask_irq(void *state, nk_irq_t irq) {
   ioapic_unmask_irq((struct ioapic*)state, (uint8_t)irq);
   return 0;
+}
+
+static int
+ioapic_dev_irq_status(void *state, nk_irq_t irq) {
+
+  int status = 0;
+
+  status |= ioapic_irq_enabled((struct ioapic*)state, (uint8_t)irq) ?
+    IRQ_DEV_STATUS_ENABLED : 0;
+
+  // No info on PENDING or ACTIVE right now
+
+  return status;
+
 }
 
 static void 
@@ -155,14 +177,14 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
     ioapic_write_reg(ioapic, IOAPICID_REG, ioapic_id);
 
     // KJH - this was after the paranoid section before?
-    /* get the last entry we can access for this IOAPIC */
+    /* get the last entry we can access for this IOAPIC */ 
     ioapic->num_entries = ioapic_get_max_entry(ioapic) + 1;
 
     /* be paranoid and mask everything right off the bat */
     for (i = 0; i < ioapic->num_entries; i++) {
         ioapic_mask_irq(ioapic, i);
     }
-
+   
     ioapic->entries = malloc(sizeof(struct iored_entry)*ioapic->num_entries);
     if (!ioapic->entries) {
         ERROR_PRINT("Could not allocate IOAPIC %u INT entries\n");
@@ -269,6 +291,7 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
 static struct nk_irq_dev_int ops = {
   .enable_irq = ioapic_dev_unmask_irq,
   .disable_irq = ioapic_dev_mask_irq,
+  .irq_status  = ioapic_dev_irq_status,
 };
 
 
@@ -279,7 +302,7 @@ ioapic_init (struct sys_info * sys)
     for (i = 0; i < sys->num_ioapics; i++) {
         char n[32];
 	snprintf(n,32,"ioapic%u",i);
-	struct nk_irq_dev * dev = nk_irq_dev_register(n,0,&ops,&sys->ioapics[i]);
+	struct nk_irq_dev * dev = nk_irq_dev_register(n,0,&ops,sys->ioapics[i]);
         if (__ioapic_init(sys->ioapics[i], dev, i) < 0) {
             ERROR_PRINT("Couldn't initialize IOAPIC\n");
             nk_irq_dev_unregister(dev);
