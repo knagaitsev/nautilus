@@ -29,7 +29,7 @@
 #include <nautilus/list.h>
 #include <nautilus/multiboot2.h>
 #include <nautilus/endian.h>
-#include <nautilus/fdt/fdt.h>
+#include <nautilus/of/fdt.h>
 
 #define u8  uint8_t
 #define u16 uint16_t

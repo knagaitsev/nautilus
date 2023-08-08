@@ -116,7 +116,11 @@
 #ifdef NAUT_CONFIG_PARALLEL_PORT_GPIO
 #include <dev/port_gpio.h>
 #endif
+#ifdef NAUT_CONFIG_PC_8250_UART
+#include<dev/8250/pc_8250.h>
+#else
 #include <dev/serial.h>
+#endif
 #include <dev/vga.h>
 #ifdef NAUT_CONFIG_VIRTIO_PCI
 #include <dev/virtio_pci.h>
@@ -345,8 +349,14 @@ init (unsigned long mbd,
     nk_irq_init();
     nk_ivec_init(&(naut->sys));
 
+#ifdef NAUT_CONFIG_PC_8250_UART
+#ifdef NAUT_CONFIG_PC_8250_UART_EARLY_OUTPUT
+    pc_8250_pre_vc_init();
+#endif
+#else
     // Bring serial device up early so we can have output
     serial_early_init();
+#endif
 
     nk_mtrr_init();
 
@@ -361,11 +371,12 @@ init (unsigned long mbd,
 
 
     nk_dev_init();
+    nk_irq_dev_init();
+    nk_gpio_dev_init();
     nk_char_dev_init();
     nk_block_dev_init();
     nk_net_dev_init();
     nk_gpu_dev_init();
-    nk_irq_dev_init();
 
     nk_vc_print(NAUT_WELCOME);
     
@@ -515,7 +526,14 @@ init (unsigned long mbd,
     // reinit the early-initted devices now that
     // we have malloc and the device framework functional
     vga_init();
+
+#ifdef NAUT_CONFIG_PC_8250_UART
+    // Use the driver based on the generic 8250
+    pc_8250_init();
+#else
+    // Use the non-generic 8250 based driver
     serial_init();
+#endif
 
     nk_sched_start();
     

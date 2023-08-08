@@ -1,7 +1,7 @@
 
 #include<nautilus/irqdev.h>
 
-#ifdef NAUT_CONFIG_DEBUG_IRQDEV
+#ifdef NAUT_CONFIG_DEBUG_DEV
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...) 
 #endif
@@ -11,7 +11,6 @@
 #define INFO(fmt, args...) INFO_PRINT("irqdev: " fmt, ##args)
 
 int nk_irq_dev_init(void) {
-  // Do nothing for now (mirror other device types)
   INFO("init\n");
   return 0;
 }
@@ -23,7 +22,9 @@ int nk_irq_dev_deinit(void) {
 struct nk_irq_dev * nk_irq_dev_register(char *name, uint64_t flags, struct nk_irq_dev_int *interface, void *state) 
 {
   INFO("register device %s\n", name);
-  return (struct nk_irq_dev *)nk_dev_register(name,NK_DEV_IRQ,flags,(struct nk_dev_int *)interface,state);
+  struct nk_irq_dev *irq_dev = (struct nk_irq_dev *)nk_dev_register(name,NK_DEV_IRQ,flags,(struct nk_dev_int *)interface,state);
+
+  return irq_dev;
 }
 
 int nk_irq_dev_unregister(struct nk_irq_dev *d) 
@@ -156,13 +157,30 @@ int nk_irq_dev_irq_status(struct nk_irq_dev *dev, nk_irq_t irq) {
   if(di->irq_status) {
     return di->irq_status(d->state, irq);
   } else {
-    // This device doesn't have EOI!
     ERROR("NULL irq_status in interface of device %s\n", d->name);
     return IRQ_DEV_STATUS_ERROR;
   }
 #else
   return di->irq_status(d->state, irq);
 #endif 
+}
+
+int nk_irq_dev_translate_irqs(struct nk_irq_dev *dev, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *irq_buf, int *irq_buf_count) 
+{ 
+  struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
+  struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
+
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+  if(di->translate_irqs) {
+    return di->translate_irqs(d->state, type, raw_irqs, raw_irqs_len, irq_buf, irq_buf_count);
+  } else {
+    // This device doesn't have translation support!
+    ERROR("NULL translate_irq in interface of device %s\n", d->name);
+    return -1;
+  }
+#else
+  return di->translate_irqs(d->state, type, raw_irqs, raw_irqs_len, irq_buf, irq_buf_count);
+#endif
 }
 
 int nk_assign_cpu_irq_dev(struct nk_irq_dev* dev, cpu_id_t cpuid) {

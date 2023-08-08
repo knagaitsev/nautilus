@@ -25,6 +25,8 @@
 #include <nautilus/dev.h>
 #include <dev/ioapic.h>
 #include <nautilus/irq.h>
+#include <nautilus/irqdev.h>
+#include <nautilus/interrupt.h>
 #include <nautilus/shell.h>
 #include <nautilus/mm.h>
 

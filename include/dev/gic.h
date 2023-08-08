@@ -4,6 +4,10 @@
 #include<nautilus/naut_types.h>
 
 /*
+ * Some common macros which should apply to all versions of the GIC
+ */
+
+/*
  * GICD Registers
  */
 
@@ -96,10 +100,10 @@
    (*(volatile uint64_t*)((gicr)->base + offset) = (val))
 
 #define GICR_BITMAP_SET(gicr, offset, nr) \
-  set_bit(nr, ((gicr)->base)+offset)
+  set_bit(nr, (volatile long int*)(((gicr)->base)+offset))
 #define GICR_BITMAP_CLEAR(gicr, offset, nr) \
-  clear_bit(nr, ((gicr)->base)+offset)
+  clear_bit(nr, (volatile long int*)(((gicr)->base)+offset))
 #define GICR_BITMAP_READ(gicr, offset, nr) \
-  test_bit(nr, ((gicr)->base)+offset)
+  test_bit(nr, (volatile long int*)(((gicr)->base)+offset))
 
 #endif

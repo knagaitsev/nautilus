@@ -4,8 +4,10 @@
 #include<nautilus/dev.h>
 #include<nautilus/chardev.h>
 #include<nautilus/spinlock.h>
-#include<nautilus/fdt/fdt.h>
+#include<nautilus/of/fdt.h>
 #include<nautilus/backtrace.h>
+
+#include<nautilus/of/dt.h>
 
 #define UART_DATA        0x0
 #define UART_RECV_STATUS 0x4
@@ -113,7 +115,7 @@ static inline void pl011_disable_fifo(struct pl011_uart *p) {
   pl011_and_reg(p, UART_LINE_CTRL_H, ~UART_LINE_CTRL_FIFO_ENABLE_BITMASK);
 }
 
-static inline void pl011_configure(struct pl011_uart *p) {
+static inline int pl011_uart_configure(struct pl011_uart *p) {
 
   // Disable the PL011 for configuring
   pl011_disable(p);
@@ -155,37 +157,68 @@ static inline void pl011_configure(struct pl011_uart *p) {
   // Re-enable the PL011
   pl011_enable(p);
   
+  return 0;
 }
+            
+#ifdef NAUT_CONFIG_PL011_UART_EARLY_OUTPUT
+
+static struct pl011_uart pre_vc_pl011;
+static uint64_t pre_vc_pl011_dtb_offset = -1;
 
 #define QEMU_PL011_VIRT_BASE_ADDR 0x9000000
 #define QEMU_PL011_VIRT_BASE_CLOCK 24000000 // 24 MHz Clock
-                                      
-void pl011_uart_early_init(struct pl011_uart *p, uint64_t dtb) {
+         
+void pl011_uart_pre_vc_puts(char *s) {
+  pl011_uart_puts_blocking(&pre_vc_pl011, s);
+}
+void pl011_uart_pre_vc_putchar(char c) {
+  pl011_uart_putchar_blocking(&pre_vc_pl011, c);
+}
+
+void pl011_uart_pre_vc_init(uint64_t dtb) {
+
+  struct pl011_uart *p = &pre_vc_pl011;
+ 
+  int offset = fdt_node_offset_by_compatible((void*)dtb, -1, "arm,pl011");
+
+  if(offset < 0) {
+    return 1;
+  }
+
+  pre_vc_pl011_dtb_offset = offset;
 
   void *base = QEMU_PL011_VIRT_BASE_ADDR;
   uint64_t clock = QEMU_PL011_VIRT_BASE_CLOCK;
 
-  int offset = fdt_subnode_offset_namelen(dtb, 0, "pl011", 5);
   fdt_reg_t reg = { .address = 0, .size = 0 };
   if(!fdt_getreg(dtb, offset, &reg)) {
      base = reg.address;
   } else {
-    // If we can't read from the dtb, then we can't exactly log an error
+    return 1;
   }
   
+  // TODO: Still need to use the fdt to read the clock speed but it's less clear how to get it,
+  // because we need to get to the clock device through a phandle, and Nautilus currently
+  // doesn't have any way to go from device tree entry phandle, to actual device
 
-  // TODO: Still need to use the fdt to read the clock speed but it's less clear which field to read
-
-  // The chardev system isn't initialized yet
   p->dev = NULL;
   p->mmio_base = base;
   p->clock = clock; 
-  p->baudrate = 100000;
+  p->baudrate = 115200;
   spinlock_init(&p->input_lock);
   spinlock_init(&p->output_lock);
 
-  pl011_configure(p);
+  if(pl011_uart_configure(p)) {
+    return 1;
+  }
+
+  if(nk_pre_vc_register(pl011_uart_pre_vc_putchar, pl011_uart_pre_vc_puts)) {
+    return 1;
+  }
+
+  return 0;
 }
+#endif
 
 static int pl011_uart_dev_get_characteristics(void *state, struct nk_char_dev_characteristics *c) {
   memset(c,0,sizeof(struct nk_char_dev_characteristics));
@@ -327,26 +360,91 @@ static int pl011_interrupt_handler(struct nk_irq_action *action, struct nk_regs 
   return 0;
 }
 
-int pl011_uart_dev_init(const char *name, struct pl011_uart *p) 
+int pl011_uart_init_one(struct nk_dev_info *info) 
 {
-
-  p->dev = nk_char_dev_register(name,0,&pl011_uart_char_dev_ops,(void*)p);
-
-  if(!p->dev) {
-    ERROR("Failed to allocate PL011 chardev!\n");
-    return -1;
+  struct nk_dev *existing_device = nk_dev_info_get_device(info);
+  if(existing_device != NULL) {
+    ERROR("Trying to initialize a device node (%s) as PL011 when it already has a device: %s\n", nk_dev_info_get_name(info), existing_device->name); 
   }
 
+  struct pl011_uart *uart;
+  int did_alloc = 0;
+  int registered_device = 0;
+#ifdef NAUT_CONFIG_PL011_UART_EARLY_OUTPUT
+  if(info->type == NK_DEV_INFO_OF && ((struct dt_node *)info->state)->dtb_offset != pre_vc_pl011_dtb_offset) { 
+    uart = malloc(sizeof(struct pl011_uart));
+    did_alloc = 1;
+  } else {
+    uart = &pre_vc_pl011;
+  }
+#else
+  uart = malloc(sizeof(struct pl011_uart));
+  did_alloc = 1;
+#endif
+
+  if(uart == NULL) {
+    ERROR("init_one: uart = NULL\n");
+    goto err_exit;
+  }
+
+  int mmio_size;
+  int ret;
+  if(ret = nk_dev_info_read_register_block(info, &uart->mmio_base, &mmio_size)) {
+    ERROR("init_one: Failed to read register block! ret = %u\n", ret);
+    goto err_exit;
+  }
+
+  if(pl011_uart_configure(uart)) {
+    ERROR("init_one: Failed to configure PL011!\n");
+    goto err_exit;
+  }
+
+  if(nk_dev_info_read_irq(info, &uart->irq)) {
+    ERROR("init_one: Failed to read IRQ!\n");
+    goto err_exit;
+  }
+
+  char name_buf[DEV_NAME_LEN];
+  snprintf(name_buf,DEV_NAME_LEN,"serial%u",nk_dev_get_serial_device_number());
+
+  uart->dev = nk_char_dev_register(name_buf,0,&pl011_uart_char_dev_ops,(void*)uart);
+
+  if(uart->dev == NULL) {
+    ERROR("init_one: Failed to allocate PL011 chardev!\n");
+    goto err_exit;
+  }
+  registered_device = 1;
+
+  nk_dev_info_set_device(info, uart->dev);
+
   // Clear out spurrious interrupts
-  uint32_t int_status = pl011_read_reg(p, UART_RAW_INT_STAT);
-  pl011_write_reg(p, UART_INT_CLR, int_status);
+  uint32_t int_status = pl011_read_reg(uart, UART_RAW_INT_STAT);
+  pl011_write_reg(uart, UART_INT_CLR, int_status);
 
-  nk_irq_add_handler_dev(33, pl011_interrupt_handler, (void*)p, (struct nk_dev*)p->dev);
-  nk_unmask_irq(33);
+  nk_irq_add_handler_dev(uart->irq, pl011_interrupt_handler, (void*)uart, (struct nk_dev*)uart->dev);
+  nk_unmask_irq(uart->irq);
 
-  pl011_write_reg(p, UART_INT_MASK, 0x50);
+  pl011_write_reg(uart, UART_INT_MASK, 0x50);
 
   return 0;
+
+err_exit:
+  if(did_alloc) {
+    free(uart);
+  }
+  if(registered_device) {
+    nk_char_dev_unregister(uart->dev);
+  }
+  return 1;
+}
+
+static struct of_dev_id pl011_dev_ids[] = {
+  {.compatible = "arm,pl011"}
+};
+declare_of_dev_match_id_array(pl011_of_match, pl011_dev_ids);
+
+int pl011_uart_init(void) {
+  return of_for_each_match(&pl011_of_match, pl011_uart_init_one);
 }
 
 void pl011_uart_putchar_blocking(struct pl011_uart *p, const char c) {

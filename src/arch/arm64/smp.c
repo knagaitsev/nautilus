@@ -7,7 +7,7 @@
 #include <nautilus/percpu.h>
 #include <nautilus/numa.h>
 #include <nautilus/cpu.h>
-#include <nautilus/fdt/fdt.h>
+#include <nautilus/of/fdt.h>
 
 #ifndef NAUT_CONFIG_DEBUG_SMP
 #undef DEBUG_PRINT

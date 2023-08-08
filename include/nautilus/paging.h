@@ -28,7 +28,6 @@ extern "C" {
 #endif
 
 #include <nautilus/naut_types.h>
-#include <nautilus/interrupt.h>
 #include <nautilus/printk.h>
 #include <nautilus/smp.h>
     

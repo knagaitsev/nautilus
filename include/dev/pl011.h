@@ -13,12 +13,17 @@ struct pl011_uart {
 
   uint32_t baudrate;
 
+  nk_irq_t irq;
+
   spinlock_t input_lock;
   spinlock_t output_lock;
 };
 
-void pl011_uart_early_init(struct pl011_uart*, uint64_t dtb);
-int pl011_uart_dev_init(const char *name, struct pl011_uart*);
+#ifdef NAUT_CONFIG_PL011_UART_EARLY_OUTPUT
+void pl011_uart_pre_vc_init(uint64_t dtb);
+#endif
+
+int pl011_uart_init(void);
 
 int pl011_uart_dev_write(void*, uint8_t *src);
 int pl011_uart_dev_read(void*, uint8_t *dest);

@@ -48,6 +48,8 @@ scripts/kconfig/lkc_defs.h
 
 /dep
 
+./link/processed.ld
+
 Image
 uImage
 

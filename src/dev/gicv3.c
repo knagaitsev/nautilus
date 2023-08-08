@@ -3,14 +3,17 @@
 #include<dev/gicv3.h>
 
 #include<nautilus/nautilus.h>
-#include<nautilus/fdt/fdt.h>
 #include<nautilus/endian.h>
+#include<nautilus/interrupt.h>
+
+#include<nautilus/of/fdt.h>
+#include<nautilus/of/dt.h>
 
 #include<arch/arm64/sys_reg.h>
 
 #include<lib/bitops.h>
 
-#ifndef NAUT_CONFIG_DEBUG_PRINTS
+#ifndef NAUT_CONFIG_DEBUG_GIC
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
 #endif
@@ -171,8 +174,8 @@ struct gicd_v3
   uint64_t dist_base;
   uint64_t dist_size;
 
-  uint_t num_redist_regions;
-  uint64_t redist_stride;
+  uint32_t num_redist_regions;
+  uint32_t redist_stride;
   uint64_t *redist_bases;
   uint64_t *redist_sizes;
   struct gicr_v3 *redists;
@@ -180,6 +183,8 @@ struct gicd_v3
   uint32_t num_redists;
 
   // Optional
+  uint32_t interrupt_cells;
+
   uint64_t cpu_base;
   uint64_t cpu_size;
   uint64_t hyper_base;
@@ -187,8 +192,8 @@ struct gicd_v3
   uint64_t virt_base;
   uint64_t virt_size;
   
-  uint16_t num_spi;
-  uint16_t num_espi;
+  uint32_t num_spi;
+  uint32_t num_espi;
   uint32_t num_lpi;
 
   uint_t security;
@@ -199,6 +204,8 @@ struct gicr_v3
 {
   uint32_t affinity;
   uint64_t base;
+
+  struct nk_irq_dev *dev;
 
   struct gicd_v3 *gicd;
 };
@@ -332,11 +339,13 @@ static int gicd_v3_dev_enable_irq(void *state, nk_irq_t irq)
 {
   struct gicd_v3 *gicd = (struct gicd_v3 *)state;
   GICD_BITMAP_SET(gicd, GICD_ISENABLER_0_OFFSET, irq);
+  return 0;
 }
 static int gicr_v3_dev_enable_irq(void *state, nk_irq_t irq)
 {
   struct gicr_v3 *gicr = (struct gicr_v3 *)state;
   GICR_BITMAP_SET(gicr, GICR_ISENABLER_0_OFFSET, irq);
+  return 0;
 }
 
 /*
@@ -346,11 +355,13 @@ static int gicd_v3_dev_disable_irq(void *state, nk_irq_t irq)
 {
   struct gicd_v3 *gicd = (struct gicd_v3 *)state;
   GICD_BITMAP_SET(gicd, GICD_ICENABLER_0_OFFSET, irq);
+  return 0;
 }
 static int gicr_v3_dev_disable_irq(void *state, nk_irq_t irq)
 {
   struct gicr_v3 *gicr = (struct gicr_v3 *)state;
   GICR_BITMAP_SET(gicr, GICR_ICENABLER_0_OFFSET, irq);
+  return 0;
 }
 
 /*
@@ -391,6 +402,64 @@ static int gicr_v3_dev_irq_status(void *state, nk_irq_t irq)
   return status;
 }
 
+static int gicv3_translate_of_irq(struct gicd_v3 *gicd, nk_irq_t *irq, uint32_t *raw) 
+{
+  if(gicd->interrupt_cells < 3) {
+    return -1;
+  }
+
+  uint32_t is_ppi = be32toh(raw[0]);
+  uint32_t offset = be32toh(raw[1]);
+  uint32_t flags = be32toh(raw[2]);
+
+  if(is_ppi) {
+    *irq = (nk_irq_t)(16+offset);
+  } else { // is_spi
+    *irq = (nk_irq_t)(32+offset);
+  }
+
+  return 0;
+}
+
+static int gicd_v3_dev_translate_irqs(void *state, nk_dev_info_type_t type, void *raw, int raw_length, nk_irq_t *buf, int *cnt) 
+{
+  struct gicd_v3 *gicd = (struct gicd_v3*)state;
+
+  switch(type) {
+    case NK_DEV_INFO_OF:
+      GIC_DEBUG("Translating Device Tree IRQ\n");
+      if(gicd->interrupt_cells < 3) {
+        GIC_ERROR("GICv3 has invalid interrupt-cells property! value=%u\n", gicd->interrupt_cells);
+        return -1;
+      }
+      int num_cells = raw_length / 4;
+      if(num_cells % gicd->interrupt_cells != 0) {
+        GIC_ERROR("Device Tree IRQ has incorrect number of cells! GICv3 interrupt-cells = %u, num_cells = %u\n", gicd->interrupt_cells, num_cells);
+        return -1;
+      }
+      int num_irqs = num_cells / gicd->interrupt_cells;
+      *cnt = *cnt < num_irqs ? *cnt : num_irqs; // minimum
+
+      for(int i = 0; i<*cnt; i++) {
+        if(gicv3_translate_of_irq(gicd, buf+i, raw+(i * gicd->interrupt_cells * 4))) {
+          return -1;
+        }
+      }
+      break;
+    default:
+      GIC_ERROR("Translating IRQ's from ACPI is not currently supported!\n");
+      return -1;
+  }
+
+  return 0;
+}
+static int gicr_v3_dev_translate_irqs(void *state, nk_dev_info_type_t type, void *raw, int raw_length, nk_irq_t *buf, int *cnt) 
+{
+  GIC_WARN("Using GICR device to translate interrupts (shouldn't be happening but recoverable)\n");
+  struct gicr_v3 *gicr = (struct gicr_v3*)state;
+  return gicd_v3_dev_translate_irqs((void*)gicr->gicd, type, raw, raw_length, buf, cnt);
+}
+
 /*
  * Initialization
  */
@@ -402,7 +471,8 @@ static struct nk_irq_dev_int gicd_v3_dev_int = {
   .eoi_irq = gicd_v3_dev_eoi_irq,
   .enable_irq = gicd_v3_dev_enable_irq,
   .disable_irq = gicd_v3_dev_disable_irq,
-  .irq_status = gicd_v3_dev_irq_status
+  .irq_status = gicd_v3_dev_irq_status,
+  .translate_irqs = gicd_v3_dev_translate_irqs
 };
 
 static struct nk_irq_dev_int gicr_v3_dev_int = {
@@ -412,112 +482,14 @@ static struct nk_irq_dev_int gicr_v3_dev_int = {
   .eoi_irq = gicr_v3_dev_eoi_irq,
   .enable_irq = gicr_v3_dev_enable_irq,
   .disable_irq = gicr_v3_dev_disable_irq,
-  .irq_status = gicr_v3_dev_irq_status
+  .irq_status = gicr_v3_dev_irq_status,
+  .translate_irqs = gicr_v3_dev_translate_irqs
 };
-
-static const char *gicv3_compat_list[] = {
-  "arm,gic-v3",
-  "qcom,msm8996-gic-v3"
-};
-
-static int gicv3_dtb_init(struct gicd_v3 *gicd, uint64_t dtb) {
-
-  int offset = fdt_node_offset_by_prop_value((void*)dtb, -1, "interrupt-controller", NULL, NULL);
-
-  while(offset >= 0) { 
-    int compat_result = 1;
-    for(uint_t i = 0; i < sizeof(gicv3_compat_list)/sizeof(const char*); i++) {
-      compat_result &= fdt_node_check_compatible((void*)dtb, offset, gicv3_compat_list[i]);
-      if(!compat_result) {
-        GIC_DEBUG("Found compatible GICv3 controller in device tree: %s\n", gicv3_compat_list[i]);
-        break;
-      }
-    }
-    if(compat_result) {
-      GIC_DEBUG("Found interrupt controller found in the device tree which is not compatible with GICv3!\n");
-    } else {
-      break;
-    }
-    offset = fdt_node_offset_by_prop_value((void*)dtb, offset, "interrupt-controller", NULL, NULL);
-  }
-
-  if(offset < 0) {
-    GIC_ERROR("Could not find a compatible interrupt controller in the device tree!\n");
-    return -1;
-  }
-
-  int lenp = 0;
-  void *gicr_regions_p = fdt_getprop(dtb, offset, "#redistributor-regions", &lenp);
-  if(gicr_regions_p != NULL) {
-    if(lenp == 4) {
-        gicd->num_redist_regions = be32toh(*(uint32_t *)gicr_regions_p);
-    } else if(lenp == 8) {
-        gicd->num_redist_regions = be64toh(*(uint32_t *)gicr_regions_p);
-    }
-  } else {
-    gicd->num_redist_regions = 1;
-  }
-
-  gicd->redist_bases = malloc(sizeof(typeof(gicd->redist_bases)) * gicd->num_redist_regions);
-  gicd->redist_sizes = malloc(sizeof(typeof(gicd->redist_sizes)) * gicd->num_redist_regions);
-
-  void *gicr_stride_p = fdt_getprop(dtb, offset, "#redistributor-stride", &lenp);
-  if(gicr_stride_p != NULL) {
-    if(lenp == 4) {
-        gicd->redist_stride = be32toh(*(uint32_t *)gicr_stride_p);
-    } else if(lenp == 8) {
-        gicd->redist_stride = be64toh(*(uint64_t *)gicr_stride_p);
-    }
-  } else {
-    gicd->redist_stride = GICR_DEFAULT_STRIDE;
-  }
-
-  int num_read = 4 + gicd->num_redist_regions;
-  fdt_reg_t reg[num_read];
-
-  int getreg_result = fdt_getreg_array((void*)dtb, offset, reg, &num_read);
-
-  if(!getreg_result && num_read >= 1+gicd->num_redist_regions) {
-
-      // Required MMIO Regions
-      for(uint_t i = 0; i < gicd->num_redist_regions; i++) {
-        gicd->redist_bases[i] = reg[1+i].address;
-        gicd->redist_sizes[i] = reg[1+i].size;
-        GIC_PRINT("GICR_BASE_%u = %p, GICR_SIZE_%u = 0x%x\n", i, gicd->redist_bases[i], i, gicd->redist_sizes[i]);
-      }
-      gicd->dist_base = reg[0].address;
-      gicd->dist_size = reg[0].size;
-      GIC_PRINT("GICD_BASE = %p, GICD_SIZE = 0x%x\n", gicd->dist_base, gicd->dist_size);
-
-      // Optional extra MMIO regions
-      if(num_read >= 2+gicd->num_redist_regions) {
-        gicd->cpu_base = reg[num_read-3].address;
-        gicd->cpu_size = reg[num_read-3].size;
-        GIC_PRINT("GICC_BASE = %p, GICC_SIZE = 0x%x\n", gicd->cpu_base, gicd->cpu_size);
-      }
-      if(num_read >= 3+gicd->num_redist_regions) {
-        gicd->hyper_base = reg[num_read-2].address;
-        gicd->hyper_size = reg[num_read-2].size;
-        GIC_PRINT("GICH_BASE = %p, GICH_SIZE = 0x%x\n", gicd->hyper_base, gicd->hyper_size);
-      } 
-      if(num_read >= 4+gicd->num_redist_regions) {
-        gicd->virt_base = reg[num_read-1].address;
-        gicd->virt_size = reg[num_read-1].size;
-        GIC_PRINT("GICV_BASE = %p, GICV_SIZE = 0x%x\n", gicd->virt_base, gicd->virt_size);
-      }
-      if(num_read > 4+gicd->num_redist_regions) {
-        GIC_WARN("Read more REG entries in device tree than expected! num_read = %d\n", num_read);
-      }
-  } else {
-    GIC_ERROR("GICv3 found in device tree has invalid or missing REG property! num_read = %d, gicd->num_redist_regions = %u\n", num_read, gicd->num_redist_regions);
-    return -1;
-  }
-
-  return 0;
-}
 
 static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i)
 {
+  int registered = 0;
+
   gicr->gicd = gicd;
 
   union gicr_typer typer;
@@ -529,6 +501,13 @@ static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i
   snprintf(gicr_dev_name_buf,DEV_NAME_LEN,"gicv3-redist%u", i);
 
   struct nk_irq_dev *gicr_dev = nk_irq_dev_register(gicr_dev_name_buf, 0, &gicr_v3_dev_int, (void*)gicr);
+  if(gicr_dev == NULL) {
+    GIC_ERROR("Failed to create GICR IRQ device!\n");
+    goto gicr_err_exit;
+  }
+  registered = 1;
+
+  gicr->dev = gicr_dev;
 
   GIC_DEBUG("%s affinity = %u\n", gicr_dev_name_buf, gicr->affinity);
   GIC_DEBUG("LPI's shared: %s\n", 
@@ -536,15 +515,127 @@ static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i
       typer.common_lpi_aff == LPI_SHARED_AFF3 ? "aff3" :
       typer.common_lpi_aff == LPI_SHARED_AFF2 ? "aff2" : "aff1");
 
-  nk_assign_cpu_irq_dev(gicr_dev, gicr->affinity);
+  if(nk_assign_cpu_irq_dev(gicr_dev, gicr->affinity)) {
+    GIC_ERROR("Failed to assign GICR to CPU!\n");
+    goto gicr_err_exit;
+  }
+
+  return 0;
+
+gicr_err_exit:
+  if(registered) {
+    nk_irq_dev_unregister(gicr_dev);
+  }
+  return -1;
 }
 
-static int gicv3_dev_init(uint64_t dtb, struct gicd_v3 *gicd) {
+static int gicv3_init_dev_info(struct nk_dev_info *info) 
+{
+  int allocated_gicd = 0;
+  int allocated_redist_sizes = 0;
+  int allocated_redist_bases = 0;
+  int allocated_redists = 0;
+  int registered_gicd = 0;
+  int num_redists_registered = 0;
 
-  // Offset should now point to the GICv3 entry in the device tree
-  if(gicv3_dtb_init(gicd, dtb)) {
-    GIC_ERROR("Could not initialize GICv3 using device tree: global initialization failed!\n");
-    return -1;
+  struct gicd_v3 *gicd = malloc(sizeof(struct gicd_v3));
+  if(gicd == NULL) {
+    goto err_exit;
+  }
+  allocated_gicd = 1;
+
+  if(nk_dev_info_read_u32(info, "#interrupt-cells", &gicd->interrupt_cells)) {
+    gicd->interrupt_cells = 3;
+  }
+
+  if(nk_dev_info_read_u32(info, "#redistributor-regions", &gicd->num_redist_regions))
+  {
+    gicd->num_redist_regions = 1;
+  }
+
+  GIC_DEBUG("num_redist_regions = 0x%x\n", gicd->num_redist_regions);
+
+  gicd->redist_bases = malloc(sizeof(typeof(gicd->redist_bases)) * gicd->num_redist_regions); 
+  if(gicd->redist_bases == NULL) {
+    goto err_exit;
+  }
+  allocated_redist_bases = 1;
+
+  gicd->redist_sizes = malloc(sizeof(typeof(gicd->redist_sizes)) * gicd->num_redist_regions); 
+  if(gicd->redist_sizes == NULL) {
+    goto err_exit;
+  }
+  allocated_redist_sizes = 1;
+
+  if(nk_dev_info_read_u32(info, "redistributor-stride", &gicd->redist_stride)) 
+  {
+    gicd->redist_stride = GICR_DEFAULT_STRIDE;
+  }
+
+  GIC_DEBUG("redist_stride = 0x%x\n", gicd->redist_stride);
+
+  {
+    int num_register_blocks = gicd->num_redist_regions + 4;
+    void *reg_bases[num_register_blocks];
+    int reg_sizes[num_register_blocks];
+
+    if(nk_dev_info_read_register_blocks(info, reg_bases, reg_sizes, &num_register_blocks)) {
+      goto err_exit;
+    }
+
+    if(num_register_blocks < 1+gicd->num_redist_regions) {
+      goto err_exit;
+    }
+
+    // Required register blocks
+    gicd->dist_base = (uint64_t)reg_bases[0];
+    gicd->dist_size = (uint64_t)reg_sizes[0];
+    GIC_PRINT("GICD_BASE = %p, GICD_SIZE = 0x%x\n", gicd->dist_base, gicd->dist_size);
+
+    for(int i = 1; i < 1+gicd->num_redist_regions; i++) {
+      gicd->redist_bases[i-1] = (uint64_t)reg_bases[i];
+      gicd->redist_sizes[i-1] = (uint64_t)reg_sizes[i];
+      GIC_PRINT("GICR_BASE_%u = %p, GICR_SIZE_%u = 0x%x\n", i-1, gicd->redist_bases[i-1], i-1, gicd->redist_sizes[i-1]);
+    }
+
+    // Check for the optional register blocks
+    if(num_register_blocks >= 2+gicd->num_redist_regions) {
+      gicd->cpu_base = (uint64_t)reg_bases[num_register_blocks-3];
+      gicd->cpu_size = (uint64_t)reg_sizes[num_register_blocks-3];
+      GIC_PRINT("GICC_BASE = %p, GICC_SIZE = 0x%x\n", gicd->cpu_base, gicd->cpu_size);
+    }
+    if(num_register_blocks >= 3+gicd->num_redist_regions) {
+      gicd->hyper_base = (uint64_t)reg_bases[num_register_blocks-2];
+      gicd->hyper_size = (uint64_t)reg_sizes[num_register_blocks-2];
+      GIC_PRINT("GICH_BASE = %p, GICH_SIZE = 0x%x\n", gicd->hyper_base, gicd->hyper_size);
+    } 
+    if(num_register_blocks >= 4+gicd->num_redist_regions) {
+      gicd->virt_base = (uint64_t)reg_bases[num_register_blocks-1];
+      gicd->virt_size = (uint64_t)reg_sizes[num_register_blocks-1];
+      GIC_PRINT("GICV_BASE = %p, GICV_SIZE = 0x%x\n", gicd->virt_base, gicd->virt_size);
+    }
+  }
+
+  // Register the GICD
+  struct nk_irq_dev *gicd_dev = nk_irq_dev_register("gicv3-dist", 0, &gicd_v3_dev_int, (void*)gicd);
+
+  if(gicd_dev == NULL) {
+    goto err_exit;
+  }
+  registered_gicd = 1;
+
+  if(nk_dev_info_set_device(info, (struct nk_dev*)gicd_dev)) {
+    GIC_ERROR("Failed to assign GICD to it's nk_dev_info structure!\n");
+    goto err_exit;
+  }
+  
+  // This should be fully overriden by the GICR devices
+  // However we're going to be paranoid and assign these so warnings are printed correctly
+  if(nk_assign_all_cpus_irq_dev(gicd_dev)) {
+    GIC_ERROR("Failed to assign the GIC to all CPU's in the system!\n");
+    goto err_exit;
+  } else {
+    GIC_DEBUG("Assigned the GIC to all CPU's in the system\n");
   }
 
   // Determine the number of redistributors
@@ -558,15 +649,21 @@ static int gicv3_dev_init(uint64_t dtb, struct gicd_v3 *gicd) {
     do {
       poke_gicr.base = gicd->redist_bases[region] + (i * gicd->redist_stride);
       r_typer.raw = GICR_LOAD_REG64(&poke_gicr, GICR_TYPER_OFFSET);
-      GIC_DEBUG("Found Redistributor %u in Region %u with GICR_TYPER = 0x%016x, stide = %u\n", gicd->num_redists + i, region, r_typer.raw, gicd->redist_stride);
+      GIC_DEBUG("Found Redistributor %u in Region %u with GICR_TYPER = 0x%016x, stride = %u\n", gicd->num_redists + i, region, r_typer.raw, gicd->redist_stride);
 
       i++;
     } while(!r_typer.last_in_region);
 
     gicd->num_redists += i;
   }
-
+ 
+  // Allocate room for the redistributors
   gicd->redists = malloc(sizeof(struct gicr_v3) * gicd->num_redists);
+  if(gicd->redists == NULL) {
+    goto err_exit;
+  }
+  allocated_redists = 1;
+
   memset(gicd->redists, 0, sizeof(struct gicr_v3) * gicd->num_redists);
 
   // Initialize the redistributors
@@ -577,7 +674,12 @@ static int gicv3_dev_init(uint64_t dtb, struct gicd_v3 *gicd) {
     do {
       gicd->redists[gicr_num].base = gicd->redist_bases[region] + (i * gicd->redist_stride);
       r_typer.raw = GICR_LOAD_REG64(gicd->redists + gicr_num, GICR_TYPER_OFFSET);
-      gicv3_init_gicr_dev(gicd, gicd->redists + gicr_num, gicr_num);
+      
+      if(gicv3_init_gicr_dev(gicd, gicd->redists + gicr_num, gicr_num)) {
+        goto err_exit;
+      } else {
+        num_redists_registered += 1;
+      }
 
       i++;
       gicr_num++;
@@ -599,22 +701,6 @@ static int gicv3_dev_init(uint64_t dtb, struct gicd_v3 *gicd) {
   GIC_PRINT("num_spi = %u\n", gicd->num_spi);
   GIC_PRINT("num_espi = %u\n", gicd->num_espi);
   GIC_PRINT("security = %u\n", gicd->security);
-
-  /*
-  uint64_t gicr_prop_mem_bytes = (1<<(gicd_type_reg.int_id_bits)) - 8192;
-  void *allocated_propbase = GIC_MALLOC_MEM(gicr_prop_mem_bytes);
-  if(!allocated_propbase) {
-    GIC_ERROR("Failed to allocate the GICR properties memory region!\n");
-    return -1;
-  }
-
-  memset(allocated_propbase, 0, gicr_prop_mem_bytes);
-
-  gicr_base_reg_t propbase;
-  propbase.raw = LOAD_GICR_REG(__gic, GICR_PROPBASE_OFFSET);
-  propbase.paddr = allocated_propbase;
-  STORE_GICR_REG(__gic, GICR_PROPBASE_OFFSET, propbase.raw);
-  */
   
   if(gicd->security) {
 
@@ -674,14 +760,7 @@ static int gicv3_dev_init(uint64_t dtb, struct gicd_v3 *gicd) {
 
   GIC_DEBUG("GICD_CTLR Configured\n");
 
-  return 0;
-}
-
-static int gicv3_dev_ivec_desc_init(uint64_t dtb, void *state, struct nk_irq_dev *gicd_dev) 
-{
-
-  struct gicd_v3 *gicd = (struct gicd_v3 *)state;
-  
+  // Setting up ivec descriptors
   nk_alloc_ivec_descs(0, 16, NULL,
       NK_IVEC_DESC_TYPE_DEFAULT,
       NK_IVEC_DESC_FLAG_PERCPU | NK_IVEC_DESC_FLAG_IPI);
@@ -716,57 +795,57 @@ static int gicv3_dev_ivec_desc_init(uint64_t dtb, void *state, struct nk_irq_dev
   nk_alloc_ivec_descs(1020, 4, gicd_dev, NK_IVEC_DESC_TYPE_SPURRIOUS, 0);
   GIC_DEBUG("Set up Special Interrupt Vector Range\n");
 
-  return 0;
-}
-int gicv3_init(uint64_t dtb) 
-{
-  struct gicd_v3 *state = malloc(sizeof(struct gicd_v3));
-  memset(state, 0, sizeof(struct gicd_v3));
-
-  if(state == NULL) {
-    GIC_ERROR("Failed to allocate gicv3 struct!\n");
-    return -1;
-  }
-
-  struct nk_irq_dev *dev = nk_irq_dev_register("gicv3-dist", 0, &gicd_v3_dev_int, (void*)state);
-
-  // This should be fully overriden by the GICR devices
-  // However we're going to be paranoid and assign these so warnings are printed correctly
-  if(nk_assign_all_cpus_irq_dev(dev)) {
-    GIC_ERROR("Failed to assign the GIC to all CPU's in the system!\n");
-    return -1;
-  } else {
-    GIC_DEBUG("Assigned the GIC to all CPU's in the system\n");
-  }
-
-  if(dev == NULL) {
-    GIC_ERROR("Failed to register as an IRQ device!\n");
-    return -1;
-  }
-
-  // Initialize internal state and set up the GICR devices
-  if(gicv3_dev_init(dtb, state)) {
-    GIC_ERROR("Failed to initialize GIC device!\n");
-    return -1;
-  }
-
 #ifdef NAUT_CONFIG_GIC_VERSION_3_ITS
   if(gicv3_its_init(dtb, state)) {
     GIC_WARN("Failed to initialize MSI Support!\n");
   }
 #endif
 
-  if(gicv3_dev_ivec_desc_init(dev, state, dev)) {
-    GIC_ERROR("Failed to set up interrupt vector descriptors!\n");
-    return -1;
-  }
-
-#ifdef NAUT_CONFIG_GIC_VERSION_3_ITS
-  if(gicv3_its_ivec_init(dtb, state)) {
-    GIC_WARN("Failed to set up interrupt vector MSI info!\n");
-  }
-#endif
-
   return 0;
+
+err_exit:
+
+  for(int i = num_redists_registered; i>0; i--) {
+    nk_irq_dev_unregister(gicd->redists[i].dev);
+  }
+  if(allocated_redists) {
+    free(gicd->redists);
+  }
+  if(allocated_redist_bases) {
+    free(gicd->redist_bases);
+  }
+  if(allocated_redist_sizes) {
+    free(gicd->redist_sizes);
+  }
+  if(allocated_gicd) {
+    free(gicd);
+  }
+
+  return -1;
+}
+
+static const char *gicv3_of_properties_names[] = {
+  "interrupt-controller"
+};
+
+static const struct of_dev_properties gicv3_of_properties = {
+  .names = gicv3_of_properties_names,
+  .count = sizeof(gicv3_of_properties_names)/sizeof(char*)
+};
+
+static const struct of_dev_id gicv3_of_dev_ids[] = {
+  { .properties = &gicv3_of_properties, .compatible = "arm,gic-v3" },
+  { .properties = &gicv3_of_properties, .compatible = "qcom,msm8996-gic-v3" }
+};
+
+static const struct of_dev_match gicv3_of_dev_match = {
+  .ids = gicv3_of_dev_ids,
+  .num_ids = sizeof(gicv3_of_dev_ids)/sizeof(struct of_dev_id),
+  .max_num_matches = 1
+};
+
+int gicv3_init(void) 
+{  
+  return of_for_each_match(&gicv3_of_dev_match, gicv3_init_dev_info);
 }
 

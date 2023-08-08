@@ -2249,45 +2249,4 @@ static inline struct fdt_reserve_entry *fdt_mem_rsv_w_(void *fdt, int n)
 #ifndef NAUT_FDT_H
 #define NAUT_FDT_H
 
-// uint64_t swapLong(void *X) {
-//     uint64_t x = (uint64_t) X;
-//     x = (x & 0x00000000FFFFFFFF) << 32 | (x & 0xFFFFFFFF00000000) >> 32;
-//     x = (x & 0x0000FFFF0000FFFF) << 16 | (x & 0xFFFF0000FFFF0000) >> 16;
-//     x = (x & 0x00FF00FF00FF00FF) << 8  | (x & 0xFF00FF00FF00FF00) >> 8;
-//     return x;
-// }
-
-// #define reverse_bytes_32(num) ( ((num & 0xFF000000) >> 24) | ((num & 0x00FF0000) >> 8) | ((num & 0x0000FF00) << 8) | ((num & 0x000000FF) << 24) )
-/*
-#define bswap_32(num) ( ((num & 0xFF000000) >> 24) | ((num & 0x00FF0000) >> 8) | ((num & 0x0000FF00) << 8) | ((num & 0x000000FF) << 24) )
-#define bswap_64(x) ({ \
-	uint64_t __x = (uint64_t) x; \
-	__x = (__x & 0x00000000FFFFFFFF) << 32 | (__x & 0xFFFFFFFF00000000) >> 32; \
-    __x = (__x & 0x0000FFFF0000FFFF) << 16 | (__x & 0xFFFF0000FFFF0000) >> 16; \
-    __x = (__x & 0x00FF00FF00FF00FF) << 8  | (__x & 0xFF00FF00FF00FF00) >> 8; \
-	__x; \
-})
-*/
-typedef struct fdt_reg {
-	off_t address;
-	size_t size;
-} fdt_reg_t;
-
-// returns 0 on success, anything else on failure
-int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg);
-int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *reg, int *num);
-
-// NULL on failure (not ideal for the zero CPU)
-off_t fdt_getreg_address(const void *fdt, int offset);
-
-uint32_t *fdt_get_interrupt(const void *fdt, int offset);
-
-void print_fdt(const void *fdt);
-
-// callback returns 0 if walking should stop, 1 otherwise
-void fdt_walk_devices(const void *fdt, int (*callback)(const void *fdt, int offset, int depth));
-
-// this function wasn't in the original list but is useful so I'm adding it -Kevin
-int fdt_nodename_eq(const void *fdt, int offset, const char *s, int len);
-
 #endif

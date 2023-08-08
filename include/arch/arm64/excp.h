@@ -49,4 +49,6 @@ extern excp_handler_desc_t *excp_handler_desc_table;
 void excp_assign_excp_handler(uint32_t syndrome, excp_handler_t handler, void *state);
 void *excp_remove_excp_handler(uint32_t syndrome);
 
+int arm64_get_current_el(void);
+
 #endif

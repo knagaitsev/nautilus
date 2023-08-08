@@ -27,7 +27,7 @@
 #include <nautilus/mb_utils.h>
 #include <nautilus/macros.h>
 #include <nautilus/multiboot2.h>
-#include <nautilus/fdt/fdt.h>
+#include <nautilus/of/fdt.h>
 
 extern char * mem_region_types[6];
 
@@ -40,17 +40,17 @@ extern char * mem_region_types[6];
 #define BMM_PRINT(fmt, args...) INFO_PRINT("BOOTMEM: " fmt, ##args)
 #define BMM_WARN(fmt, args...)  WARN_PRINT("BOOTMEM: " fmt, ##args)
 
-extern ulong_t kernel_start;
-extern ulong_t kernel_end;
+extern ulong_t kernel_start[];
+extern ulong_t kernel_end[];
 
 void
 fdt_reserve_boot_regions (unsigned long fdt)
 {
 
-  BMM_PRINT("Reserving kernel region (%p, size %lu)\n", &kernel_start, (&kernel_end - &kernel_start));
-  mm_boot_reserve_mem(&kernel_start, (&kernel_end - &kernel_start));
+  BMM_PRINT("Reserving kernel region (%p, size %lu)\n", (uint64_t)kernel_start, ((uint64_t)kernel_end - (uint64_t)kernel_start));
+  mm_boot_reserve_mem((uint64_t)kernel_start, ((uint64_t)kernel_end - (uint64_t)kernel_start));
 
-  BMM_PRINT("Reserving FDT region (%p, size %lu)\n", fdt, fdt_totalsize(fdt));
+  BMM_PRINT("Reserving FDT region (%p, size %lu)\n", fdt, fdt_totalsize((void*)fdt));
   mm_boot_reserve_mem(fdt, fdt_totalsize(fdt));
 
   int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "mmode_resv", 10);
@@ -102,16 +102,16 @@ fdt_detect_mem_map (mmap_info_t * mm_info,
                      mem_map_entry_t * memory_map,
                      ulong_t fdt)
 {
-  int offset = fdt_node_offset_by_prop_value(fdt, -1, "device_type", "memory", 7);
+  int offset = fdt_node_offset_by_prop_value((void*)fdt, -1, "device_type", "memory", 7);
 
     BMM_DEBUG("offset = 0x%x\n", offset);
   while(offset != -FDT_ERR_NOTFOUND) {
 
     fdt_reg_t reg = { .address = 0, .size = 0 };
-    int getreg_result = fdt_getreg(fdt, offset, &reg);
+    int getreg_result = fdt_getreg((void*)fdt, offset, &reg);
 
     if (getreg_result != 0) {
-      BMM_WARN("Found \"%s\" node in DTB with missing REG property!\n", fdt_get_name(fdt, offset, NULL));
+      BMM_WARN("Found \"%s\" node in DTB with missing REG property!\n", fdt_get_name((void*)fdt, offset, NULL));
       goto err_continue;
     }
 
@@ -123,7 +123,7 @@ fdt_detect_mem_map (mmap_info_t * mm_info,
     insert_free_region_into_memory_map(memory_map, mm_info, start, end);
 
 err_continue:
-    offset = fdt_node_offset_by_prop_value(fdt, offset, "device_type", "memory", 7);
+    offset = fdt_node_offset_by_prop_value((void*)fdt, offset, "device_type", "memory", 7);
     BMM_DEBUG("offset = 0x%x\n", offset);
   }
 }

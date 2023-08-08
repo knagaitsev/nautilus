@@ -5,6 +5,8 @@ obj-y += \
 	vc.o \
 	queue.o \
 	irqdev.o \
+	gpio.o \
+	gpiodev.o \
 	interrupt.o \
 	naut_string.o \
 	cpuid.o \
@@ -16,6 +18,7 @@ obj-y += \
 	msg_queue.o \
 	hashtable.o \
 	rbtree.o \
+	radix_tree.o \
 	random.o \
 	smp.o \
 	idle.o \
@@ -62,7 +65,7 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	prog.o \
 
 obj-$(NAUT_CONFIG_USE_FDT) += \
-	fdt/
+	of/
 
 obj-$(NAUT_CONFIG_PROFILE) += instrument.o
 obj-$(NAUT_CONFIG_XEON_PHI) += sfi.o
@@ -98,4 +101,3 @@ obj-$(NAUT_CONFIG_LINUX_SYSCALLS) += syscalls/
 
 obj-$(NAUT_CONFIG_USE_IST) += gdt.o
 
-obj-$(NAUT_CONFIG_USE_FDT) += fdt/

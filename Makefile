@@ -771,40 +771,41 @@ libs-y		:= $(patsubst %/, %/built-in.o, $(libs-y))
 nautilus := $(core-y) $(libs-y) 
 
 ifdef NAUT_CONFIG_XEON_PHI
-LD_SCRIPT:=link/nautilus.ld.xeon_phi
+LD_SCRIPT_SRC:=link/nautilus.ld.xeon_phi
 endif
 
 ifdef NAUT_CONFIG_HVM_HRT
-LD_SCRIPT:=link/nautilus.ld.hrt
+LD_SCRIPT_SRC:=link/nautilus.ld.hrt
 endif
 
 ifdef NAUT_CONFIG_PALACIOS
-LD_SCRIPT:=link/nautilus.ld.palacios
+LD_SCRIPT_SRC:=link/nautilus.ld.palacios
 endif
 
 
 ifdef NAUT_CONFIG_GEM5
-LD_SCRIPT:=link/nautilus.ld.gem5
+LD_SCRIPT_SRC:=link/nautilus.ld.gem5
 endif
 
 ifdef NAUT_CONFIG_ARCH_X86
-LD_SCRIPT:=link/nautilus.ld.x64
+LD_SCRIPT_SRC:=link/nautilus.ld.x64
 endif
 
 ifdef NAUT_CONFIG_ARCH_RISCV
-LD_SCRIPT:=link/nautilus.ld.riscv
+LD_SCRIPT_SRC:=link/nautilus.ld.riscv
 endif
 
 
 ifdef NAUT_CONFIG_ARCH_ARM64
-LD_SCRIPT:=link/nautilus.ld.arm64
+LD_SCRIPT_SRC:=link/nautilus.ld.arm64
 endif
 
+LD_SCRIPT := link/processed.ld
 
 quiet_cmd_transform_linkscript__ ?= CC      $@
-	  cmd_transform_linkscript__ ?= $(CC) -E -P \
-	  -DHIHALF_OFFSET=$(NAUT_CONFIG_HRT_HIHALF_OFFSET) \
-	  -x c-header -o link/nautilus.ld.hrt link/hrt.lds
+          cmd_transform_linkscript__ ?= $(CC) -E -P \
+	  -include include/autoconf.h \
+	  -x c-header -o $(LD_SCRIPT) $(LD_SCRIPT_SRC) 
 
 # Rule to link nautilus - also used during CONFIG_CONFIGKALLSYMS
 # May be overridden by /Makefile.$(ARCH)
@@ -831,6 +832,7 @@ quiet_cmd_nautilus_version = GEN     .version
 # Use + in front of the nautilus rule to silent warning with make -j2
 # First command is ':' to allow us to use + in front of the rule
 ifdef NAUT_CONFIG_HVM_HRT
+# KJH - I'm testing out preprocessing every linkerscript and not just HRT so this ifdef may be pointless now
 define rule_nautilus__
 	:
 	$(call cmd,transform_linkscript__)
@@ -840,6 +842,7 @@ endef
 else
 define rule_nautilus__
 	:
+	$(call cmd,transform_linkscript__)
 	$(call cmd,nautilus__)
 	$(Q)echo 'cmd_$@ := $(cmd_nautilus__)' > $(@D)/.$(@F).cmd
 endef
@@ -869,7 +872,7 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
 	mkimage -A arm64 -O linux -T kernel -C none \
-		-a 0x40400000 -e 0x40400000 -n "Nautilus" \
+		-a $(NAUT_CONFIG_KERNEL_LINK_ADDR) -e $(NAUT_CONFIG_KERNEL_LINK_ADDR) -n "Nautilus" \
 		-d Image uImage
 endif
 
@@ -885,9 +888,9 @@ $(QEMU_FLASH):
 QEMU_GDB_FLAGS := #-gdb tcp::5060 -S
 QEMU_DEVICES := #-display none
 QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
-QEMU_DEVICES += -netdev socket,id=net0,listen=localhost:1234 -device e1000e,netdev=net0,mac=00:11:22:33:44:55  -device virtio-gpu-pci
+QEMU_DEVICES += -device virtio-gpu-pci #-netdev socket,id=net0,listen=localhost:4756 -device e1000e,netdev=net0,mac=00:11:22:33:44:55
 
-QEMU_MACHINE_FLAGS = virt#,dumpdtb=virt.dtb
+QEMU_MACHINE_FLAGS = virt#,virtualization=on
 ifdef NAUT_CONFIG_GIC_VERSION_2
 	QEMU_MACHINE_FLAGS := $(QEMU_MACHINE_FLAGS),gic-version=2
 endif
@@ -920,17 +923,13 @@ qemu-raw: $(BIN_NAME)
 ifdef NAUT_CONFIG_ARCH_ARM64
 	qemu-system-aarch64 \
 		-smp cpus=4 \
-		--cpu cortex-a72 \
+		--cpu cortex-a53 \
 		-serial stdio \
 		--machine $(QEMU_MACHINE_FLAGS) \
 		-kernel $(BIN_NAME) \
 		$(QEMU_GDB_FLAGS) \
 		$(QEMU_DEVICES) \
-		-numa node,cpus=0-1,memdev=m0 \
-		-numa node,cpus=2-3,memdev=m1 \
-		-object memory-backend-ram,id=m0,size=2G \
-		-object memory-backend-ram,id=m1,size=2G \
-		-m 4G
+		-m 512M
 endif
 
 qemu-up: uImage

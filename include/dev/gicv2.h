@@ -3,7 +3,7 @@
 
 #include<nautilus/naut_types.h>
 
-#ifndef NAUT_CONFIG_DEBUG_PRINTS
+#ifndef NAUT_CONFIG_DEBUG_GIC
 #undef DEBUG_PRINT
 #define DEBUG_PRINT(fmt, args...)
 #endif
@@ -28,6 +28,6 @@ struct gicv2 {
 #endif
 };
 
-int gicv2_init(uint64_t dtb);
+int gicv2_init(void);
 
 #endif

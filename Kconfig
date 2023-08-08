@@ -100,6 +100,20 @@ menu "Platform"
         help
           Specifies the maximum number of IOAPICS supported by Nautilus
 
+    config KERNEL_LINK_ADDR
+        hex "Kernel Load Address"
+        default 0x100000
+        help
+          Sets the base address which the kernel is linked to be loaded at
+
+    config ARM64_HAS_SECURE_MONITOR
+        bool "ARM Has Secure Monitor"
+        default n
+        depends on ARCH_ARM64
+        help
+          Is there trusted firmware present at EL3? (e.g. should we use HVC or SMC calls?)
+
+
     config HRT_HIHALF_OFFSET
         hex "HRT High-half offset"
         default 0xffff800000000000
@@ -336,6 +350,7 @@ config VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME
 
 config VIRTUAL_CONSOLE_SERIAL_MIRROR
     bool "Mirror virtual console log output to serial"
+    depends on ARCH_X86
     default n
     help
 	Writes any log output 
@@ -1146,6 +1161,13 @@ menu Debugging
       default n
       help
         Turn on debug prints for the generic interrupt handling framework
+
+    config DEBUG_UNFLATTENED_DEVICE_TREE
+      bool "Debug Unflattened Device Tree"
+      depends on USE_FDT
+      default n
+        help
+          Turn on debug prints for the unflattened device tree framework
 
     config DEBUG_BOOTMEM
       bool "Debug Bootmem Allocator"

@@ -5,7 +5,6 @@
 #include<nautilus/printk.h>
 #include<nautilus/fpu.h>
 #include<nautilus/naut_string.h>
-#include<nautilus/fdt/fdt.h>
 #include<nautilus/arch.h>
 #include<nautilus/dev.h>
 #include<nautilus/chardev.h>
@@ -29,6 +28,9 @@
 #include<nautilus/smp.h>
 #include<nautilus/vc.h>
 #include<nautilus/fs.h>
+#include<nautilus/shell.h>
+
+#include<nautilus/of/dt.h>
 
 #include<arch/arm64/unimpl.h>
 #include<arch/arm64/sys_reg.h>
@@ -36,7 +38,13 @@
 #include<arch/arm64/timer.h>
 #include<arch/arm64/psci.h>
 
+#ifdef NAUT_CONFIG_PL011_UART
 #include<dev/pl011.h>
+#endif
+#ifdef NAUT_CONFIG_DW_8250_UART
+#include<dev/8250/dw_8250.h>
+#endif
+
 #include<dev/pci.h>
 
 #if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
@@ -77,8 +85,6 @@
   "+===============================================+  \n\n"
 
 int arch_paging_init(struct nk_mem_info *mm_info, void *fdt);
-
-struct pl011_uart _main_pl011_uart;
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
 struct nk_sched_config sched_cfg = {
@@ -233,7 +239,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Zero out .bss
   nk_low_level_memset(_bssStart, 0, (off_t)_bssEnd - (off_t)_bssStart);
-  
+ 
   // Enable the FPU
   fpu_init(&nautilus_info, 0);
 
@@ -242,25 +248,30 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   mpid_reg_t mpid_reg;
   load_mpid_reg(&mpid_reg);
   nautilus_info.sys.bsp_id = mpid_reg.aff0; 
- 
-  // Initialize serial output
-  pl011_uart_early_init(&_main_pl011_uart, dtb); 
 
-  // Enable printk by handing it the uart
-  extern struct pl011_uart *printk_uart;
-  printk_uart = &_main_pl011_uart;
+  // Initialize pre vc output
+#ifdef NAUT_CONFIG_PL011_UART_EARLY_OUTPUT
+  pl011_uart_pre_vc_init(dtb); 
+#endif
+#ifdef NAUT_CONFIG_DW_8250_UART_EARLY_OUTPUT
+  dw_8250_pre_vc_init(dtb);
+#endif
+
   spinlock_init(&printk_lock);
 
   printk(NAUT_WELCOME);
 
+  printk("initializing in EL%u\n", arm64_get_current_el());
+
   per_cpu_sys_ctrl_reg_init();
 
-  INIT_PRINT("--- Device Tree ---\n");
-  print_fdt((void*)dtb);
+  //INIT_PRINT("--- Device Tree ---\n");
+  //print_fdt((void*)dtb);
 
-  // Init devices (these don't seem to do anything for now)
+  // Init devices
   nk_dev_init();
   nk_irq_dev_init();
+  nk_gpio_dev_init();
   nk_char_dev_init();
   nk_block_dev_init();
   nk_net_dev_init();
@@ -283,6 +294,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nk_kmem_init();
   mm_boot_kmem_init();
 
+  // Needs kmem to unflatten the device tree
+  of_init((void*)dtb);
+
+  nk_gpio_init();
+
   // Do this early to speed up the boot process with data caches enabled
   if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
     INIT_ERROR("Failed to initialize paging!\n");
@@ -291,11 +307,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   per_cpu_paging_init();
 
 #if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
-  if(gicv2_init(dtb)) {
+  if(gicv2_init()) {
     panic("Failed to initialize GICv2!\n");  
   }
 #elif defined(NAUT_CONFIG_GIC_VERSION_3)
-  if(gicv3_init(dtb)) {
+  if(gicv3_init()) {
     panic("Failed to initialize GICv3!\n");  
   }
 #else
@@ -309,10 +325,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   INIT_DEBUG("Initialized the Interrupt Controller\n");
 
   // Now we should be able to install irq handlers
-
-  pl011_uart_dev_init(chardev_name, &_main_pl011_uart);
-
-  INIT_DEBUG("Initialized the PL011 as a character device: %s\n", chardev_name);
 
   nk_wait_queue_init();
   nk_future_init();
@@ -330,6 +342,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   // Swap stacks (now we definitely cannot return from this function
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
+  INIT_DEBUG("Swapped to the thread stack!\n");
 
   nk_thread_name(get_cur_thread(), "init");
 
@@ -339,7 +352,13 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   pci_dump_device_list();
 
   start_secondaries(&(nautilus_info.sys));
-
+  
+#ifdef NAUT_CONFIG_PL011_UART
+  pl011_uart_init();
+#endif
+#ifdef NAUT_CONFIG_DW_8250_UART
+  dw_8250_init();
+#endif
 #ifdef NAUT_CONFIG_VIRTIO_PCI
   virtio_pci_init(&nautilus_info);
   INIT_DEBUG("virtio pci inited!\n");
@@ -367,13 +386,16 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   nk_vc_start_chardev_console(chardev_name);
   INIT_DEBUG("chardev console inited!\n");
 #endif
- 
-  // Start the scheduler
-  nk_sched_start();  
 
   //enable the timer
   percpu_timer_init();
   arch_set_timer(arch_realtime_to_cycles(sched_cfg.aperiodic_quantum));
+ 
+  // Free device tree data structures
+  of_cleanup();
+ 
+  // Start the scheduler
+  nk_sched_start();  
   
   // Enable interrupts
   arch_enable_ints(); 

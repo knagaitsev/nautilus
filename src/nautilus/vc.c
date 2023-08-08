@@ -764,15 +764,8 @@ int nk_vc_putchar(uint8_t c)
       chardev_consoles_putchar(vc, c);
     }
   } else {
-#ifdef NAUT_CONFIG_X86_64_HOST
-    vga_putchar(c);
-#endif
-#ifdef NAUT_CONFIG_HVM_HRT
-    hrt_putchar(c);
-#endif
-#ifdef NAUT_CONFIG_XEON_PHI
-    phi_cons_putchar(c);
-#endif
+    // VGA, phi_cons, hrt, and early UART's
+    nk_pre_vc_putchar(c);
   }
 
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_SERIAL_MIRROR_ALL
@@ -828,15 +821,8 @@ int nk_vc_print(char *s)
       BUF_UNLOCK(vc);
     }
   } else {
-#ifdef NAUT_CONFIG_X86_64_HOST
-    vga_print(s);
-#endif
-#ifdef NAUT_CONFIG_HVM_HRT
-    hrt_print(s);
-#endif
-#ifdef NAUT_CONFIG_XEON_PHI
-    phi_cons_print(s);
-#endif
+    // VGA, phi_cons, hrt, and early UART's
+    nk_pre_vc_puts(s);
   }
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_SERIAL_MIRROR_ALL
   serial_write(s);
@@ -1001,7 +987,83 @@ int nk_vc_clear(uint8_t attr)
   return 0;
 }
 
+#define PRE_VC_BUFFER_SIZE 512
+int __pre_vc_registered = 0;
+char __pre_vc_buffer[PRE_VC_BUFFER_SIZE];
+int __pre_vc_buffer_head = 0;
+void(*__pre_vc_putchar)(char);
+void(*__pre_vc_puts)(char*);
 
+int nk_pre_vc_register(void(*putchar)(char), void(*puts)(char*)) 
+{
+  // No real locking because this should be occuring very very early in "init"
+  // without threading or multiple processors
+  if(__pre_vc_registered) {
+    return -1;
+  }
+  __pre_vc_registered = 1;
+
+  __pre_vc_putchar = putchar;
+  __pre_vc_puts = puts;
+ 
+  // Clamp the cursor
+  __pre_vc_buffer_head = __pre_vc_buffer_head < PRE_VC_BUFFER_SIZE ? __pre_vc_buffer_head : PRE_VC_BUFFER_SIZE-1;
+  __pre_vc_buffer[__pre_vc_buffer_head] = '\0';
+ 
+  // print the buffer
+  nk_pre_vc_puts(__pre_vc_buffer);
+  return 0;
+}
+int nk_pre_vc_puts(char *s) 
+{
+  if(__pre_vc_registered) 
+  {
+    if(__pre_vc_puts != NULL) {
+      __pre_vc_puts(s);
+      return 0;
+    } else if(__pre_vc_putchar != NULL) {
+      while(*s != '\0') {
+        __pre_vc_putchar(*s);
+        s++;
+      }
+      return 0;
+    } else {
+      return -1;
+    }
+  } else {
+    // Copy as much as possible into the pre vc buffer
+    while(*s != '\0' && __pre_vc_buffer_head < PRE_VC_BUFFER_SIZE) {
+      __pre_vc_buffer[__pre_vc_buffer_head] = *s;
+      __pre_vc_buffer_head++;
+      s++;
+    }
+    return 0;
+  }
+}
+int nk_pre_vc_putchar(char c)
+{
+  if(__pre_vc_registered) 
+  {
+    if(__pre_vc_putchar != NULL) {
+      __pre_vc_putchar(c);
+      return 0;
+    } else if(__pre_vc_puts != NULL) {
+      char buf[2];
+      buf[0] = c;
+      buf[1] = '\0';
+      __pre_vc_puts(buf);
+      return 0;
+    } else {
+      return -1;
+    }
+  } else {
+    if(c != '\0' && __pre_vc_buffer_head < PRE_VC_BUFFER_SIZE) {
+      __pre_vc_buffer[__pre_vc_buffer_head] = c;
+      __pre_vc_buffer_head++;
+    }
+    return 0;
+  }
+}
 
 // called assuming lock is held
 static inline int next_index_on_queue(enum nk_vc_type type, int index)
