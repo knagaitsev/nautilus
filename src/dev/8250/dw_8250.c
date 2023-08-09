@@ -201,7 +201,8 @@ static int dw_8250_dev_init_one(struct nk_dev_info *info)
   did_alloc = 1; 
 #endif
 
-  if(nk_dev_info_read_register_block(info, &dw->generic.reg_base, &dw->generic.reg_size)) {
+  int reg_size;
+  if(nk_dev_info_read_register_block(info, &dw->generic.reg_base, &reg_size)) {
     goto err_exit;
   }
 
