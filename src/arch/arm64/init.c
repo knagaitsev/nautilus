@@ -340,13 +340,12 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   init_core_barrier(&(nautilus_info.sys));
 
-  // Swap stacks (now we definitely cannot return from this function
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
   INIT_DEBUG("Swapped to the thread stack!\n");
 
   nk_thread_name(get_cur_thread(), "init");
 
-  psci_init();
+  psci_init((void*)dtb);
 
   pci_init(&nautilus_info);
   pci_dump_device_list();

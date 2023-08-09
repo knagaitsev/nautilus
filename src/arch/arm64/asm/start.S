@@ -128,6 +128,12 @@ try_el2_to_el1:
     ldr x0, =0x30d00800
     msr SCTLR_EL1, x0
 
+    # Allow access to FP and SIMD
+    mov x0, 0x33FF
+    msr CPTR_EL2, x0
+
+    msr HSTR_EL2, xzr
+
     # Return from EL2
     mov x0, 0x3C5 
     msr SPSR_EL2, x0

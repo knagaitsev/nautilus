@@ -23,8 +23,11 @@ end_smp_boot:
 // This means any stack we allocate for a thread, needs to be larger than
 // the bootstack (or atleast as large as the space the bootstack uses)
 .EXTERN boot_stack_end
+.GLOBAL smp_ap_stack_switch
 smp_ap_stack_switch:
+
   mov x3, sp
+
   ldr x4, =boot_stack_end
 
 1:

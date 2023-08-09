@@ -103,7 +103,7 @@ static int dw_8250_fdt_init(uint64_t dtb, uint64_t offset, struct dw_8250 *dw) {
     }
 
     dw->generic.reg_base = reg.address;
-    dw->generic.ops = dw_8250_ops;
+    dw->generic.ops = &dw_8250_ops;
     
     int lenp;
     uint32_t *reg_shift_ptr = fdt_getprop((void*)dtb, offset, "reg-shift", &lenp);

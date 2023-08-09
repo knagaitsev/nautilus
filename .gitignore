@@ -46,11 +46,22 @@ scripts/kconfig/lxdialog/lxdialog
 scripts/kconfig/mconf
 scripts/kconfig/lkc_defs.h
 
+# Sources for GCC, GDB, and Binutils
+scripts/toolchain/gcc*
+scripts/toolchain/gdb*
+scripts/toolchain/bin*
+
+# QEMU Flash Image
+setups/arm64/flash.img
+
 /dep
 
+# Linker Script After Preprocessing
 link/processed.ld
 
+# Kernel Images
 Image
 uImage
 
+# Debug Output
 output.txt

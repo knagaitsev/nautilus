@@ -1,9 +1,10 @@
 
 #include<arch/arm64/psci.h>
 
-#include<arch/arm64/smc.h>
+#include<arch/arm64/smccc.h>
 #include<nautilus/nautilus.h>
 #include<nautilus/shell.h>
+#include<nautilus/of/fdt.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PRINTS
 #undef DEBUG_PRINT
@@ -15,14 +16,38 @@
 #define PSCI_ERROR(fmt, args...) ERROR_PRINT("PSCI: " fmt, ##args)
 #define PSCI_WARN(fmt, args...) WARN_PRINT("PSCI: " fmt, ##args)
 
-void psci_version(uint16_t *major, uint16_t *minor) {
-  uint32_t ver = smc32_call_0_0(0x84000000, SMC_CALL_TYPE_SS_SERV);
+static int psci_valid = 0;
+static int use_hvc = 0;
+
+#define CHECK_PSCI_VALID(RET) \
+  do { \
+    if(!psci_valid) { \
+      PSCI_ERROR("PSCI Functions cannot be called on a system without PSCI!\n"); \
+      return RET; \
+    } \
+  } while (0)
+
+int psci_version(uint16_t *major, uint16_t *minor) {
+  CHECK_PSCI_VALID(-1);
+  uint32_t ver;
+  if(use_hvc) { 
+    ver = hvc32_call_0_0(0x84000000, SMCCC_CALL_TYPE_SS_SERV);
+  } else {
+    ver = smc32_call_0_0(0x84000000, SMCCC_CALL_TYPE_SS_SERV);
+  }
   *major = (ver>>16) & 0xFFFF;
   *minor = ver & 0xFFFF;
+  return 0;
 }
 
-int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id) {
-  uint64_t res = smc64_call_0_3(0xC4000003, SMC_CALL_TYPE_SS_SERV, target_mpid, (uint64_t)entry_point, context_id);
+int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id) { 
+  CHECK_PSCI_VALID(-1);
+  uint64_t res;
+  if(use_hvc) {
+    res = hvc64_call_0_3(0xC4000003, SMCCC_CALL_TYPE_SS_SERV, target_mpid, (uint64_t)entry_point, context_id);
+  } else {
+    res = smc64_call_0_3(0xC4000003, SMCCC_CALL_TYPE_SS_SERV, target_mpid, (uint64_t)entry_point, context_id);
+  }
 
   switch(res) {
     case PSCI_SUCCESS:
@@ -54,40 +79,85 @@ int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id) {
 }
 
 int psci_cpu_off(void) {
-  uint32_t res = smc32_call_0_0(0x84000002, SMC_CALL_TYPE_SS_SERV);
+  CHECK_PSCI_VALID(-1);
+  uint32_t res;
+  if(use_hvc) {
+    res = hvc32_call_0_0(0x84000002, SMCCC_CALL_TYPE_SS_SERV);
+  } else {
+    res = smc32_call_0_0(0x84000002, SMCCC_CALL_TYPE_SS_SERV);
+  }
   return res;
 }
-void psci_system_off(void) {
-  smc32_call_0_0(0x84000008, SMC_CALL_TYPE_SS_SERV);
+int psci_system_off(void) {
+  smc32_call_0_0(0x84000008, SMCCC_CALL_TYPE_SS_SERV);
+  return -1;
 }
-void psci_system_reset(void) {
-  smc32_call_0_0(0x84000009, SMC_CALL_TYPE_SS_SERV);
+int psci_system_reset(void) {
+  CHECK_PSCI_VALID(-1);
+  if(use_hvc) {
+    hvc32_call_0_0(0x84000009, SMCCC_CALL_TYPE_SS_SERV);
+  } else {
+    smc32_call_0_0(0x84000009, SMCCC_CALL_TYPE_SS_SERV);
+  }
+  return -1;
 }
 
-int psci_init(void) {
-  // This function is mostly for future proofing (and testing psci functionality)
+int psci_init(void *dtb) {
+
+  int offset = fdt_node_offset_by_compatible(dtb, -1, "arm,psci");
+  if(offset < 0) {
+    offset = fdt_node_offset_by_compatible(dtb, -1, "arm,psci-0.2");
+  }
+  if(offset < 0) {
+    offset = fdt_node_offset_by_compatible(dtb, -1, "arm,psci-1.0");
+  }
+
+  if(offset < 0) {
+    PSCI_PRINT("Could not find PSCI support in the device tree!\n");
+    psci_valid = 0;
+    return -1;
+  }
+
+  int lenp;
+  char *method_str = (char*)fdt_getprop(dtb, offset, "method", &lenp);
+  if(method_str == NULL || lenp < 0) {
+    PSCI_WARN("No method field in device tree node! Assuming SMC...\n");
+    use_hvc = 0;
+  } else if(lenp != 3) { 
+    PSCI_WARN("Invalid method field found in device tree node (incorrect length)! Assuming SMC...\n");
+    use_hvc = 0;
+  } else {
+    if(strncmp(method_str, "smc", 3) == 0) {
+      PSCI_DEBUG("Method field found: smc\n");
+      use_hvc = 0;
+    } else if(strncmp(method_str, "hvc", 3) == 0) {
+      PSCI_DEBUG("Method field found: hvc\n");
+      use_hvc = 1;
+    } else {
+      PSCI_WARN("Invalid method field found in device tree node (strncmp failed)! Assuming SMC...\n");
+      use_hvc = 0;
+    }
+  }
+
+  psci_valid = 1;
+  PSCI_PRINT("Method = %s\n", use_hvc ? "hvc" : "smc");
 
   uint16_t psci_major, psci_minor;
   psci_version(&psci_major, &psci_minor);
   PSCI_PRINT("Version = %u.%u\n", psci_major, psci_minor);
 
   PSCI_PRINT("Initialized PSCI\n");
+  return 0;
 }
 
 static int
 reboot_handler(char *buf, void *priv) {
-  psci_system_reset();
-
-  // Returning from this is an error
-  return 1;
+  return psci_system_reset();
 }
 
 static int
 off_handler(char *buf, void *priv) {
-  psci_system_off();
-
-  // Returning from this is an error
-  return 1;
+  return psci_system_off();
 }
 
 static struct shell_cmd_impl reboot_impl = {

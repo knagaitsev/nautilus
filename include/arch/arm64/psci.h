@@ -14,10 +14,8 @@
 #define PSCI_DISABLED (-8)
 #define PSCI_INVALID_ADDRESS (-9)
 
-int psci_init(void);
-
-void psci_version(uint16_t *major, uint16_t *minor);
-
+int psci_init(void *dtb);
+int psci_version(uint16_t *major, uint16_t *minor);
 int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id);
 
 /*
@@ -28,8 +26,9 @@ int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id);
 int psci_affinity_info(uint64_t target_mpid);
 */
 
-int __attribute__((noreturn)) psci_cpu_off(void);
-void __attribute__((noreturn)) psci_system_off(void);
-void __attribute__((noreturn)) psci_system_reset(void);
+// These functions can fail, so make sure the programmer doesn't ignore that possibility
+int __attribute__((warn_unused_result)) psci_cpu_off(void);
+int __attribute__((warn_usused_result)) psci_system_off(void);
+int __attribute__((warn_unused_result)) psci_system_reset(void);
 
 #endif
