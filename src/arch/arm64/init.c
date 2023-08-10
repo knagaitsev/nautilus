@@ -110,7 +110,7 @@ static inline void per_cpu_sys_ctrl_reg_init(void) {
   ctrl_reg.align_check_en = 0;
   ctrl_reg.unaligned_acc_en = 1;
 
-  //dump_sys_ctrl_reg(ctrl_reg);
+  dump_sys_ctrl_reg(ctrl_reg);
 
   STORE_SYS_REG(SCTLR_EL1, ctrl_reg.raw);
 
@@ -235,10 +235,65 @@ extern spinlock_t printk_lock;
 // The stack switch which happens halfway through "init" makes this needed
 static volatile const char *chardev_name = "serial0";
 
+int rockchip_leds(int val) {
+  void *bank_1_reg_base = (void*)0xff720000;
+  int diy_led_index = 0x2;
+  int work_led_index = 0xB;
+
+  uint32_t diy_bit = (1<<diy_led_index);
+  uint32_t work_bit = (1<<work_led_index);
+
+  int dr_offset = 0;
+  int ddr_offset = 4;
+
+  volatile uint32_t *dr_reg = bank_1_reg_base + dr_offset;
+  volatile uint32_t *ddr_reg = bank_1_reg_base + ddr_offset;
+
+  *ddr_reg |= diy_bit | work_bit;
+  asm volatile ("isb" ::: "memory");
+
+  val &= 0b11;
+
+  if(val & 0b01) {
+    *dr_reg |= diy_bit;
+  } else {
+    *dr_reg &= ~diy_bit;
+  }
+
+  if(val & 0b10) {
+    *dr_reg |= work_bit;
+  } else {
+    *dr_reg &= ~work_bit;
+  }
+
+  return 0;
+}
+
+int rockchip_halt_and_flash(int val0, int val1, int fast) {
+
+  uint64_t delay = 0xFFFF;
+  if(!fast) {
+    delay = delay * 16;
+  }
+
+  int i = 0;
+  while(1) { // halt loop
+    i = i ? 0 : 1;
+    if(i == 0) {
+      rockchip_leds(val0);
+    } else {
+      rockchip_leds(val1);
+    }
+    for(volatile int i = 0; i < delay; i++) {
+      // delay loop
+    }
+  }
+}
+
 void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x3) {
 
   // Zero out .bss
-  nk_low_level_memset(_bssStart, 0, (off_t)_bssEnd - (off_t)_bssStart);
+  nk_low_level_memset((void*)_bssStart, 0, (uint64_t)_bssEnd - (uint64_t)_bssStart);
  
   // Enable the FPU
   fpu_init(&nautilus_info, 0);
@@ -264,6 +319,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   printk("initializing in EL%u\n", arm64_get_current_el());
 
   per_cpu_sys_ctrl_reg_init();
+
+  psci_init((void*)dtb);
 
   //INIT_PRINT("--- Device Tree ---\n");
   //print_fdt((void*)dtb);
@@ -344,8 +401,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   INIT_DEBUG("Swapped to the thread stack!\n");
 
   nk_thread_name(get_cur_thread(), "init");
-
-  psci_init((void*)dtb);
 
   pci_init(&nautilus_info);
   pci_dump_device_list();

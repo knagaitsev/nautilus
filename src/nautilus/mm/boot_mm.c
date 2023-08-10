@@ -241,6 +241,7 @@ mm_boot_reserve_mem (addr_t start, ulong_t size)
     BMM_DEBUG("Reserving memory %p-%p (start page=0x%x, npages=0x%x)\n",start,start+size,start_page,npages);
 
     if (unlikely(boot_mm_inactive)) {
+        BMM_PRINT("Invalid attempt to use boot memory allocator!\n");
         panic("Invalid attempt to use boot memory allocator\n");    
     }
 
@@ -312,12 +313,14 @@ void *boot_mm_get_cur_top()
 void *
 __mm_boot_alloc (ulong_t size, ulong_t align, ulong_t goal)
 {
+    BMM_DEBUG("mm_boot_alloc(size=%u, align=%u, goal=%u)\n",size,align,goal);
     ulong_t offset, remaining_size, areasize, preferred;
     ulong_t i, start = 0, incr, eidx, end_pfn = mm_info.last_pfn;
     boot_mem_info_t * minfo = &bootmem;
     void * ret = NULL;
 
     if (unlikely(boot_mm_inactive)) {
+        BMM_PRINT("Invalid attempt to use boot memory allocator\n");
         panic("Invalid attempt to use boot memory allocator\n");
     }
 
@@ -329,12 +332,15 @@ __mm_boot_alloc (ulong_t size, ulong_t align, ulong_t goal)
 
     eidx = end_pfn;
 
+    BMM_DEBUG("mm_boot_alloc: eidx = %u\n", eidx);
+
     /* NOTE: we ignore goal for now */
 
     preferred = 0;
 
     /* ceil it to page frame count (will usually be one) */
     areasize = (size + PAGE_SIZE-1)/PAGE_SIZE;
+    BMM_DEBUG("mm_boot_alloc: areasize = %u\n", areasize);
 
     /* will almost always be 1 (note the GNU extension usage here...) */
     incr = (align >> PAGE_SHIFT) ? : 1;
@@ -361,11 +367,14 @@ __mm_boot_alloc (ulong_t size, ulong_t align, ulong_t goal)
         i = ALIGN(j, incr);
     }
 
+    BMM_DEBUG("mm_boot_alloc: Failed to find block, returning NULL...\n", areasize);
     return NULL;
 
 found:
     minfo->last_success = start << PAGE_SHIFT;
     ASSERT(start < eidx);
+
+    BMM_DEBUG("mm_boot_alloc: Found block of corect size\n");
 
     /*
      * Is the next page of the previous allocation-end the start
@@ -408,9 +417,12 @@ found:
 
     }
 
+    BMM_DEBUG("marking blocks [%u - %u] as allocated in the bitmap\n", start, (start+areasize)-1);
     for (i = start; i < start+areasize; i++) {
-        if (unlikely(test_and_set_bit(i, minfo->page_map)))
+        if (unlikely(test_and_set_bit(i, minfo->page_map))) {
+            BMM_DEBUG("bit %u not set!\n", i);
             panic("bit %u not set!\n", i);
+        }
     }
 
     BMM_DEBUG("Allocated %d bytes, alignment %d (%d pages) at %p\n", size, align, areasize, ret);

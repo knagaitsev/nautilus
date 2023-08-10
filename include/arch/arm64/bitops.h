@@ -88,7 +88,9 @@ static inline int test_bit(unsigned int nr, const volatile unsigned long *addr)
  */
 static inline int test_and_set_bit(int nr, volatile unsigned long * addr)
 {
-    unsigned long old = __atomic_fetch_or(&addr[BIT_WORD((uint64_t)nr)], 1<<((uint64_t)nr % BITS_PER_LONG), __ATOMIC_SEQ_CST);
+    printk("test_and_set_bit\n");
+    unsigned long old = __sync_fetch_and_or(&addr[BIT_WORD((uint64_t)nr)], 1UL<<((uint64_t)nr % BITS_PER_LONG), __ATOMIC_SEQ_CST);
+    printk("test_and_set_bit old = %u\n", old);
     return (old & (1UL<<((uint64_t)nr % BITS_PER_LONG)));
 }
 

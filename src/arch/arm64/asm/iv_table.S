@@ -13,7 +13,6 @@ __install_iv_tables:
   // We are in the wrong EL!
   // There's not much we can do so we just hang
   // Store an DEADBEEF in x1 and loop forever
-
   ldr x1, =0xDEADBEEF
   b .
 
@@ -29,13 +28,13 @@ __el1_iv_table:
 __el0_stack_iv_entrances:
 # Uses EL0 stack
 .align 7
-  b .
+  b el1_to_el1_exception_entry
 .align 7
-  b .
+  b el1_to_el1_interrupt_entry
 .align 7
-  b .
+  b el1_to_el1_fast_interrupt_entry
 .align 7
-  b .
+  b el1_to_el1_serror_entry
 
 # Uses EL1 stack
 __el1_stack_iv_entrances:

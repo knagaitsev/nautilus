@@ -1,6 +1,7 @@
 
 #include<dev/8250/generic.h>
 #include<dev/8250/dw_8250.h>
+#include<nautilus/endian.h>
 #include<nautilus/of/fdt.h>
 #include<nautilus/of/dt.h>
 
@@ -110,14 +111,14 @@ static int dw_8250_fdt_init(uint64_t dtb, uint64_t offset, struct dw_8250 *dw) {
     if(reg_shift_ptr == NULL) {
       dw->generic.reg_shift = 0;
     } else {
-      dw->generic.reg_shift = *reg_shift_ptr;
+      dw->generic.reg_shift = be32toh(*reg_shift_ptr);
     }
     
     uint32_t *reg_width_ptr = fdt_getprop((void*)dtb, offset, "reg-io-width", &lenp);
     if(reg_width_ptr == NULL) {
       dw->generic.reg_width = 1;
     } else {
-      dw->generic.reg_width = *reg_width_ptr;
+      dw->generic.reg_width = be32toh(*reg_width_ptr);
     }
 
     return 0;
@@ -135,6 +136,7 @@ static void dw_8250_early_putchar(char c) {
 int dw_8250_pre_vc_init(uint64_t dtb) 
 {
   memset(&pre_vc_dw_8250, 0, sizeof(struct dw_8250));
+
 
   // KJH - HACK for getting to rockpro64 uart2
   int uart_num = 2;
@@ -199,7 +201,10 @@ static int dw_8250_dev_init_one(struct nk_dev_info *info)
   }
 
   did_alloc = 1; 
+  memset(dw, 0, sizeof(struct dw_8250));
 #endif
+
+  dw->generic.ops = &dw_8250_ops;
 
   int reg_size;
   if(nk_dev_info_read_register_block(info, &dw->generic.reg_base, &reg_size)) {

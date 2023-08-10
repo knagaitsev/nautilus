@@ -33,6 +33,9 @@ nautilus_entry:
     # Save the DTB
     mov x20, x0
 
+    # Exceptions will try to access the CPU struct if TPIDR_EL1 is non-null
+    msr TPIDR_EL1, xzr
+
     # Incase we boot in EL2
     bl try_el2_to_el1
 
@@ -86,6 +89,9 @@ secondary_start:
 
     bl try_el2_to_el1
     
+    # Exceptions will try to access the CPU struct if TPIDR_EL1 is non-null
+    msr TPIDR_EL1, xzr
+
     ldr x29, =boot_stack_end
     mov sp, x29
 

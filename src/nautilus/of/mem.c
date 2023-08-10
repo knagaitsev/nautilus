@@ -63,6 +63,8 @@ fdt_reserve_boot_regions (unsigned long fdt)
         mm_boot_reserve_mem(reg.address, reg.size);
     }
   }
+
+  BMM_PRINT("Finished Reserving FDT memory regions\n");
 }
 
 static inline int insert_free_region_into_memory_map(mem_map_entry_t *memory_map, mmap_info_t *mm_info, uint64_t start, uint64_t end)

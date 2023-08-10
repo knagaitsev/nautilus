@@ -5,9 +5,9 @@
 #include<nautilus/arch.h>
 #endif
 
-uint64_t generic_8250_read_reg(struct generic_8250 *uart, uint32_t reg_offset)
+volatile uint64_t generic_8250_read_reg(struct generic_8250 *uart, uint32_t reg_offset)
 {
-   uint64_t val;
+   volatile uint64_t val;
    uint64_t addr = uart->reg_base + (reg_offset << uart->reg_shift);
    switch(uart->reg_width) {
      case 0:
@@ -108,7 +108,7 @@ void generic_8250_write_reg(struct generic_8250 *uart, uint32_t reg_offset, uint
        *(volatile uint64_t*)((void*)addr) = (uint64_t)val;
 #endif
        break;
-     default:
+     default: 
        panic("generic 8250: Invalid Reg Width!\n");
    }
 }
@@ -253,12 +253,12 @@ static int output_buffer_full(struct generic_8250 *uart) {
 void generic_8250_direct_putchar(struct generic_8250 *uart, uint8_t c) 
 {   
   uint8_t ls;
-  do {
-    ls = (uint8_t)generic_8250_read_reg(uart,GENERIC_8250_LSR);
-  }
-  while (!(ls & GENERIC_8250_LSR_XMIT_EMPTY));
-  
+
   generic_8250_write_reg(uart,GENERIC_8250_THR,c);
+  do {
+    ls = (volatile uint8_t)generic_8250_read_reg(uart,GENERIC_8250_LSR);
+  }
+  while (!(ls & GENERIC_8250_LSR_XMIT_EMPTY)); 
 }
 
 
@@ -272,8 +272,10 @@ int generic_8250_configure(struct generic_8250 *uart)
   generic_8250_write_reg(uart,GENERIC_8250_LCR,GENERIC_8250_LCR_DLAB_BITMASK);
 
   // TODO: Support Baudrates other than 115200
+#ifndef NAUT_CONFIG_DW_8250_UART_EARLY_OUTPUT
   generic_8250_write_reg(uart,GENERIC_8250_DLL,1);
   generic_8250_write_reg(uart,GENERIC_8250_DLH,0);
+#endif
 
   // Disable access to dll and dlm and set:
   //     8 bit words,

@@ -18,12 +18,15 @@
 
   mov x1, sp
 
-  // Increment exception depth
+  // Increment exception depth (if non-null)
   mrs x2, TPIDR_EL1
+  cmp x2, 0
+  b.eq 1f
   ldrh w3, [x2, 8]
   add w3, w3, 1
   strh w3, [x2, 8]
- 
+1: 
+
 .ENDM
 
 .MACRO NESTABLE_EXCP_EXIT
@@ -38,12 +41,13 @@
 .ENDM
 
 .MACRO DEC_EXCP_DEPTH
-
   mrs x2, TPIDR_EL1
+  cmp x2, 0
+  b.eq 1f
   ldrh w3, [x2, 8]
   sub w3, w3, 1
   strh w3, [x2, 8]
-
+1:
 .ENDM
 
 .EXTERN route_interrupt
@@ -121,7 +125,6 @@ __el0_to_el1_excp_entry_common:
 
   NESTABLE_EXCP_EXIT
   RESTORE_CALLER_GPRS
-  b .
   eret
 
 .GLOBAL el1_to_el1_serror_entry
@@ -148,6 +151,5 @@ __el1_to_el1_excp_entry_common:
 
   NESTABLE_EXCP_EXIT
   RESTORE_CALLER_GPRS
-  b .
   eret
 

@@ -123,7 +123,7 @@ int psci_init(void *dtb) {
   if(method_str == NULL || lenp < 0) {
     PSCI_WARN("No method field in device tree node! Assuming SMC...\n");
     use_hvc = 0;
-  } else if(lenp != 3) { 
+  } else if(lenp != 4) { 
     PSCI_WARN("Invalid method field found in device tree node (incorrect length)! Assuming SMC...\n");
     use_hvc = 0;
   } else {

@@ -15,13 +15,14 @@
 #endif
 #define SMP_PRINT(fmt, args...) printk("SMP: " fmt, ##args)
 #define SMP_DEBUG(fmt, args...) DEBUG_PRINT("SMP: " fmt, ##args)
-#define SMP_ERROR(fmt, args...) ERROR_PRINT("SMP: " fmt, ##args)
+#define SMP_ERROR(fmt, args...) printk("ERROR SMP: " fmt, ##args)
 
 static struct sys_info * sys;
 
 static int
 configure_cpu (unsigned long fdt, int offset) {
 
+    SMP_PRINT("Found CPU in Device Tree!\n");
     off_t reg_addr = fdt_getreg_address(fdt, offset);
     int lenp = 0;
     char *status = fdt_getprop(fdt, offset, "status", &lenp);
@@ -31,15 +32,22 @@ configure_cpu (unsigned long fdt, int offset) {
         enabled = 0;
     }
 
+    SMP_PRINT("cpu_reg = %u, cpu_status = %s\n", reg_addr, enabled ? "enabled" : "disabled");
+
     struct cpu * new_cpu = NULL;
 
     if (sys->num_cpus == NAUT_CONFIG_MAX_CPUS) {
-        panic("CPU count exceeded max (check your .config)\n");
+        SMP_ERROR("CPU count exceeded max (check your .config) max = %u\n", NAUT_CONFIG_MAX_CPUS);
+        panic("CPU count exceeded max (check your .config)!\n");
     }
 
-    if(!(new_cpu = mm_boot_alloc(sizeof(struct cpu)))) {
-        panic("Couldn't allocate CPU struct\n");
-    } 
+    new_cpu = mm_boot_alloc(sizeof(struct cpu));
+    if(new_cpu == NULL) {
+        SMP_ERROR("Couldn't allocate CPU struct!\n");
+        panic("Couldn't allocate CPU struct!\n");
+    } else {
+        SMP_PRINT("Allocated CPU struct\n");
+    }
 
     memset(new_cpu, 0, sizeof(struct cpu));
 
@@ -54,15 +62,14 @@ configure_cpu (unsigned long fdt, int offset) {
 
     new_cpu->irq_dev = NULL;
 
-    SMP_DEBUG("CPU %u\n", new_cpu->id);
-    SMP_DEBUG("\tEnabled?=%01d\n", new_cpu->enabled);
-    SMP_DEBUG("\tBSP?=%01d\n", new_cpu->is_bsp);
+    SMP_PRINT("CPU %u\n", new_cpu->id);
+    SMP_PRINT("\tEnabled?=%01d\n", new_cpu->enabled);
+    SMP_PRINT("\tBSP?=%01d\n", new_cpu->is_bsp);
 
     spinlock_init(&new_cpu->lock);
 
     sys->cpus[new_cpu->id] = new_cpu;
     sys->num_cpus++;
-
 
     return 0;
 }
@@ -86,10 +93,12 @@ arch_smp_early_init (struct naut_info * naut)
 {
     int ret;
 
+    SMP_PRINT("arch_smp_early_init\n");
+
     SMP_DEBUG("Checking for DTB\n");
 
     if (__early_init_dtb(naut) == 0) {
-        SMP_DEBUG("DTB init succeeded\n");
+        SMP_PRINT("DTB init succeeded\n");
         goto out_ok;
     } else {
         panic("DTB not present/working! Cannot detect CPUs. Giving up.\n");

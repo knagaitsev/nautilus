@@ -109,17 +109,21 @@ vprintk (const char * fmt, va_list args)
 {
 	struct printk_state state;
 
-        uint8_t flags = spin_lock_irq_save(&printk_lock);
+        //uint8_t flags = spin_lock_irq_save(&printk_lock);
 
 	state.index = 0;
+
 	_doprnt(fmt, args, 0, printk_char, (char *) &state);
 
 	if (state.index != 0)
 	    flush(&state);
 
-        spin_unlock_irq_restore(&printk_lock, flags);
+        rockchip_leds(2);
+
+        //spin_unlock_irq_restore(&printk_lock, flags);
 	/* _doprnt currently doesn't pass back error codes,
 	   so just assume nothing bad happened.  */
+
 	return 0;
 }
 
@@ -130,6 +134,7 @@ vprintk (const char * fmt, va_list args)
 void
 panic (const char * fmt, ...)
 {
+   rockchip_halt_and_flash(1,2,1);
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
     int nk_monitor_panic_entry(char*);
     char buf[256];
@@ -142,7 +147,6 @@ panic (const char * fmt, ...)
     nk_monitor_panic_entry(buf);
 
 #endif
-
     va_list arg;
 
     va_start(arg, fmt);

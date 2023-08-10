@@ -56,18 +56,17 @@ SECTIONS
     __stop_shell_cmds = .;
   }
   _rodataEnd = .;
-
   _loadEnd = .;
 
-  _bssStart = .;
   .bss ALIGN(0x1000) : {
     . = ALIGN(16);
+    _bssStart = .;
     *(.sbss .sbss.*) /* do not need to distinguish this from .bss */
     . = ALIGN(16);
     *(.bss .bss.*)
+    _bssEnd = .;
   }
 
-  _bssEnd = .;
 
   PROVIDE(kernel_end = .);
 }

@@ -10,41 +10,19 @@
 .align 3
 nk_low_level_memset:
 
-  # If count = 0 return early
-0:
-  cmp x2, 8
-  blo 2f
-  tst x0, 0b111
-  beq 1f
-
-  strb w1, [x0], 1
-  sub x2, x2, 1
-
-  b 0b
+# Calculate end
+  add x2, x2, x0 
 
 1:
+  cmp x2, x0
+  b.eq 2f
 
-  mov x3, x1, lsl 8
-  orr x1, x3, x1
-  mov x3, x1, lsl 16
-  orr x1, x3, x1
-  mov x3, x1, lsl 32
-  orr x1, x3, x1
+  strb w1, [x0]
+  add x0, x0, 1
 
-  cmp x2, 8
-  blo 2f
-
-  str x1, [x0], 8
-  sub x2, x2, 8
-
+  b 1b
 2:
-  cmp x2, 0
-  beq 3f
 
-  strb w1, [x0], 1
-  sub x2, x2, 1
-
-3:
   ret
 
 .GLOBAL nk_low_level_memcpy
