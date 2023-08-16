@@ -264,7 +264,7 @@ void generic_8250_direct_putchar(struct generic_8250 *uart, uint8_t c)
 
 /*
  * Generic Implementations of "generic_8250_ops"
- */
+ */ 
 
 int generic_8250_configure(struct generic_8250 *uart) 
 {
@@ -272,9 +272,13 @@ int generic_8250_configure(struct generic_8250 *uart)
   generic_8250_write_reg(uart,GENERIC_8250_LCR,GENERIC_8250_LCR_DLAB_BITMASK);
 
   // TODO: Support Baudrates other than 115200
-#ifndef NAUT_CONFIG_DW_8250_UART_EARLY_OUTPUT
-  generic_8250_write_reg(uart,GENERIC_8250_DLL,1);
-  generic_8250_write_reg(uart,GENERIC_8250_DLH,0);
+#ifdef NAUT_CONFIG_DW_8250_UART_EARLY_OUTPUT
+  // KJH - HACK the rockpro clock system is complicated so getting the baudrate right is very difficult
+  // luckily, U-Boot can use the UART for output too, and so we can just leave the baud rate alone and
+  // keep it the same as what U-Boot did the hard work to figure out
+#else
+  generic_8250_write_reg(uart, GENERIC_8250_DLL, 1);
+  generic_8250_write_reg(uart, GENERIC_8250_DLH, 0);
 #endif
 
   // Disable access to dll and dlm and set:
@@ -283,7 +287,8 @@ int generic_8250_configure(struct generic_8250 *uart)
   //     no parity
   generic_8250_write_reg(uart,GENERIC_8250_LCR,
       GENERIC_8250_LCR_WORD_LENGTH_8BITS|
-      GENERIC_8250_LCR_PARITY_NONE);
+      GENERIC_8250_LCR_PARITY_ODD|
+      GENERIC_8250_LCR_DUAL_STOP_BIT);
 
   // Enable data received interrupts
   if(uart->flags & GENERIC_8250_FLAG_NO_INTERRUPTS) {

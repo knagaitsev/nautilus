@@ -8,4 +8,5 @@ obj-y += asm/ \
 	timer.o \
 	psci.o \
 	paging.o \
-
+        paging_4kb.o \
+	sys_reg.o \

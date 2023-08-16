@@ -88,10 +88,17 @@ static inline int test_bit(unsigned int nr, const volatile unsigned long *addr)
  */
 static inline int test_and_set_bit(int nr, volatile unsigned long * addr)
 {
-    printk("test_and_set_bit\n");
-    unsigned long old = __sync_fetch_and_or(&addr[BIT_WORD((uint64_t)nr)], 1UL<<((uint64_t)nr % BITS_PER_LONG), __ATOMIC_SEQ_CST);
-    printk("test_and_set_bit old = %u\n", old);
-    return (old & (1UL<<((uint64_t)nr % BITS_PER_LONG)));
+    addr += BIT_WORD((uint64_t)nr);
+    unsigned long bit = 1UL<<((uint64_t)nr % BITS_PER_LONG);
+
+    unsigned long old;
+    if(arch_atomics_enabled()) {
+      old = __atomic_fetch_or(addr, bit, __ATOMIC_SEQ_CST);
+    } else {
+      old = *addr;
+      *addr |= bit;
+    }
+    return old & bit;
 }
 
 /**
@@ -104,8 +111,17 @@ static inline int test_and_set_bit(int nr, volatile unsigned long * addr)
  */
 static inline int test_and_clear_bit(int nr, volatile unsigned long * addr)
 {
-    unsigned long old = __atomic_fetch_and(&addr[BIT_WORD((uint64_t)nr)], ~(1<<((uint64_t)nr % BITS_PER_LONG)), __ATOMIC_SEQ_CST);
-    return (old & (1UL<<((uint64_t)nr % BITS_PER_LONG)));
+  addr += BIT_WORD((uint64_t)nr);
+  unsigned long bit = 1UL<<((uint64_t)nr % BITS_PER_LONG);
+  
+  unsigned long old; 
+  if(arch_atomics_enabled()) {
+    old = __atomic_fetch_and(addr, ~bit, __ATOMIC_SEQ_CST);
+  } else {
+    old = *addr;
+    *addr &= ~bit;
+  }
+  return (old & bit);
 }
 
 /**

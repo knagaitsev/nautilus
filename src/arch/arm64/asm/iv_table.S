@@ -1,8 +1,8 @@
 
 .text
-.GLOBAL __install_iv_tables
+.GLOBAL install_iv_tables_el1
 .align 3
-__install_iv_tables:
+install_iv_tables_el1:
 
   // Check that we are in EL1
   mrs x1, CurrentEL
@@ -17,49 +17,72 @@ __install_iv_tables:
   b .
 
 1:
-  adr x1, __el1_iv_table
+  adr x1, __iv_table
   msr VBAR_EL1, x1
   ret
 
-.EXTERN el1_to_el1_exception_entry
-.EXTERN el0_to_el1_exception_entry
+.GLOBAL install_iv_tables_el2
+.align 3
+install_iv_tables_el2:
+
+  // Check that we are in EL1
+  mrs x1, CurrentEL
+  lsr x1, x1, 2
+  cmp x1, 2
+  beq 1f
+
+  // We are in the wrong EL!
+  // There's not much we can do so we just hang
+  // Store an DEADBEEF in x1 and loop forever
+  ldr x1, =0xDEADBEEF
+  b .
+
+1:
+  adr x1, __iv_table
+  msr VBAR_EL2, x1
+  ret
+
+
+.text
+.EXTERN same_exception_entry
+.EXTERN lower_exception_entry
 .align 11
-__el1_iv_table:
+__iv_table:
 __el0_stack_iv_entrances:
 # Uses EL0 stack
 .align 7
-  b el1_to_el1_exception_entry
+  b same_exception_entry
 .align 7
-  b el1_to_el1_interrupt_entry
+  b same_interrupt_entry
 .align 7
-  b el1_to_el1_fast_interrupt_entry
+  b same_fast_interrupt_entry
 .align 7
-  b el1_to_el1_serror_entry
+  b same_serror_entry
 
-# Uses EL1 stack
-__el1_stack_iv_entrances:
+# Uses ELn stack
+__n_stack_iv_entrances:
 .align 7
-  b el1_to_el1_exception_entry
+  b same_exception_entry
 .align 7
-  b el1_to_el1_interrupt_entry
+  b same_interrupt_entry
 .align 7
-  b el1_to_el1_fast_interrupt_entry
+  b same_fast_interrupt_entry
 .align 7
-  b el1_to_el1_serror_entry
+  b same_serror_entry
 
-# From EL0 (aarch64)
-__from_el0_iv_entrances:
+# From Lower EL (aarch64)
+__from_lower_iv_entrances:
 .align 7
-  b el0_to_el1_exception_entry
+  b lower_exception_entry
 .align 7
-  b el0_to_el1_interrupt_entry
+  b lower_interrupt_entry
 .align 7
-  b el0_to_el1_fast_interrupt_entry
+  b lower_fast_interrupt_entry
 .align 7
-  b el0_to_el1_serror_entry
+  b lower_serror_entry
 
-# From EL0 (aarch32)
-__from_el0_in_aarch32_iv_entrances:
+# From Lower EL (aarch32)
+__from_lower_in_aarch32_iv_entrances:
 .align 7
   b .
 .align 7

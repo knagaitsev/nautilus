@@ -31,9 +31,9 @@ typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
 #include <dev/serial.h>
 #include <nautilus/naut_types.h>
 #include <nautilus/instrument.h>
-#include <nautilus/smp.h>
 #include <nautilus/thread.h>
 #include <nautilus/vc.h>
+#include <nautilus/smp.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,13 +154,13 @@ void panic(const char *, ...) __attribute__((noreturn));
 
 
 #include <dev/ioapic.h>
-#include <nautilus/smp.h>
 #include <nautilus/paging.h>
 #include <nautilus/limits.h>
 #include <nautilus/naut_assert.h>
 #include <nautilus/barrier.h>
 #include <nautilus/list.h>
 #include <nautilus/numa.h>
+#include <nautilus/smp.h>
 
 
 struct ioapic;

@@ -64,10 +64,19 @@
 #ifndef NAUT_CONFIG_DEBUG_KMEM
 #define KMEM_DEBUG_BACKTRACE()
 #else
+#ifdef NAUT_CONFIG_ARCH_ARM64
+// The generic backtraces don't work on systems where physical memory doesn't start at zero
+#define KMEM_DEBUG_BACKTRACE() WARN_PRINT("No backtrace possible on ARM64\n")
+#else
 #define KMEM_DEBUG_BACKTRACE() BACKTRACE(KMEM_DEBUG,3)
+#endif
 #endif	
 
+#ifdef NAUT_CONFIG_ARCH_ARM64
+#define KMEM_ERROR_BACKTRACE() ERROR_PRINT("No backtrace possible on ARM64\n")
+#else
 #define KMEM_ERROR_BACKTRACE() BACKTRACE(KMEM_ERROR,3)
+#endif
 	    
 
 /**
@@ -516,7 +525,7 @@ _kmem_sys_malloc (size_t size, int cpu, int zero, addr_t lb, addr_t ub)
     ulong_t order;
     cpu_id_t my_id;
 
-    if (cpu<0 || cpu>= nk_get_num_cpus()) {
+    if (cpu<0 || cpu >= nk_get_num_cpus()) {
 	my_id = my_cpu_id();
     } else {
 	my_id = cpu;
@@ -540,8 +549,11 @@ _kmem_sys_malloc (size_t size, int cpu, int zero, addr_t lb, addr_t ub)
         order = MIN_ORDER;
     }
 
+    KMEM_DEBUG("order = %u\n", order);
+
  retry:
 
+    KMEM_DEBUG("scanning blocks in order of affinity\n");
     /* scan the blocks in order of affinity */
     list_for_each_entry(reg, &(my_kmem->ordered_regions), mem_ent) {
         struct buddy_mempool * zone = reg->mem->mm_state;
@@ -549,15 +561,20 @@ _kmem_sys_malloc (size_t size, int cpu, int zero, addr_t lb, addr_t ub)
 	addr_t zone_start = zone->base_addr;
 	addr_t zone_end = zone->base_addr + (1ULL<<(zone->pool_order));
 
+        KMEM_DEBUG("checking zone: [%p - %p]\n", zone_start, zone_end);
+
 	if ((ub <= zone_start) || (lb > zone_end)) {
 	  // skip any zone which does not meet the restrictions
+          KMEM_DEBUG("Zone did not meet restrictions: skipping...");
 	  continue;
 	}
 	
         /* Allocate memory from the underlying buddy system */
+        KMEM_DEBUG("Trying to allocate memory from buddy system...\n");
         uint8_t flags = spin_lock_irq_save(&zone->lock);
         block = buddy_alloc(zone, order, lb, ub);
         spin_unlock_irq_restore(&zone->lock, flags);
+        KMEM_DEBUG("Finished allocating memory from buddy system\n");
 
 	if (block) {
 	  hdr = block_hash_alloc(block);

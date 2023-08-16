@@ -108,7 +108,14 @@ struct cpu {
 
     cpu_id_t id;
 
-#ifdef NAUT_CONFIG_ARCH_RISCV
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    uint8_t aff0;
+    uint8_t aff1;
+    uint8_t aff2;
+    uint8_t aff3;
+#endif
+
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
     uint32_t enabled;
     uint32_t is_bsp;
 #else

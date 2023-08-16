@@ -19,8 +19,8 @@ struct nk_radix_tree_iterator
   struct nk_radix_tree_layer *layer;
 };
 
-void *radix_tree_get(struct nk_radix_tree *tree, unsigned long index);
-void *radix_tree_remove(struct nk_radix_tree *tree, unsigned long index);
+void *nk_radix_tree_get(struct nk_radix_tree *tree, unsigned long index);
+void *nk_radix_tree_remove(struct nk_radix_tree *tree, unsigned long index);
 int nk_radix_tree_insert(struct nk_radix_tree *tree, unsigned long index, void *data);
 
 int nk_radix_tree_iterator_start(struct nk_radix_tree *tree, struct nk_radix_tree_iterator *iter);

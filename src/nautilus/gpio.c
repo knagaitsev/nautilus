@@ -55,7 +55,7 @@ err_exit:
 
   for(int i = 0; i < num_inserted; i++) 
   {
-    struct nk_gpio_desc *desc = nk_radix_tree_remove(next_free_gpio + i);
+    struct nk_gpio_desc *desc = nk_radix_tree_remove(&gpio_radix_tree, next_free_gpio + i);
     free(desc);
   }
 

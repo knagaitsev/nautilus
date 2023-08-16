@@ -38,7 +38,7 @@ nk_thread_switch_intr_entry:
   // That we normally can ignore on exception entry
   sub sp, sp, 0x70
   stp x19, x20, [sp, 0x00]
-  stp x22, x22, [sp, 0x10]
+  stp x21, x22, [sp, 0x10]
   stp x23, x24, [sp, 0x20]
   stp x25, x26, [sp, 0x30]
   stp x27, x28, [sp, 0x40]

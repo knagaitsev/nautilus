@@ -163,7 +163,7 @@ mm_dump_page_map (void)
 {
 	ulong_t i = 0;
 
-	BMM_PRINT("Dumping page map:\n");
+	BMM_PRINT("Dumping page map: (npages = 0x%x)\n", bootmem.npages);
 	for (i = 0; i < bootmem.npages/BITS_PER_LONG; i++) {
 		printk("  [%016llx]\n", bootmem.page_map[i]);
 	}

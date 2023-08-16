@@ -5,19 +5,21 @@
 
 void fpu_init(struct naut_info *, int is_ap) {
 
-  feat_acc_ctrl_reg_t cpacr;
-  load_feat_acc_ctrl_reg(&cpacr);
+  cpacr_el1_t cpacr;
+  LOAD_SYS_REG(CPACR_EL1, cpacr.raw);
 
   cpacr.fp_enabled = 1;
   cpacr.sve_enabled = 1;
 
-  store_feat_acc_ctrl_reg(&cpacr);
+  STORE_SYS_REG(CPACR_EL1, cpacr.raw);
 
-  fp_ctrl_reg_t fpcr;
-  load_fp_ctrl_reg(&fpcr);
+  asm volatile ("isb");
+
+  fpcr_t fpcr;
+  LOAD_SYS_REG(FPCR, fpcr.raw);
 
   // Here we can modify the fpu settings
 
-  store_fp_ctrl_reg(&fpcr);
+  STORE_SYS_REG(FPCR, fpcr.raw);
 }
 

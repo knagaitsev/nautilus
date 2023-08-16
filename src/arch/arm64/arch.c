@@ -34,9 +34,7 @@ int arch_ints_enabled(void) {
 }
 
 void arch_print_regs(struct nk_regs *r) {
-
 #define PRINT_REG(REG) printk("\t"#REG" = 0x%x = %u\n", r->REG, r->REG)
-
   PRINT_REG(x0);
   PRINT_REG(x1);
   PRINT_REG(x2);
@@ -59,6 +57,42 @@ void arch_print_regs(struct nk_regs *r) {
   PRINT_REG(frame_ptr);
   PRINT_REG(link_ptr);
   PRINT_REG(sp);
+}
+
+void arm64_print_regs_extended(struct nk_regs *r) {
+#define PRINT_REG(REG) printk("\t"#REG" = 0x%x = %u\n", r->REG, r->REG)
+  PRINT_REG(x0);
+  PRINT_REG(x1);
+  PRINT_REG(x2);
+  PRINT_REG(x3);
+  PRINT_REG(x4);
+  PRINT_REG(x5);
+  PRINT_REG(x6);
+  PRINT_REG(x7);
+  PRINT_REG(x8);
+  PRINT_REG(x9);
+  PRINT_REG(x10);
+  PRINT_REG(x11);
+  PRINT_REG(x12);
+  PRINT_REG(x13);
+  PRINT_REG(x14);
+  PRINT_REG(x15);
+  PRINT_REG(x16);
+  PRINT_REG(x17);
+  PRINT_REG(x18);
+  PRINT_REG(frame_ptr);
+  PRINT_REG(link_ptr);
+  PRINT_REG(sp);
+  PRINT_REG(x19);
+  PRINT_REG(x20);
+  PRINT_REG(x21);
+  PRINT_REG(x22);
+  PRINT_REG(x23);
+  PRINT_REG(x24);
+  PRINT_REG(x25);
+  PRINT_REG(x26);
+  PRINT_REG(x27);
+  PRINT_REG(x28);
 }
 
 void *arch_read_sp(void) {
@@ -91,9 +125,20 @@ int arch_numa_init(struct sys_info *sys) {
 
 int arch_little_endian(void) {
   // Technically only refers to data accesses not instruction but that's good enough
-  sys_ctrl_reg_t ctlr;
-  LOAD_SYS_REG(SCTLR_EL1, ctlr.raw);
-  return !ctlr.el1_big_endian;
+  sctlr_el1_t sctlr;
+  LOAD_SYS_REG(SCTLR_EL1, sctlr.raw);
+  return !sctlr.el1_big_endian;
+}
+
+static inline int __mmu_enabled(void) {
+  sctlr_el1_t sctlr;
+  LOAD_SYS_REG(SCTLR_EL1, sctlr.raw);
+  return sctlr.mmu_en;
+}
+
+int __atomics_enabled = 0;
+int arch_atomics_enabled(void) {
+  return __atomics_enabled;
 }
 
 void *arch_instr_ptr_reg(struct nk_regs *regs) {

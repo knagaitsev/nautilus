@@ -8,18 +8,17 @@
 
 #define EXCP_SYNDROME_BITS 6
 
-int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *info, uint8_t el_from, uint8_t sync, void *state) {
+int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same, uint8_t sync, void *state) {
 
-    if(el_from == 0) {
-      printk("--- UNKNOWN USERMODE EXCEPTION ---\n"); 
-    }
-    else if(el_from == 1) {
-      printk("--- UNKNOWN KERNEL EXCEPTION ---\n");
-    }
-    else {
-      printk("--- UNKNOWN EL LEVEL %u EXCEPTION ---\n", el_from);
-      printk("--- THIS SHOULD NOT BE POSSIBLE! ---\n");
-    }
+    int curr_el = arm64_get_current_el();
+
+    printk("--- UNKNOWN %s EXCEPTION %s ---\n",
+           curr_el == 0 ? "USERMODE (ERROR)" :
+           curr_el == 1 ? "KERNEL" :
+           curr_el == 2 ? "HYPERVISOR" :
+           curr_el == 3 ? "SECURE MONITOR" :
+           "(ERROR)",
+           el_from_same == 0 ? "FROM A LOWER EXCEPTION LEVEL" : ""); 
 
     printk("TYPE = %s\n", sync ? "Synchronous" : "SError");
     void *cpu = get_cpu();
@@ -61,15 +60,29 @@ int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *info, uint8_t
 
     arch_print_regs(regs);
 
-    panic("EXCEPTION\n");
+    sctlr_el1_t sctlr_el1;
+    LOAD_SYS_REG(SCTLR_EL1, sctlr_el1.raw);
+    dump_sctlr_el1(sctlr_el1);
+
+    tcr_el1_t tcr_el1;
+    LOAD_SYS_REG(TCR_EL1, tcr_el1.raw);
+    dump_tcr_el1(tcr_el1);
+
+    mair_el1_t mair_el1;
+    LOAD_SYS_REG(MAIR_EL1, mair_el1.raw);
+    printk("MAIR_EL1.raw = 0x%016x\n", mair_el1.raw);
+
+    rockchip_halt_and_flash(1,2,0);
+    
+    panic("END OF EXCEPTION\n");
     return 0;
 }
 
-void route_exception(struct nk_regs *regs, struct excp_info *info, uint8_t el, uint8_t sync) {
-  unhandled_excp_handler(regs, info, el, sync, NULL);
+void route_exception(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same, uint8_t sync) {
+  unhandled_excp_handler(regs, info, el_from_same, sync, NULL);
 }
 
-void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el) 
+void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same) 
 {
   struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
   

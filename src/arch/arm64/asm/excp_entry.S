@@ -53,10 +53,10 @@
 .EXTERN route_interrupt
 .EXTERN nk_thread_switch_intr_entry
 
-.GLOBAL el0_to_el1_interrupt_entry
-.GLOBAL el0_to_el1_fast_interrupt_entry
-el0_to_el1_interrupt_entry:
-el0_to_el1_fast_interrupt_entry:
+.GLOBAL lower_interrupt_entry
+.GLOBAL lower_fast_interrupt_entry
+lower_interrupt_entry:
+lower_fast_interrupt_entry:
   SAVE_CALLER_GPRS 
   mov x0, sp // Store nk_regs*
 
@@ -75,10 +75,10 @@ el0_to_el1_fast_interrupt_entry:
   RESTORE_CALLER_GPRS
   eret
 
-.GLOBAL el1_to_el1_interrupt_entry
-.GLOBAL el1_to_el1_fast_interrupt_entry
-el1_to_el1_fast_interrupt_entry:
-el1_to_el1_interrupt_entry:
+.GLOBAL same_interrupt_entry
+.GLOBAL same_fast_interrupt_entry
+same_fast_interrupt_entry:
+same_interrupt_entry:
   SAVE_CALLER_GPRS
   mov x0, sp // Store nk_regs*
 
@@ -95,28 +95,28 @@ el1_to_el1_interrupt_entry:
   
   NESTABLE_EXCP_EXIT
   RESTORE_CALLER_GPRS
-el1_to_el1_interrupt_end:
+same_interrupt_end:
   eret
 
 .EXTERN route_exception
 
-.GLOBAL el0_to_el1_serror_entry
-.GLOBAL el0_to_el1_exception_entry
-el0_to_el1_serror_entry:
+.GLOBAL lower_serror_entry
+.GLOBAL lower_exception_entry
+lower_serror_entry:
   SAVE_CALLER_GPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
   mov x3, 0
-  b __el0_to_el1_excp_entry_common
-el0_to_el1_exception_entry:
+  b __lower_excp_entry_common
+lower_exception_entry:
   SAVE_CALLER_GPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
   mov x3, 1
 
-__el0_to_el1_excp_entry_common:
+__lower_excp_entry_common:
 
   mov x2, 0
   bl route_exception
@@ -127,23 +127,23 @@ __el0_to_el1_excp_entry_common:
   RESTORE_CALLER_GPRS
   eret
 
-.GLOBAL el1_to_el1_serror_entry
-.GLOBAL el1_to_el1_exception_entry
-el1_to_el1_serror_entry:
+.GLOBAL same_serror_entry
+.GLOBAL same_exception_entry
+same_serror_entry:
   SAVE_CALLER_GPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
   mov x3, 0
-  b __el1_to_el1_excp_entry_common
-el1_to_el1_exception_entry:
+  b __same_excp_entry_common
+same_exception_entry:
   SAVE_CALLER_GPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
   mov x3, 1
 
-__el1_to_el1_excp_entry_common:
+__same_excp_entry_common:
   mov x2, 1
   bl route_exception
 

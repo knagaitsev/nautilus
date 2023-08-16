@@ -2220,7 +2220,12 @@ int fdt_node_end_offset_(void *fdt, int nodeoffset);
 
 static inline const void *fdt_offset_ptr_(const void *fdt, int offset)
 {
-	return (const char *)fdt + fdt_off_dt_struct(fdt) + offset;
+        uint32_t off_dt_struct = fdt_off_dt_struct(fdt);
+	const char *c = (const char *)fdt + off_dt_struct + offset;
+        if(offset == 59932) {
+          printk("fdt_offset_ptr_(fdt=%p, offset=%d) off_dt_struct = %u, ret = %p\n", fdt, offset, off_dt_struct, c);
+        }
+        return c;
 }
 
 static inline void *fdt_offset_ptr_w_(void *fdt, int offset)

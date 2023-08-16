@@ -22,25 +22,20 @@ SECTIONS
     . += 0x1000;  /* Allocate space for the boot stack */
     boot_stack_end = .;
     etext = .;
+    . = ALIGN(0x1000);
   }
 
-  . = ALIGN(0x1000);
-  _dataStart = .;
-
-  .data : {
-    . = ALIGN(16);
+  .data ALIGN(0x1000) : {
     *(.sdata .sdata.*) /* do not need to distinguish this from .data */
     . = ALIGN(16);
     *(.data .data.*)
   }
 
-  _dataEnd = .;
 
   _rodataStart = .;
-  .rodata : {
-    . = ALIGN(16);
+  .rodata ALIGN(0x1000) : {
     *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */
-    . = ALIGN(16);
+    . = ALIGN(0x1000);
     *(.rodata .rodata.*)
   }
 

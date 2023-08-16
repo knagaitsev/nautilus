@@ -95,25 +95,22 @@ struct nk_sched_config sched_cfg = {
     .aperiodic_default_priority = QUANTUM_IN_NS,
 };
 
-static inline void set_tpid_reg(struct naut_info *naut) {
-  mpid_reg_t mpid_reg;
-  load_mpid_reg(&mpid_reg);
-  STORE_SYS_REG(TPIDR_EL1, naut->sys.cpus[mpid_reg.aff0]);
-  INIT_DEBUG("Wrote into thread pointer register of CPU: %u, ptr = %p\n", mpid_reg.aff0, naut->sys.cpus[mpid_reg.aff0]);
-}
+extern int smp_init_tpidr(void); 
 
 static inline void per_cpu_sys_ctrl_reg_init(void) {
 
-  sys_ctrl_reg_t ctrl_reg;
-  LOAD_SYS_REG(SCTLR_EL1, ctrl_reg.raw);
+  sctlr_el1_t sctlr;
+  LOAD_SYS_REG(SCTLR_EL1, sctlr.raw);
 
-  ctrl_reg.align_check_en = 0;
-  ctrl_reg.unaligned_acc_en = 1;
+  sctlr.align_check_en = 0;
+  sctlr.unaligned_acc_en = 1;
+  sctlr.write_exec_never = 0;
+  sctlr.instr_cacheability_ctrl = 1;
+  sctlr.data_cacheability_ctrl = 1;
 
-  dump_sys_ctrl_reg(ctrl_reg);
+  dump_sctlr_el1(sctlr);
 
-  STORE_SYS_REG(SCTLR_EL1, ctrl_reg.raw);
-
+  STORE_SYS_REG(SCTLR_EL1, sctlr.raw);
 }
 
 static inline int per_cpu_irq_init(void) 
@@ -140,18 +137,33 @@ static inline int init_core_barrier(struct sys_info *sys) {
   return 0;
 }
 
-volatile static uint8_t __secondary_init_finish;
+volatile static uint8_t __secondary_init_first_phase_complete = 0;
+volatile static uint8_t __secondary_init_second_phase_token = 0;
 
 void secondary_init(void) {
 
   fpu_init(&nautilus_info, 1);
 
-  set_tpid_reg(&nautilus_info);
+  if(smp_init_tpidr()) {
+    INIT_ERROR("Could not set TPIDR_EL1 for CPU!\n");
+    panic("Could not set TPIDR_EL1 for CPU! panicking...\n");
+  }
 
   INIT_PRINT("Starting CPU %u...\n", my_cpu_id());
 
   per_cpu_sys_ctrl_reg_init();
  
+  INIT_PRINT("per_cpu init paging\n"); 
+  per_cpu_paging_init();
+
+  // Signal that we reached the end of the first phase
+  __secondary_init_first_phase_complete = 1;
+
+  // Wait for the second_phase_token to allow us to pass
+  while(__secondary_init_second_phase_token < my_cpu_id()) {} 
+
+  // We should have atomics and kmem now
+
   // Locally Initialize the GIC on the init processor 
   // (will need to call this on every processor which can receive interrupts)
   if(per_cpu_irq_init()) {
@@ -171,12 +183,6 @@ void secondary_init(void) {
 
   INIT_PRINT("ARM64: successfully started CPU %d\n", my_cpu_id());
 
-  __secondary_init_finish = 1;
-
-  nk_sched_start();
-  
-  per_cpu_paging_init();
-
   // Enable interrupts
   arch_enable_ints(); 
 
@@ -184,6 +190,9 @@ void secondary_init(void) {
 
   //enable the timer
   percpu_timer_init();
+
+  INIT_PRINT("Finished initializing CPU %u!\n", my_cpu_id());
+  __secondary_init_second_phase_token += 1;
 
   idle(NULL, NULL);
 }
@@ -194,24 +203,51 @@ static int start_secondaries(struct sys_info *sys) {
   INIT_PRINT("Starting secondary processors\n");
 
   for(uint64_t i = 1; i < sys->num_cpus; i++) {
-    __secondary_init_finish = 0;
+    __secondary_init_first_phase_complete = 0;
     // Initialize the stack
 
+    void *stack_base = mm_boot_alloc_aligned(4096, 16);
+    if(stack_base == NULL) {
+      INIT_ERROR("Could not allocate a stack for secondary core: %u\n", i);
+      return -1;
+    }
+    stack_base += 4096;
+
+    mpidr_el1_t mpid;
+    mpid.raw = 0;
+    mpid.aff0 = sys->cpus[i]->aff0;
+    mpid.aff1 = sys->cpus[i]->aff1;
+    mpid.aff2 = sys->cpus[i]->aff2;
+    mpid.aff3 = sys->cpus[i]->aff3;
+
     INIT_PRINT("Trying to start secondary core: %u\n", i);
-    if(psci_cpu_on(i, (void*)secondary_start, i)) {
+    if(psci_cpu_on(mpid.raw, (void*)secondary_start, (uint64_t)stack_base)) {
       INIT_ERROR("PSCI Error: psci_cpu_on failed for CPU %u!\n", i);
     }
-    while(!__secondary_init_finish) {
-      // Wait for the secondary cpu to finish initializing
-      // (We need to start them one by one because we're re-using
-      //  the boot stack)
-      //
-      //  We could preallocate stacks for each core and let them use those instead
-      //  of the boot stack, if this becomes a bottleneck when booting large MP systems.
+
+    while(!__secondary_init_first_phase_complete) {
+      // Wait for the secondary cpu to finish the first phase
+      // (We need to start them one by one because atomics aren't enabled yet)
     }
   }
 
-  INIT_PRINT("All CPU's are initialized!\n");
+  // All of the CPU's are past the first stage (and should have enabled MMU's)
+
+  INIT_PRINT("All CPU's are past the first stage!\n");
+  INIT_PRINT("Enabling atomics\n");
+  extern int __atomics_enabled;
+  __atomics_enabled = 1;
+  INIT_PRINT("Atomics enabled!\n");
+  return 0;
+}
+
+static int finish_secondaries(struct sys_info *sys) {
+  INIT_PRINT("Starting CPU 1's second phase...\n");
+  __secondary_init_second_phase_token = 1;
+
+  while(__secondary_init_second_phase_token < sys->num_cpus) {}
+  INIT_PRINT("Finished initializing all CPU's!\n");
+  return 0;
 }
 
 /* Faking some vc stuff */
@@ -235,7 +271,10 @@ extern spinlock_t printk_lock;
 // The stack switch which happens halfway through "init" makes this needed
 static volatile const char *chardev_name = "serial0";
 
+//#define ROCKCHIP
+
 int rockchip_leds(int val) {
+#ifdef ROCKCHIP
   void *bank_1_reg_base = (void*)0xff720000;
   int diy_led_index = 0x2;
   int work_led_index = 0xB;
@@ -265,12 +304,12 @@ int rockchip_leds(int val) {
   } else {
     *dr_reg &= ~work_bit;
   }
-
+#endif
   return 0;
 }
 
 int rockchip_halt_and_flash(int val0, int val1, int fast) {
-
+#ifdef ROCKCHIP
   uint64_t delay = 0xFFFF;
   if(!fast) {
     delay = delay * 16;
@@ -288,6 +327,11 @@ int rockchip_halt_and_flash(int val0, int val1, int fast) {
       // delay loop
     }
   }
+
+  // Error if we return
+  return -1;
+#endif
+  return 0;
 }
 
 void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x3) {
@@ -300,9 +344,9 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nautilus_info.sys.dtb = (struct dtb_fdt_header*)dtb;
 
-  mpid_reg_t mpid_reg;
-  load_mpid_reg(&mpid_reg);
-  nautilus_info.sys.bsp_id = mpid_reg.aff0; 
+  mpidr_el1_t mpidr_el1;
+  LOAD_SYS_REG(MPIDR_EL1, mpidr_el1.raw);
+  nautilus_info.sys.bsp_id = mpidr_el1.aff0; 
 
   // Initialize pre vc output
 #ifdef NAUT_CONFIG_PL011_UART_EARLY_OUTPUT
@@ -336,32 +380,46 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   
   // Setup the temporary boot-time allocator
   mm_boot_init(dtb);
-
+ 
   // Initialize SMP using the dtb
   arch_smp_early_init(&nautilus_info);
 
   // Set our thread pointer id register for the BSP
-  set_tpid_reg(&nautilus_info);
+  if(smp_init_tpidr()) {
+    INIT_ERROR("Could not set TPIDR_EL1 for BSP!\n");
+    panic("Could not set TPIDR_EL1 for BSP!\n");
+  }
   
+  // Do this early to speed up the boot process with data caches enabled
+  // (Plus atomics might not work without cacheability because ARM is weird)
+  if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
+    INIT_ERROR("Failed to initialize paging!\n");
+    panic("Failed to initialize paging globally!\n");
+  }
+
+  per_cpu_paging_init();
+ 
+  // This should get us atomics
+  if(start_secondaries(&(nautilus_info.sys))) {
+    INIT_ERROR("Failed to start secondaries!\n");
+    panic("Failed to start secondaries!\n");
+  }
+
   // Initialize NUMA
-  arch_numa_init(&(nautilus_info.sys));
+  if(arch_numa_init(&(nautilus_info.sys))) {
+    INIT_ERROR("Could not get NUMA information!\n");
+    panic("Could not get NUMA information!\n");
+  }
+
+  mm_dump_page_map(); 
 
   // Start using the main kernel allocator
-  //mm_dump_page_map();
   nk_kmem_init();
   mm_boot_kmem_init();
 
   // Needs kmem to unflatten the device tree
   of_init((void*)dtb);
-
   nk_gpio_init();
-
-  // Do this early to speed up the boot process with data caches enabled
-  if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
-    INIT_ERROR("Failed to initialize paging!\n");
-  }
-
-  per_cpu_paging_init();
 
 #if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
   if(gicv2_init()) {
@@ -405,8 +463,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   pci_init(&nautilus_info);
   pci_dump_device_list();
 
-  start_secondaries(&(nautilus_info.sys));
-  
 #ifdef NAUT_CONFIG_PL011_UART
   pl011_uart_init();
 #endif
@@ -433,9 +489,9 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_dump_ivec_info();
 
-  nk_vc_init();
-  INIT_DEBUG("VC inited!\n");
-
+  // Let the secondary processors into their second phase
+  finish_secondaries(&(nautilus_info.sys));
+ 
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
   nk_vc_start_chardev_console(chardev_name);
   INIT_DEBUG("chardev console inited!\n");
@@ -458,7 +514,11 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   nk_launch_shell("root-shell",0,0,0);
 
-  nk_vc_printf_wrap("Promoting init thread to idle\n");
+  INIT_PRINT("Promoting init thread to idle\n");
+
+  nk_vc_init();
+  INIT_DEBUG("VC inited!\n");
+
   idle(NULL,NULL);
 }
 

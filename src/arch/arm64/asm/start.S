@@ -70,7 +70,7 @@ bsp_entry:  # We're on the main core!
     mov     sp, x0
 
     # Install the interrupt vector tables
-    bl      __install_iv_tables
+    bl      install_iv_tables_el1
 
     # Jump to our kernel_main routine in C (make sure it doesn't return)
 4:  
@@ -87,15 +87,17 @@ bsp_entry:  # We're on the main core!
 .GLOBAL secondary_start
 secondary_start:
 
+    // We pass a stack through context_id (save it incase we are in EL2)
+    mov x20, x0
+
     bl try_el2_to_el1
+
+    mov sp, x20
     
     # Exceptions will try to access the CPU struct if TPIDR_EL1 is non-null
     msr TPIDR_EL1, xzr
 
-    ldr x29, =boot_stack_end
-    mov sp, x29
-
-    bl __install_iv_tables
+    bl install_iv_tables_el1
 
     bl secondary_init
 
@@ -114,6 +116,12 @@ try_el2_to_el1:
     # We're not in EL2
     ret
 1:
+
+    # Install the exception handlers (So if we double fault we can still hopefully get some error output)
+    # This comes at some pretty high performance costs
+    //mov x28, lr
+    //bl install_iv_tables_el2
+    //mov lr, x28
 
     # EL1 should be 64bit
     mov x0, (1<<31)

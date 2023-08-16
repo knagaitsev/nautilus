@@ -42,9 +42,22 @@ struct nk_regs {
   uint64_t x16;
   uint64_t x17;
   uint64_t x18;
-  uint64_t sp;
   uint64_t frame_ptr;
   uint64_t link_ptr;
+  uint64_t sp;
+
+  // Extended registers, only exist on the stack of 
+  // a preempted thread on on unhandled exception
+  uint64_t x19;
+  uint64_t x20;
+  uint64_t x21;
+  uint64_t x22;
+  uint64_t x23;
+  uint64_t x24;
+  uint64_t x25;
+  uint64_t x26;
+  uint64_t x27;
+  uint64_t x28;
 };
 
 #define pause()

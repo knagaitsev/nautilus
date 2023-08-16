@@ -33,6 +33,7 @@ extern "C" {
 
 #include <nautilus/spinlock.h>
 #include <nautilus/intrinsics.h>
+#include <nautilus/smp.h>
 
 // Always included so we get the necessary type
 #include <nautilus/cachepart.h>

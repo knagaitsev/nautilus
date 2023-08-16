@@ -39,6 +39,8 @@ void arch_halt(void);
 
 int arch_little_endian(void);
 
+int arch_atomics_enabled(void);
+
 void arch_print_regs(struct nk_regs *r);
 void* arch_instr_ptr_reg(struct nk_regs *regs);
 

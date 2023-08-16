@@ -1,17 +1,20 @@
 
-.GLOBAL __mmu_enable
+.GLOBAL arm64_mmu_enable
 
 .section .text
 
-// We want this function to fit into one cache line
-// (And for instruction caches to be enabled without the MMU)
 .align 6
-__mmu_enable: 
-
-  isb
+arm64_mmu_enable:  
   dsb SY
+  tlbi VMALLE1
+  dsb SY
+  isb
+  mrs x0, SCTLR_EL1
+  orr x0, x0, 1 // M = 1
   msr SCTLR_EL1, x0
-  isb
   dsb SY
+  tlbi VMALLE1
+  dsb SY
+  isb
   ret
 

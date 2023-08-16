@@ -44,19 +44,25 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 
 	int i = 0;
 	if (address_cells > 0) {
-		if (address_cells == 1) reg->address = be32toh(*((uint32_t *)reg_prop));
-		if (address_cells == 2) reg->address = be64toh(*((uint64_t *)reg_prop));
+		if (address_cells == 1) {
+                  reg->address = be32toh(*((uint32_t *)reg_prop));
+                }
+		if (address_cells == 2) {
+                  // These need to be done as 32 bit loads because 64bit alignment isn't gaurenteed
+                  uint32_t *addr_ptr = (uint32_t*)reg_prop;
+                  reg->address = (uint64_t)be32toh(addr_ptr[1]) | (((uint64_t)be32toh(addr_ptr[0])) << 32);
+                }
 	}
 	reg_prop += 4 * address_cells;
 	if (size_cells > 0) {
-		if (size_cells == 1) reg->size = be32toh(*((uint32_t *)reg_prop));
-		if (size_cells == 2) reg->size = be64toh(*((uint64_t *)reg_prop));
+		if (size_cells == 1) {
+                  reg->size = be32toh(*((uint32_t *)reg_prop));
+                }
+		if (size_cells == 2) {
+                  uint32_t *size_ptr = (uint32_t*)reg_prop;
+                  reg->size = (uint64_t)be32toh(size_ptr[1]) | (((uint64_t)be32toh(size_ptr[0])) << 32);
+                }
 	}
-
-    // for (int i = 0; i < lenp / 8; i++) {
-    //     printk("%x ", be64toh(((uint64_t *)reg_prop)[i]));
-    // }
-    // printk("\n");
 
 	return 0;
 }
@@ -105,7 +111,8 @@ int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, int *num) {
                   regs[i].address = be32toh(*((uint32_t *)reg_prop));
                 }
 		if (address_cells == 2) {
-                  regs[i].address = be64toh(*((uint64_t *)reg_prop));
+                  uint32_t *addr_ptr = (uint32_t*)reg_prop;
+                  regs[i].address = (uint64_t)be32toh(addr_ptr[1]) | (((uint64_t)be32toh(addr_ptr[0])) << 32);
                 }
 	    }
 	    reg_prop += 4 * address_cells;
@@ -114,7 +121,8 @@ int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, int *num) {
                   regs[i].size = be32toh(*((uint32_t *)reg_prop));
                 }
 		if (size_cells == 2) {
-                  regs[i].size = be64toh(*((uint64_t *)reg_prop));
+                  uint32_t *size_ptr = (uint32_t*)reg_prop;
+                  regs[i].size = (uint64_t)be32toh(size_ptr[1]) | (((uint64_t)be32toh(size_ptr[0])) << 32);
                 }
 	    }
             reg_prop += 4 * size_cells;

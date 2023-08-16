@@ -58,36 +58,45 @@ static inline int nk_radix_tree_add_layer(struct nk_radix_tree *tree)
 static inline void **nk_radix_tree_get_slot(struct nk_radix_tree *tree, unsigned long index) 
 {
   if(tree == NULL) {
-    return tree;
+    return NULL;
   }
 
+  //printk("nk_radix_tree_get_slot(tree=%p,index=%x)\n", tree, index);
   struct nk_radix_tree_layer *layer = tree->root;
 
   for(int i = tree->height-1; i > 0; i--) 
   {
+    //printk("\ti = %u\n", i);
     if(layer == NULL) {
-      return layer;
+      //printk("\tlayer == NULL\n");
+      return NULL;
     }
     int layer_index = (index >> (NK_RADIX_TREE_BITS_PER_LAYER * i)) & NK_RADIX_TREE_LAYER_INDEX_MASK;
+    //printk("\tlayer_index == %d\n", layer_index);
     if(i != 0) {
       layer = (struct nk_radix_tree_layer *)layer->ptrs[layer_index];
     } 
   }
 
   if(layer == NULL) {
-    return layer;
+    //printk("\tfinal layer == NULL\n");
+    return NULL;
   }
   
+  //printk("layer->ptrs = %p\n", layer->ptrs);
+  //printk("index & NK_RADIX_TREE_LAYER_INDEX_MASK = %x\n", index & NK_RADIX_TREE_LAYER_INDEX_MASK);
   return layer->ptrs + (index & NK_RADIX_TREE_LAYER_INDEX_MASK);
 }
 
 void *nk_radix_tree_get(struct nk_radix_tree *tree, unsigned long index)
 {
   void **slot = nk_radix_tree_get_slot(tree, index);
+  //printk("nk_radix_tree_get(tree=%p,index=%x), slot = %p\n", tree, index, slot);
   if(slot != NULL) {
+    //printk("nk_radix_tree_get_slot *slot = %p\n", *slot);
     return *slot;
   } else {
-    return (void*)slot;
+    return NULL;
   }
 };
 
@@ -155,8 +164,7 @@ int nk_radix_tree_insert(struct nk_radix_tree *tree, unsigned long index, void *
 
 static inline void *nk_radix_tree_iterator_deref(struct nk_radix_tree_iterator *iter) 
 {
-  return iter->layer->ptrs[(iter->index>>(iter->height*NK_RADIX_TREE_BITS_PER_LAYER))
-    & NK_RADIX_TREE_LAYER_INDEX_MASK];
+  return iter->layer->ptrs[(iter->index>>(iter->height*NK_RADIX_TREE_BITS_PER_LAYER)) & NK_RADIX_TREE_LAYER_INDEX_MASK];
 }
 static inline int nk_radix_tree_iterator_up_one(struct nk_radix_tree_iterator *iter) 
 {
@@ -186,8 +194,7 @@ static inline int nk_radix_tree_iterator_step(struct nk_radix_tree_iterator *ite
 {
   void *deref = NULL;
   do {
-    int inner_index = (iter->index>>(NK_RADIX_TREE_BITS_PER_LAYER*iter->height))
-      & NK_RADIX_TREE_LAYER_INDEX_MASK;
+    int inner_index = (iter->index>>(NK_RADIX_TREE_BITS_PER_LAYER*iter->height)) & NK_RADIX_TREE_LAYER_INDEX_MASK;
 
     if(inner_index == NK_RADIX_TREE_LAYER_INDEX_MASK) {
       if(nk_radix_tree_iterator_up_one(iter)) {

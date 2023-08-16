@@ -515,7 +515,14 @@ static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i
       typer.common_lpi_aff == LPI_SHARED_AFF3 ? "aff3" :
       typer.common_lpi_aff == LPI_SHARED_AFF2 ? "aff2" : "aff1");
 
-  if(nk_assign_cpu_irq_dev(gicr_dev, gicr->affinity)) {
+  mpidr_el1_t mpid;
+  mpid.raw = 0;
+  mpid.aff0 = typer.affinity & 0xFF;
+  mpid.aff1 = (typer.affinity>>8) & 0xFF;
+  mpid.aff2 = (typer.affinity>>16) & 0xFF;
+  mpid.aff3 = (typer.affinity>>24) & 0xFF;
+
+  if(nk_assign_cpu_irq_dev(gicr_dev, mpidr_el1_to_cpu_id(&mpid))) {
     GIC_ERROR("Failed to assign GICR to CPU!\n");
     goto gicr_err_exit;
   }
