@@ -77,7 +77,7 @@ static int fdt_handle_cpu_node (unsigned long fdt, int offset, int cpu_addr_cell
     new_cpu->id         = sys->num_cpus;
 
     // Status
-    char *status = fdt_getprop(fdt, offset, "status", &lenp);
+    const char *status = fdt_getprop(fdt, offset, "status", &lenp);
     if (status && lenp >= 8 && !strncmp(status, "disabled", 8)) {
       new_cpu->enabled = 0;
     } else {
@@ -85,7 +85,7 @@ static int fdt_handle_cpu_node (unsigned long fdt, int offset, int cpu_addr_cell
     }
 
     // Affinity
-    uint32_t *regs = fdt_getprop(fdt, offset, "reg", &lenp); 
+    const uint32_t *regs = fdt_getprop(fdt, offset, "reg", &lenp); 
     if(regs == NULL) {
       SMP_ERROR("Cannot get \"regs\" property in \"cpu\" device tree node!\n");
       goto err_free;
@@ -107,10 +107,10 @@ static int fdt_handle_cpu_node (unsigned long fdt, int offset, int cpu_addr_cell
       goto err_free;
     }
 
-    new_cpu->is_bsp     = new_cpu->aff0 |
+    new_cpu->is_bsp     = (new_cpu->aff0 |
                           new_cpu->aff1 |
                           new_cpu->aff2 |
-                          new_cpu->aff3 == 0;
+                          new_cpu->aff3) == 0;
 
     // Other fields
     new_cpu->cpu_sig    = 0;
@@ -151,7 +151,7 @@ static int fdt_init_cpus(void *dtb, struct sys_info *sys)
 
   // #address-cells tells us how to associate MPIDR_EL1 registers with nodes
   int lenp;
-  uint32_t *cpu_addr_cells_ptr = fdt_getprop(dtb, cpus_offset, "#address-cells", &lenp);
+  const uint32_t *cpu_addr_cells_ptr = fdt_getprop(dtb, cpus_offset, "#address-cells", &lenp);
   if(cpu_addr_cells_ptr == NULL || lenp != 4) {
     SMP_ERROR("Could not read \"#address-cells\" property of \"cpus\" device tree node!\n");
     return -1;
@@ -160,7 +160,7 @@ static int fdt_init_cpus(void *dtb, struct sys_info *sys)
  
   // #size-cells should always be present and always be zero,
   // but if it's absent or non-zero it shouldn't be a problem, just weird.
-  uint32_t *cpu_size_cells_ptr = fdt_getprop(dtb, cpus_offset, "#size-cells", &lenp);
+  const uint32_t *cpu_size_cells_ptr = fdt_getprop(dtb, cpus_offset, "#size-cells", &lenp);
   if(cpu_size_cells_ptr == NULL || lenp != 4) {
     SMP_WARN("Could not read \"#size-cells\" property of \"cpus\" device tree node.\n");
   } else {
@@ -175,7 +175,7 @@ static int fdt_init_cpus(void *dtb, struct sys_info *sys)
   fdt_for_each_subnode(cpu_node_offset, dtb, cpus_offset) 
   {
     int lenp;
-    char *dev_type_prop = fdt_getprop(dtb, cpu_node_offset, "device_type", &lenp);
+    const char *dev_type_prop = fdt_getprop(dtb, cpu_node_offset, "device_type", &lenp);
     if(dev_type_prop == NULL) {
       SMP_DEBUG("cpus subnode (%u) missing device_type property\n", cpu_node_offset);
       continue;

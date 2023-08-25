@@ -10,3 +10,4 @@ obj-y += asm/ \
 	paging.o \
         paging_4kb.o \
 	sys_reg.o \
+	iomap.o \

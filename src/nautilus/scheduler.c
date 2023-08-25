@@ -64,6 +64,7 @@
 #include <nautilus/shell.h>
 #include <nautilus/topo.h>
 #include <nautilus/libccompat.h>
+#include <nautilus/atomic.h>
 #include <dev/port_gpio.h>
 
 #ifdef NAUT_CONFIG_ARCH_X86
@@ -979,7 +980,7 @@ int nk_sched_stop_world()
     preempt_disable();
     // wait until we are the sole world stopper
     // perhaps participating in other world stops along the way
-    PAUSE_WHILE(!__sync_bool_compare_and_swap(&stopping,0,stopper));
+    PAUSE_WHILE(!atomic_bool_cmpswap(stopping,0,stopper));
     
     // Now we want to make sure nothing can interrupt us
     // and we might as well reset the scheduler now as well
@@ -1011,7 +1012,7 @@ int nk_sched_start_world()
     }
 
     // indicate that we are restarting the world
-    __sync_fetch_and_and(&stopping,0);
+    atomic_and(stopping,0);
 
     // wait for them to notice 
     nk_counting_barrier(&stop_barrier);
@@ -1079,12 +1080,12 @@ void nk_sched_reap(int uncond)
 	return;
     }
 
-    if (!__sync_bool_compare_and_swap(&global_sched_state.reaping,0,1)) {
+    if (!atomic_bool_cmpswap(global_sched_state.reaping,0,1)) {
 	// reaping pass is already in progress elsewhere
 	// we will wait for it to  inish.  In this way, our caller
 	// will also see the benefit of that pass
 	DEBUG("%sconditional reap waiting on previous reap to complete\n", uncond ? "un" : "");
-	while (__sync_fetch_and_or(&global_sched_state.reaping,0)) {
+	while (atomic_or(global_sched_state.reaping,0)) {
 	    // wait for the reapping pass to finish
 	}
 	DEBUG("%sconditional reap - previous reap now complete, ignoring this reap\n", uncond ? "un" : "");
@@ -1123,7 +1124,7 @@ void nk_sched_reap(int uncond)
     DEBUG("%sconditional reap ends (%lu threads)\n", uncond ? "un" : "", global_sched_state.num_threads);
     
     // done with reaping - another core can now go
-    __sync_fetch_and_and(&global_sched_state.reaping,0);
+    atomic_and(global_sched_state.reaping,0);
 }
 
 //
@@ -1150,7 +1151,7 @@ struct nk_thread *nk_sched_reanimate(nk_stack_size_t min_stack_size,
 
     // We are currently overloaded with reaping, so we will wait until
     // we are the sole "reaper"
-    while (!__sync_bool_compare_and_swap(&global_sched_state.reaping,0,1)) {
+    while (!atomic_bool_cmpswap(global_sched_state.reaping,0,1)) {
     }
     DEBUG("Reanimation search begins (%lu threads)\n", global_sched_state.num_threads);
 
@@ -1190,7 +1191,7 @@ struct nk_thread *nk_sched_reanimate(nk_stack_size_t min_stack_size,
     GLOBAL_UNLOCK();
 
     // done with "reaping" - another core can now go
-    __sync_fetch_and_and(&global_sched_state.reaping,0);
+    atomic_and(global_sched_state.reaping,0);
     
     if (rt) {
 	DEBUG("Reanimation successful - returning thread %p (sched state %p name \"%s\")\n", rt->thread, rt, rt->thread->name);
@@ -3061,7 +3062,8 @@ static int select_victim(int new_cpu)
     do {
 	a = (int)(get_random() % sys->num_cpus);
 	b = (int)(get_random() % sys->num_cpus);
-    } while (a==new_cpu || b==new_cpu);
+    } while ((a==new_cpu || b==new_cpu) 
+        || sys->cpus[a]->sched_state == NULL || sys->cpus[b]->sched_state == NULL); // Can't steal from a CPU which hasn't initialized the scheduler yet
 
     return (sys->cpus[a]->sched_state->aperiodic.size  >
 	    sys->cpus[b]->sched_state->aperiodic.size) ? a : b;
@@ -4120,7 +4122,7 @@ int nk_task_complete(struct nk_task *task, void *output)
     TASK_DEBUG("task %p complete\n",task);
     task->output = output;
     // setting the flag must occur *after* setting the output
-    __sync_fetch_and_or(&task->flags,NK_TASK_COMPLETED);
+    atomic_or(task->flags,NK_TASK_COMPLETED);
     task->stats.complete_time_ns = cur_time();
     if (task->flags & NK_TASK_DETACHED) {
 	task_dealloc(task);
@@ -4676,7 +4678,7 @@ void nk_sched_start()
 
     // TODO: multicore scheduling for RISC-V port
     // barrier for all the schedulers
-    __sync_fetch_and_add(&sync_count,1);
+    atomic_add(sync_count,1);
     while (sync_count < num_cpus) {
 	// spin
     }

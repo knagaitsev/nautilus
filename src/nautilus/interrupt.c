@@ -556,7 +556,7 @@ int nk_unmask_irq(nk_irq_t irq) {
 
 void nk_dump_ivec_info(void) 
 {
-  IRQ_PRINT("--- Interrupt Vector Information: (total = %u) ---\n", max_ivec()+1);
+  IRQ_PRINT("--- Interrupt Vector Information: (max = %u) ---\n", max_ivec()+1);
   for(nk_ivec_t i = 0; i < max_ivec()+1; i++) 
   {
     struct nk_ivec_desc *desc = nk_ivec_to_desc(i);

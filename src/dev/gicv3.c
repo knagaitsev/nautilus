@@ -5,6 +5,7 @@
 #include<nautilus/nautilus.h>
 #include<nautilus/endian.h>
 #include<nautilus/interrupt.h>
+#include<nautilus/iomap.h>
 
 #include<nautilus/of/fdt.h>
 #include<nautilus/of/dt.h>
@@ -595,17 +596,25 @@ static int gicv3_init_dev_info(struct nk_dev_info *info)
     }
 
     // Required register blocks
-    gicd->dist_base = (uint64_t)reg_bases[0];
     gicd->dist_size = (uint64_t)reg_sizes[0];
+    gicd->dist_base = (uint64_t)nk_io_map(reg_bases[0], gicd->dist_size, 0);
+    if(gicd->dist_base == NULL) {
+      GIC_ERROR("Failed to map GICD register region!\n");
+      goto err_exit;
+    }
     GIC_PRINT("GICD_BASE = %p, GICD_SIZE = 0x%x\n", gicd->dist_base, gicd->dist_size);
 
     for(int i = 1; i < 1+gicd->num_redist_regions; i++) {
-      gicd->redist_bases[i-1] = (uint64_t)reg_bases[i];
       gicd->redist_sizes[i-1] = (uint64_t)reg_sizes[i];
+      gicd->redist_bases[i-1] = (uint64_t)nk_io_map(reg_bases[i], reg_sizes[i], 0);
+      if(gicd->redist_bases[i-1] == NULL) {
+        GIC_ERROR("Failed to map GICR%u register region!\n", i-1);
+        goto err_exit;
+      }
       GIC_PRINT("GICR_BASE_%u = %p, GICR_SIZE_%u = 0x%x\n", i-1, gicd->redist_bases[i-1], i-1, gicd->redist_sizes[i-1]);
     }
 
-    // Check for the optional register blocks
+    // Check for the optional register blocks (But don't map them)
     if(num_register_blocks >= 2+gicd->num_redist_regions) {
       gicd->cpu_base = (uint64_t)reg_bases[num_register_blocks-3];
       gicd->cpu_size = (uint64_t)reg_sizes[num_register_blocks-3];

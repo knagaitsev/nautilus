@@ -6,6 +6,7 @@
 #include<nautilus/spinlock.h>
 #include<nautilus/of/fdt.h>
 #include<nautilus/backtrace.h>
+#include<nautilus/iomap.h>
 
 #include<nautilus/of/dt.h>
 
@@ -165,7 +166,6 @@ static inline int pl011_uart_configure(struct pl011_uart *p) {
 static struct pl011_uart pre_vc_pl011;
 static uint64_t pre_vc_pl011_dtb_offset = -1;
 
-#define QEMU_PL011_VIRT_BASE_ADDR 0x9000000
 #define QEMU_PL011_VIRT_BASE_CLOCK 24000000 // 24 MHz Clock
          
 void pl011_uart_pre_vc_puts(char *s) {
@@ -187,13 +187,10 @@ void pl011_uart_pre_vc_init(uint64_t dtb) {
 
   pre_vc_pl011_dtb_offset = offset;
 
-  void *base = QEMU_PL011_VIRT_BASE_ADDR;
   uint64_t clock = QEMU_PL011_VIRT_BASE_CLOCK;
 
   fdt_reg_t reg = { .address = 0, .size = 0 };
-  if(!fdt_getreg(dtb, offset, &reg)) {
-     base = reg.address;
-  } else {
+  if(fdt_getreg(dtb, offset, &reg)) {
     return 1;
   }
   
@@ -202,17 +199,24 @@ void pl011_uart_pre_vc_init(uint64_t dtb) {
   // doesn't have any way to go from device tree entry phandle, to actual device
 
   p->dev = NULL;
-  p->mmio_base = base;
   p->clock = clock; 
   p->baudrate = 115200;
   spinlock_init(&p->input_lock);
   spinlock_init(&p->output_lock);
 
+  p->mmio_base = nk_io_map(reg.address, reg.size, 0);
+
+  if(p->mmio_base == NULL) {
+    return 1;
+  }
+
   if(pl011_uart_configure(p)) {
+    nk_io_unmap(reg.address);
     return 1;
   }
 
   if(nk_pre_vc_register(pl011_uart_pre_vc_putchar, pl011_uart_pre_vc_puts)) {
+    nk_io_unmap(reg.address);
     return 1;
   }
 

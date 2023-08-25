@@ -41,11 +41,6 @@
 #define PCI_WARN(fmt, args...)  WARN_PRINT("PCI: " fmt, ##args)
 #define PCI_ERROR(fmt, args...) ERROR_PRINT("PCI: " fmt, ##args)
 
-#ifdef NAUT_CONFIG_USE_PCI_ECAM
-// TODO: Change this ARM virt board specific value
-#define pci_ecam_base_addr 0x4010000000
-#endif
-
 uint16_t 
 pci_cfg_readw (uint8_t bus, 
                uint8_t slot,
@@ -66,7 +61,8 @@ pci_cfg_readw (uint8_t bus,
 
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
-    uint16_t read = *(volatile uint16_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr);
+    struct pci_info *pci = nautilus_info.sys.pci;
+    uint16_t read = *(volatile uint16_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr);
     return read;
 #elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
@@ -99,7 +95,8 @@ pci_cfg_readl (uint8_t bus,
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
     uint32_t read;
-    read = *(volatile uint32_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr);
+    struct pci_info *pci = nautilus_info.sys.pci;
+    read = *(volatile uint32_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr);
     return read;
 #elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
@@ -132,7 +129,8 @@ pci_cfg_writew (uint8_t bus,
            PCI_ENABLE_BIT;
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
-    *(volatile uint16_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr) = val;
+    struct pci_info *pci = nautilus_info.sys.pci;
+    *(volatile uint16_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr) = val;
 #elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     outw(val,PCI_CFG_DATA_PORT);
@@ -163,7 +161,8 @@ pci_cfg_writel (uint8_t bus,
            PCI_ENABLE_BIT;
 
 #ifdef NAUT_CONFIG_USE_PCI_ECAM
-    *(volatile uint32_t*)(pci_ecam_base_addr + (void*)(uint64_t)addr) = val;
+    struct pci_info *pci = nautilus_info.sys.pci;
+    *(volatile uint32_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr) = val;
 #elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     outl(val, PCI_CFG_DATA_PORT);
@@ -979,14 +978,18 @@ pci_init (struct naut_info * naut)
     }
     memset(pci, 0, sizeof(struct pci_info));
 
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    pci->ecam_base_addr = 0;
+#endif
+
     INIT_LIST_HEAD(&(pci->bus_list));
 
-    PCI_PRINT("Probing PCI bus...\n");
+    naut->sys.pci = pci;
 
+    PCI_PRINT("Probing PCI bus...\n");
+    
     // this will miss PCI buses attached to other complexes...
     pci_bus_scan(pci);
-
-    naut->sys.pci = pci;
 
     nk_dev_register("pci0", NK_DEV_BUS, 0, &ops, 0);
 

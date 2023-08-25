@@ -61,8 +61,7 @@ static mem_map_entry_t memory_map[MAX_MMAP_ENTRIES];
 static mmap_info_t mm_info;
 static boot_mem_info_t bootmem;
 
-uint8_t boot_mm_inactive = 0;
-
+int nk_current_allocator = NK_ALLOCATOR_NONE;
 
 /* 
  * Sifts through the memory map
@@ -190,10 +189,9 @@ mm_boot_init (ulong_t mbd)
     BMM_PRINT("Setting up boot memory allocator\n");
     memset(&mm_info, 0, sizeof(mm_info));
 
-    /* parse the multiboot2 memory map, filing in 
+    /* parse the multiboot2 memory map or the device tree, filing in 
      * some global data that we will subsequently use here  */
     detect_mem_map(mbd);
-
 
     npages = mm_info.last_pfn + 1;
     pm_len = (npages/BITS_PER_LONG + !!(npages%BITS_PER_LONG)) * sizeof(long);
@@ -207,12 +205,15 @@ mm_boot_init (ulong_t mbd)
     /* everything is initially marked as reserved */
     memset((void*)mem->page_map, 0xff, mem->pm_len);
 
+    nk_current_allocator = NK_ALLOCATOR_BOOT;
+
     /* free up the system RAM  that we can use */
     free_usable_ram(mem);
     
     /* mark as used the kernel and the pages occupying the bitmap */
     uint64_t kern_size = pm_start + pm_len - kern_start;
     kern_size = (PAGE_SIZE <= kern_size) ?  kern_size : PAGE_SIZE;
+
 
 #ifdef NAUT_CONFIG_HVM_HRT
     mm_boot_reserve_vmem(kern_start, kern_size);
@@ -240,7 +241,7 @@ mm_boot_reserve_mem (addr_t start, ulong_t size)
 
     BMM_DEBUG("Reserving memory %p-%p (start page=0x%x, npages=0x%x)\n",start,start+size,start_page,npages);
 
-    if (unlikely(boot_mm_inactive)) {
+    if (unlikely(nk_current_allocator != NK_ALLOCATOR_BOOT)) {
         BMM_PRINT("Invalid attempt to use boot memory allocator!\n");
         panic("Invalid attempt to use boot memory allocator\n");    
     }
@@ -265,7 +266,7 @@ mm_boot_free_mem (addr_t start, ulong_t size)
 
 		// memset((void*)start, 0, size);
 
-    if (unlikely(boot_mm_inactive)) {
+    if (unlikely(nk_current_allocator != NK_ALLOCATOR_BOOT)) {
         panic("Invalid attempt to use boot memory allocator\n");
     }
 
@@ -319,7 +320,7 @@ __mm_boot_alloc (ulong_t size, ulong_t align, ulong_t goal)
     boot_mem_info_t * minfo = &bootmem;
     void * ret = NULL;
 
-    if (unlikely(boot_mm_inactive)) {
+    if (unlikely(nk_current_allocator != NK_ALLOCATOR_BOOT)) {
         BMM_PRINT("Invalid attempt to use boot memory allocator\n");
         panic("Invalid attempt to use boot memory allocator\n");
     }
@@ -460,7 +461,7 @@ mm_boot_free (void *addr, ulong_t size)
 
     addr = (void*)(va_to_pa((ulong_t)addr));
 
-    if (unlikely(boot_mm_inactive)) {
+    if (unlikely(nk_current_allocator != NK_ALLOCATOR_BOOT)) {
         panic("Invalid attempt to use boot memory allocator\n");
     }
 
@@ -497,7 +498,10 @@ add_free_pages (struct mem_region * region)
 {
     ulong_t count = 0;
     ulong_t * pm  = bootmem.page_map;
+
+#ifndef NAUT_CONFIG_ARCH_ARM64
     ulong_t addr, i, m;
+#endif
 
     ASSERT(region);
 
@@ -505,13 +509,37 @@ add_free_pages (struct mem_region * region)
     ulong_t end_pfn   = (region->base_addr + region->len) >> PAGE_SHIFT;
 
     ASSERT(end_pfn < bootmem.npages);
-
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    // KJH - I think there's something wrong with the other version, but becasue it 
+    // seems to be working on x64 and non-rockpro ARM, I'm not going to get rid of the original
+    ulong_t bit_offset;
+    for(uint64_t i = start_pfn; i < end_pfn; i += (BITS_PER_LONG-bit_offset)) {
+      ulong_t free_bits = ~pm[i/BITS_PER_LONG];
+      bit_offset = i % BITS_PER_LONG; // Hopefully zero for every loop after the first
+      BMM_DEBUG("bit_offset=%u\n",bit_offset);
+      for(uint8_t bit = bit_offset; bit < BITS_PER_LONG && i+bit < end_pfn; bit++) {
+        int mask = (1<<bit);
+        void *address = (void*)(((uint64_t)(i+bit))<<PAGE_SHIFT);
+        if(free_bits & mask) {
+          if(is_usable_ram(address,PAGE_SIZE)) {
+            BMM_DEBUG("Handing page at %p (%p bytes) to kmem\n", address, PAGE_SIZE);
+            kmem_add_memory(region, address, PAGE_SIZE);
+            ++count;
+          } else {
+	    ERROR_PRINT("Skipping addition of memory at %p (%p bytes) - Likely memory map / SRAT mismatch\n",address,PAGE_SIZE);
+          }
+        } else {
+          BMM_DEBUG("Not handing reserved page at %p (%p bytes) to kmem\n", address, PAGE_SIZE);
+        }
+      }
+    }
+#else
     for (i = start_pfn; i < end_pfn; ) {
 
         ulong_t v = ~pm[i/BITS_PER_LONG];
        
 
-        /* we have free pages in this index */
+        // we have free pages in this index
         if (v) {
             addr = start_pfn << PAGE_SHIFT;
             for (m = 1; m && i < end_pfn; m <<= 1, addr += PAGE_SIZE, i++) {
@@ -522,13 +550,16 @@ add_free_pages (struct mem_region * region)
 		    } else {
 			ERROR_PRINT("Skipping addition of memory at %p (%p bytes) - Likely memory map / SRAT mismatch\n",addr,PAGE_SIZE);
 		    }
-                } 
+                } else {
+                  BMM_PRINT("Not handing reserved page at %p (%p bytes) to kmem\n",addr, PAGE_SIZE);
+                }
             }
         } else {
             i += BITS_PER_LONG;
         }
         start_pfn += BITS_PER_LONG;
     }
+#endif
 
     return count*PAGE_SIZE;
 }
@@ -568,7 +599,7 @@ mm_boot_kmem_init (void)
 
 
     /* we no longer need to use the boot allocator */
-    boot_mm_inactive = 1;
+    nk_current_allocator = NK_ALLOCATOR_KMEM;
 
     BMM_PRINT("    =======\n");
     BMM_PRINT("    [TOTAL] (%lu.%lu MB)\n", count/1000000, count%1000000);

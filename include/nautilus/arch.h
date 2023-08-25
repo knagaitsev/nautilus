@@ -8,6 +8,7 @@ typedef struct mmap_info mmap_info_t;
 typedef struct mem_map_entry mem_map_entry_t;
 
 struct naut_info;
+struct nk_io_mapping;
 
 /* arch specific */
 void arch_enable_ints(void);
@@ -33,6 +34,8 @@ int arch_timer_handler(struct nk_irq_action *action, struct nk_regs *regs, void 
 
 uint64_t arch_read_timestamp(void);
 
+nk_thread_id_t arch_thread_fork(void);
+
 void *arch_read_sp(void);
 void arch_relax(void);
 void arch_halt(void);
@@ -40,6 +43,9 @@ void arch_halt(void);
 int arch_little_endian(void);
 
 int arch_atomics_enabled(void);
+
+int arch_handle_io_map(struct nk_io_mapping *mapping);
+int arch_handle_io_unmap(struct nk_io_mapping *mapping);
 
 void arch_print_regs(struct nk_regs *r);
 void* arch_instr_ptr_reg(struct nk_regs *regs);

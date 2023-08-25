@@ -174,6 +174,56 @@ struct cpu {
 #endif
 };
 
+static inline void dump_cpu(struct cpu *cpu) {
+#define PF(field, format) printk("[CPU %u]." #field " = " #format "\n", cpu->id, cpu->field, format)
+  PF(cur_thread, "%p");
+  PF(interrupt_nesting_level, "%u");
+  PF(preempt_disable_level, "%u");
+  PF(interrupt_count, "%u");
+  PF(exception_count, "%u");
+  PF(irq_dev, "%p");
+  PF(cur_aspace, "%p");
+#ifdef NAUT_CONFIG_FIBER_ENABLE
+#if NAUT_CONFIG_FIBE_ENABLE
+  PF(f_state, "%p");
+#endif
+#endif
+#ifdef NAUT_CONFIG_WATCHDOG
+  PF(watchdog_count, "%u");
+#endif
+  PF(id, "%u");
+#ifdef NAUT_CONFIG_ARCH_ARM64
+  PF(aff0, "0x%02x");
+  PF(aff1, "0x%02x");
+  PF(aff2, "0x%02x");
+  PF(aff3, "0x%02x");
+#endif
+  PF(enabled, "%u");
+  PF(is_bsp, "%u");
+  PF(cpu_sig, "0x%08x");
+  PF(feat_flags, "0x%08x");
+  PF(booted, "%u");
+  PF(in_timer_interrupt, "%u");
+  PF(in_kick_interrupt, "%u");
+  PF(system, "%p");
+  PF(lock, "%u");
+  PF(sched_state, "%p");
+  PF(xcall_q, "%p");
+  PF(cpu_khz, "0x%u");
+  PF(tp, "%p");
+  PF(coord, "%p");
+  PF(domain, "%p");
+  PF(rand, "%p");
+#ifdef NAUT_CONFIG_ARCH_X86
+  PF(apic, "%p");
+  PF(lapic_id, "%u");
+#endif 
+#ifdef NAUT_CONFIG_PROFILE
+  PF(instr_data, "%p");
+#endif
+#undef PF
+}
+
 struct nk_irq_action;
 struct nk_regs;
 int xcall_handler(struct nk_irq_action *, struct nk_regs *, void *);

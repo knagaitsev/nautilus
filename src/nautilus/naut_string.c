@@ -93,6 +93,7 @@ memcpy (void * dst, const void * src, size_t n)
 void * 
 memset (void * dst, char c, size_t n)
 {
+//    printk("memset(dst=%p, c=%c, n=%x)\n", dst, c, n);
     unsigned char * d = (unsigned char *)dst;
     while (n--) {
         *d++ = c;

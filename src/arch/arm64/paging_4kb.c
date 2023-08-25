@@ -75,7 +75,7 @@ uint64_t pt_level_entry_size_4kb(struct page_table *table, int level)
 // Drill Page Functions
 static union pt_desc *drill_to_level_4kb(struct page_table *table, void *vaddr, long level)
 {
-  PAGING_DEBUG("drill_to_level_4kb(table=%p, vaddr=%p, level=%d)\n",table,vaddr,level);
+  //PAGING_DEBUG("drill_to_level_4kb(table=%p, vaddr=%p, level=%d)\n",table,vaddr,level);
 
   if(table->root_ptr == NULL) {
     table->root_ptr = pt_allocate_level(table, table->root_level);
@@ -93,9 +93,9 @@ static union pt_desc *drill_to_level_4kb(struct page_table *table, void *vaddr, 
         break;
       }
       if(!(desc->table.valid && desc->table.is_table)) {
-        PAGING_DEBUG("\tneed to drill 1GB pages first\n");
+        //PAGING_DEBUG("\tneed to drill 1GB pages first\n");
         pt_block_to_table(desc, 0, table);
-        PAGING_DEBUG("\tdrilled 1GB pages\n");
+        //PAGING_DEBUG("\tdrilled 1GB pages\n");
       }
       desc = PT_TABLE_DESC_PTR(&desc->table);
 
@@ -105,9 +105,9 @@ static union pt_desc *drill_to_level_4kb(struct page_table *table, void *vaddr, 
         break;
       }
       if(!(desc->table.valid && desc->table.is_table)) {
-        PAGING_DEBUG("\tneed to drill 2MB pages first\n");
+        //PAGING_DEBUG("\tneed to drill 2MB pages first\n");
         pt_block_to_table(desc, 1, table);
-        PAGING_DEBUG("\tdrilled 2MB pages\n");
+        //PAGING_DEBUG("\tdrilled 2MB pages\n");
       }
       desc = PT_TABLE_DESC_PTR(&desc->table);
 
@@ -117,11 +117,11 @@ static union pt_desc *drill_to_level_4kb(struct page_table *table, void *vaddr, 
         break;
       }
       if(!(desc->table.valid && desc->table.is_table)) {
-        PAGING_DEBUG("\tneed to drill 4KB pages\n");
+        //PAGING_DEBUG("\tneed to drill 4KB pages\n");
         pt_block_to_table(desc, 2, table);
-        PAGING_DEBUG("\tdrilled 4KB pages\n");
+        //PAGING_DEBUG("\tdrilled 4KB pages\n");
       } else {
-        PAGING_DEBUG("\tno drilling needed\n");
+        //PAGING_DEBUG("\tno drilling needed\n");
       }
       desc = PT_TABLE_DESC_PTR(&desc->table);
 
@@ -167,7 +167,7 @@ int pt_select_drill_func_4kb(struct page_table *table, uint64_t *start, uint64_t
       } 
       
       if(ALIGNED_1GB(*end)) {
-        PAGING_DEBUG("selected page 1GB page size for drill\n");
+        //PAGING_DEBUG("selected page 1GB page size for drill\n");
         *block_size = PAGE_SIZE_1GB;
         *drill_func = drill_1gb_block_4kb;
         *level = 1;
@@ -185,7 +185,7 @@ int pt_select_drill_func_4kb(struct page_table *table, uint64_t *start, uint64_t
       }
 
       if(ALIGNED_2MB(*end)) {
-        PAGING_DEBUG("selected page 2MB page size for drill\n");
+        //PAGING_DEBUG("selected page 2MB page size for drill\n");
         *block_size = PAGE_SIZE_2MB;
         *drill_func = drill_2mb_block_4kb;
         *level = 2;
@@ -198,21 +198,21 @@ int pt_select_drill_func_4kb(struct page_table *table, uint64_t *start, uint64_t
 
       switch(rounding) {
         case PT_RANGE_ROUND_IN:
-          PAGING_DEBUG("selected 4KB page size for drill (rounding in)\n");
-          PAGING_DEBUG("old_start = %p, old_end = %p\n", (void*)start, (void*)end);
+          //PAGING_DEBUG("selected 4KB page size for drill (rounding in)\n");
+          //PAGING_DEBUG("old_start = %p, old_end = %p\n", (void*)start, (void*)end);
           *end = round_down(*end, PAGE_SIZE_4KB);
           *start = round_up(*start, PAGE_SIZE_4KB);
-          PAGING_DEBUG("new_start = %p, new_end = %p\n", (void*)start, (void*)end);
+          //PAGING_DEBUG("new_start = %p, new_end = %p\n", (void*)start, (void*)end);
           break;
         case PT_RANGE_ROUND_OUT:
-          PAGING_DEBUG("selected 4KB page size for drill (rounding out)\n");
-          PAGING_DEBUG("old_start = %p, old_end = %p\n", (void*)start, (void*)end);
+          //PAGING_DEBUG("selected 4KB page size for drill (rounding out)\n");
+          //PAGING_DEBUG("old_start = %p, old_end = %p\n", (void*)start, (void*)end);
           *end = round_up(*end, PAGE_SIZE_4KB);
           *start = round_down(*start, PAGE_SIZE_4KB);
-          PAGING_DEBUG("new_start = %p, new_end = %p\n", (void*)start, (void*)end);
+          //PAGING_DEBUG("new_start = %p, new_end = %p\n", (void*)start, (void*)end);
           break;
         case PT_RANGE_ROUND_FILL_END:
-          PAGING_DEBUG("selected 4KB page size for drill (rounding fill end)\n");
+          //PAGING_DEBUG("selected 4KB page size for drill (rounding fill end)\n");
           *end = round_down(*end, PAGE_SIZE_4KB);
           if(!ALIGNED_4KB(*start)) {
             PAGING_ERROR("Could not select drill function without rounding start = %p\n", (void*)*start);
@@ -220,12 +220,12 @@ int pt_select_drill_func_4kb(struct page_table *table, uint64_t *start, uint64_t
           } 
           break;
         case PT_RANGE_ROUND_NONE:
-          PAGING_DEBUG("selected 4KB page size for drill (no rounding)\n");
+          //PAGING_DEBUG("selected 4KB page size for drill (no rounding)\n");
           if(!ALIGNED_4KB(*start) || !ALIGNED_4KB(*end)) {
             PAGING_ERROR("Could not select drill function without rounding for start = %p, end = %p, with 4KB page tables\n", (void*)*start, (void*)*end);
             return -1;
           }
-          PAGING_DEBUG("start = %p, end = %p\n", (void*)start, (void*)end);
+          //PAGING_DEBUG("start = %p, end = %p\n", (void*)start, (void*)end);
           break;
       }
 
@@ -408,7 +408,7 @@ struct page_table * pt_create_table_4kb(int tnsz)
     goto err_exit;
   }
 
-  PAGING_DEBUG("Created 4KB page table with root_level = %u, tnsz = %u\n", table->root_level, table->tnsz);
+  //PAGING_DEBUG("Created 4KB page table with root_level = %u, tnsz = %u\n", table->root_level, table->tnsz);
   return table;
 
 err_exit:

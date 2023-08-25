@@ -28,6 +28,7 @@
 #include <nautilus/monitor.h>
 #include <nautilus/dr.h>
 #include <nautilus/smp.h>
+#include <nautilus/atomic.h>
 #ifdef NAUT_CONFIG_PROVENANCE
 #include <nautilus/provenance.h>
 #endif
@@ -1209,7 +1210,7 @@ int nk_monitor_check(int *cpu)
 // we just wait our turn and then alert everyone else
 static int monitor_init_lock()
 {
-    while (!__sync_bool_compare_and_swap(&monitor_entry_flag,0,1)) {
+    while (!atomic_bool_cmpswap(monitor_entry_flag,0,1)) {
 	// I lose the entry game to another cpu, so I must process
 	// wait until the leader is done before proceeding. After they are done, I can proceed.
 	nk_monitor_sync_entry();
@@ -1234,7 +1235,7 @@ static int monitor_deinit_lock(void)
     // let other cpus know the state is now ready
     nk_counting_barrier(&update);
     // reset the entry flag
-    __sync_fetch_and_and(&monitor_entry_flag,0);
+    atomic_and(monitor_entry_flag,0);
     // wait on other cpus to use the state
     nk_counting_barrier(&exit);
     return 0;

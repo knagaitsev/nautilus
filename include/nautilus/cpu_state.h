@@ -31,9 +31,6 @@
 #include <arch/x64/msr.h>
 #endif
 
-// #include <nautilus/arch.h>
-int arch_atomics_enabled(void);
-
 //
 // This code assumes that %gs base (or tp) is pointing to
 // the struct cpu of the running cpu and it assumes the
@@ -78,19 +75,11 @@ static inline void preempt_disable()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-        if(arch_atomics_enabled()) {
 #if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	__sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+	atomic_add(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
-	__sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+	atomic_add(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #endif
-        } else {
-#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET) += 1;
-#else
-	*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET) += 1;
-#endif
-        }
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
     }
@@ -101,19 +90,11 @@ static inline void preempt_enable()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-        if(arch_atomics_enabled()) {
 #if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	__sync_fetch_and_sub((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+	atomic_sub(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
-	__sync_fetch_and_sub((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+	atomic_sub(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #endif
-        } else {
-#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET) -= 1;
-#else
-	*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET) -= 1;
-#endif
-        }
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
     }
@@ -127,19 +108,11 @@ static inline void preempt_reset()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-        if(arch_atomics_enabled()) {
 #if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	__sync_fetch_and_and((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+	atomic_and(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
-	__sync_fetch_and_and((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+	atomic_and(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #endif
-        } else {
-#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-        *(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET) = 0;
-#else
-	*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET) = 0;
-#endif
-        }
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
     }
@@ -150,19 +123,11 @@ static inline int preempt_is_disabled()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-      if (arch_atomics_enabled()) {
 #if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+	return atomic_add(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
-	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+	return atomic_add(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #endif
-      } else {
-#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	return *(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET);
-#else
-	return *(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET);
-#endif
-      }
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
 	return 1;
@@ -173,19 +138,11 @@ static inline uint16_t interrupt_nesting_level()
 {
     void *base = __cpu_state_get_cpu();
     if (base) {
-      if(arch_atomics_enabled()) {
 #if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+INL_OFFSET),0);
+	return atomic_add(*(uint32_t *)((uint64_t)base+INL_OFFSET),0);
 #else
-	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+INL_OFFSET),0);
+	return atomic_add(*(uint16_t *)((uint64_t)base+INL_OFFSET),0);
 #endif
-      } else {
-#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
-	return *(uint32_t *)((uint64_t)base+INL_OFFSET);
-#else
-	return *(uint16_t *)((uint64_t)base+INL_OFFSET);
-#endif
-      }
     } else {
 	return 0; // no interrupt should be on if we don't have percpu
     }

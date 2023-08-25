@@ -80,6 +80,12 @@ config GENERIC_8250_UART
     help
       Include a base 8250 UART implementation which can be used by other UART drivers
 
+config DEBUG_GENERIC_8250_UART
+    bool
+    default n
+    help
+      Debug the generic 8250 UART implementation
+
 config PC_8250_UART
     bool "PC 8250 UART"
     depends on ARCH_X86 && !STANDALONE_SERIAL_DRIVER
@@ -121,6 +127,7 @@ config DW_8250_UART_EARLY_OUTPUT
 config DEBUG_DW_8250_UART
     bool "Debug DesignWare UART"
     depends on DEBUG_PRINTS && DW_8250_UART
+    select DEBUG_GENERIC_8250_UART
     default n
     help
       Debug the DesignWare UART Driver

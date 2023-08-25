@@ -50,6 +50,8 @@ struct nk_dev_int {
 
 typedef struct nk_wait_queue nk_wait_queue_t;
 
+#define NK_DEV_FLAG_NO_WAIT (1<<0) // you cannot wait on this device (nk_dev_wait will immediately return regardless of context)
+
 // this is the class for devices.  It should be the first
 // member of any specific type of device
 struct nk_dev {

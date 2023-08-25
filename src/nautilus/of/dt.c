@@ -121,7 +121,7 @@ static char *dt_node_get_name(void *state)
   struct dt_node *node = (struct dt_node *)state;
 
   int lenp;
-  char *name = fdt_get_name(node->dtb, node->dtb_offset, &lenp);
+  const char *name = fdt_get_name(node->dtb, node->dtb_offset, &lenp);
 
   if(name == NULL || lenp < 0) {
     return NULL;
@@ -144,7 +144,7 @@ static int dt_node_read_int_array(void *state, const char *prop_name, int elem_s
 {
   struct dt_node *node = (struct dt_node *)state;
 
-  struct fdt_property *prop = fdt_get_property(node->dtb, node->dtb_offset, prop_name, NULL);
+  const struct fdt_property *prop = fdt_get_property(node->dtb, node->dtb_offset, prop_name, NULL);
 
   if(prop == NULL) {
     return -1;
@@ -185,7 +185,7 @@ static int dt_node_read_string_array(void *state, const char *prop_name, char **
   for(int i = 0; i < *buf_count; i++) 
   {
     int lenp;
-    char *str = fdt_stringlist_get(node->dtb, node->dtb_offset, prop_name, i, &lenp);
+    const char *str = fdt_stringlist_get(node->dtb, node->dtb_offset, prop_name, i, &lenp);
 
     if(lenp < 0) {
       return lenp;   
@@ -387,7 +387,10 @@ static int fdt_unflatten_tree_recursive(void *fdt, int node_offset, struct dt_no
     subnode_offset = fdt_next_subnode(fdt, subnode_offset);
   }
 
-  list_end->siblings = node->children;
+  if(list_end != NULL) 
+  {
+    list_end->siblings = node->children;
+  }
 
   return 0;
 }

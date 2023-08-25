@@ -27,6 +27,7 @@
 #include <nautilus/thread.h>
 #include <nautilus/waitqueue.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 
 #ifndef NAUT_CONFIG_DEBUG_DEV
 #undef DEBUG_PRINT
@@ -185,6 +186,11 @@ void nk_dev_wait(struct nk_dev *d,
 	// We are in an interrupt context, and 
 	// we cannot wait...
 	return;
+    } else if(d->flags & NK_DEV_FLAG_NO_WAIT) {
+        // We cannot sleep on this device for some reason, 
+        // but incase we have interrupts off we should still yield
+        // so another thread can run
+        nk_yield(); 
     } else {
 	// We are in a thread context and we will
 	// put ourselves to sleep
@@ -226,7 +232,7 @@ void nk_dev_dump_devices()
 static uint32_t next_serial_device_number;
 uint32_t nk_dev_get_serial_device_number(void) 
 {
-  return __sync_fetch_and_add(&next_serial_device_number, 1);
+  return atomic_add(next_serial_device_number, 1);
 }
 
 static int

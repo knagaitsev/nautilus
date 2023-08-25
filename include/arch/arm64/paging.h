@@ -68,6 +68,9 @@ struct page_table
   union pt_desc *root_ptr;
 };
 
+extern struct page_table *ttbr0_table;
+extern struct page_table *ttbr1_table;
+
 // Descriptor Formats
 
 #define PT_LOWER_ATTR \

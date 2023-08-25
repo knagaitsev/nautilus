@@ -6,7 +6,8 @@
 
 nk_thread_entry:
 
-  msr DAIF, xzr
+  mov x18, 0b0100
+  msr DAIF, x18
 
   ldr x18, [sp, 0x0]
   

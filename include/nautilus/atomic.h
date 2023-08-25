@@ -23,23 +23,124 @@
 #ifndef __ATOMIC_H__
 #define __ATOMIC_H__
 
-#define atomic_add(var, val)  __sync_fetch_and_add((volatile typeof(var)*)&(var), (val)) /* note: returns the old value */
-#define atomic_sub(var, val)  __sync_fetch_and_sub((volatile typeof(var)*)&(var), (val)) /* note: returns the old value */
-#define atomic_or(var, val)  __sync_fetch_and_or((volatile typeof(var)*)&(var), (val)) /* note: returns the old value */
-#define atomic_xor(var, val)  __sync_fetch_and_xor((volatile typeof(var)*)&(var), (val)) /* note: returns the old value */
-#define atomic_and(var, val)  __sync_fetch_and_and((volatile typeof(var)*)&(var), (val)) /* note: returns the old value */
-#define atomic_nand(var, val)  __sync_fetch_and_nand((volatile typeof(var)*)&(var), (val)) /* note: returns the old value */
+int arch_atomics_enabled(void);
+
+#define atomic_add(var, val)  ({ \
+    typeof(__sync_fetch_and_add((volatile typeof(var)*)&(var), (val))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_fetch_and_add((volatile typeof(var)*)&(var), (val)); \
+    } else { \
+      ret = (var); \
+      (var) += (val); \
+    } \
+    ret; \
+    })
+#define atomic_sub(var, val) ({ \
+    typeof(__sync_fetch_and_sub((volatile typeof(var)*)&(var), (val))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_fetch_and_sub((volatile typeof(var)*)&(var), (val)); \
+    } else {\
+      ret = (var); \
+      (var) -= (val); \
+    } \
+    ret; \
+  })
+#define atomic_or(var, val) ({ \
+    typeof(__sync_fetch_and_or((volatile typeof(var)*)&(var), (val))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_fetch_and_or((volatile typeof(var)*)&(var), (val)); \
+    } else { \
+      ret = (var); \
+      (var) = (var) | (val); \
+    } \
+    ret; \
+  })
+#define atomic_xor(var, val) ({ \
+    typeof(__sync_fetch_and_xor((volatile typeof(var)*)&(var), (val))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_fetch_and_xor((volatile typeof(var)*)&(var), (val)); \
+    } else { \
+      ret = (var);\
+      (var) = (var) ^ (val); \
+    } \
+    ret; \
+  })
+#define atomic_and(var, val) ({ \
+    typeof(__sync_fetch_and_and((volatile typeof(var)*)&(var), (val))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_fetch_and_and((volatile typeof(var)*)&(var), (val)); \
+    } else { \
+      ret = (var); \
+      (var) = (var) & (val); \
+    } \
+    ret; \
+  })
+#define atomic_nand(var, val) ({ \
+    typeof(__sync_fetch_and_nand((volatile typeof(var)*)&(var), (val))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_fetch_and_nand((volatile typeof(var)*)&(var), (val)); \
+    } else { \
+      ret = (var); \
+      (var) = ~((var) & (val)); \
+    } \
+    ret; \
+  })
 
 #define atomic_inc(var)       atomic_add((var), 1) 
 #define atomic_dec(var)       atomic_sub((var), 1)
+
+#define atomic_lock_test_and_set(var, val) ({ \
+    typeof(__sync_lock_test_and_set((volatile typeof(var)*)&(var), (val))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret =__sync_lock_test_and_set((volatile typeof(var)*)&(var), (val)); \
+    } else { \
+      ret = (var); \
+      (var) = (val); \
+    } \
+    ret; \
+  })
+#define atomic_lock_release(var) do {\
+    if(arch_atomics_enabled()) { \
+      __sync_lock_release((volatile typeof(var)*)&(var)); \
+    } else { \
+      var = 0; \
+    } \
+  } while(0)
 
 /* these return the *NEW* value */
 #define atomic_inc_val(var)  (atomic_add((var), 1) + 1)
 #define atomic_dec_val(var)  (atomic_sub((var), 1) - 1)
 
-#define atomic_cmpswap(var, old, new) __sync_val_compare_and_swap((volatile typeof(var)*)&(var), (old), (new))
+#define atomic_cmpswap(var, old, new) ({ \
+    typeof(__sync_val_compare_and_swap((volatile typeof(var)*)&(var), (old), (new))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_val_compare_and_swap((volatile typeof(var)*)&(var), (old), (new)); \
+    } else { \
+      ret = ((var) == (old)); \
+      (var) = (new); \
+    } \
+    ret; \
+  })
+#define atomic_bool_cmpswap(var, old, new) ({ \
+    typeof(__sync_bool_compare_and_swap((volatile typeof(var)*)&(var), (old), (new))) ret; \
+    if(arch_atomics_enabled()) { \
+      ret = __sync_bool_compare_and_swap((volatile typeof(var)*)&(var), (old), (new)); \
+    } else { \
+      ret = (!!(var) == !!(old)); \
+      (var) = (new); \
+    } \
+    ret; \
+  })
 
+#define atomic_store(var, val) do { \
+    if(arch_atomics_enabled()) { \
+      __atomic_store((typeof(var)*)&(var), (typeof(val)*)&(val), __ATOMIC_SEQ_CST); \
+    } else { \
+      (var) = (val); \
+    } \
+  } while(0) \
 
+#ifdef NAUT_CONFIG_ARCH_X86
 static inline void*
 xchg64 (void ** dst, void * newval)
 {
@@ -50,5 +151,6 @@ xchg64 (void ** dst, void * newval)
                  : "memory", "cc");
     return ret;
 }
+#endif
 
 #endif

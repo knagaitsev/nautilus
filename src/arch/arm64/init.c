@@ -108,7 +108,9 @@ static inline void per_cpu_sys_ctrl_reg_init(void) {
   sctlr.instr_cacheability_ctrl = 1;
   sctlr.data_cacheability_ctrl = 1;
 
-  dump_sctlr_el1(sctlr);
+#ifdef NAUT_CONFIG_DEBUG_PRINTS
+  //dump_sctlr_el1(sctlr);
+#endif
 
   STORE_SYS_REG(SCTLR_EL1, sctlr.raw);
 }
@@ -163,6 +165,7 @@ void secondary_init(void) {
   while(__secondary_init_second_phase_token < my_cpu_id()) {} 
 
   // We should have atomics and kmem now
+  INIT_PRINT("Starting second phase of secondary_init\n");
 
   // Locally Initialize the GIC on the init processor 
   // (will need to call this on every processor which can receive interrupts)
@@ -172,7 +175,7 @@ void secondary_init(void) {
   }
   INIT_PRINT("Initialized the GIC!\n", my_cpu_id());
 
-  nk_rand_init(nautilus_info.sys.cpus[0]);
+  nk_rand_init(nautilus_info.sys.cpus[my_cpu_id()]);
 
   nk_sched_init_ap(&sched_cfg);
 
@@ -181,8 +184,16 @@ void secondary_init(void) {
   smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
   nk_thread_name(get_cur_thread(), "secondary_init");
 
-  INIT_PRINT("ARM64: successfully started CPU %d\n", my_cpu_id());
+  INIT_PRINT("ARM64: successfully started CPU %d\n", my_cpu_id()); 
+  if(__secondary_init_second_phase_token+1 < nautilus_info.sys.num_cpus) {
+    INIT_PRINT("Letting CPU %u start it's second phase!\n", __secondary_init_second_phase_token+1);
+  } else {
+    INIT_PRINT("Final AP finished initializing\n");
+  }
+  __secondary_init_second_phase_token += 1;
 
+  nk_sched_start();
+ 
   // Enable interrupts
   arch_enable_ints(); 
 
@@ -191,9 +202,7 @@ void secondary_init(void) {
   //enable the timer
   percpu_timer_init();
 
-  INIT_PRINT("Finished initializing CPU %u!\n", my_cpu_id());
-  __secondary_init_second_phase_token += 1;
-
+  INIT_PRINT("Promoting secondary init thread to idle!\n");
   idle(NULL, NULL);
 }
 
@@ -206,7 +215,7 @@ static int start_secondaries(struct sys_info *sys) {
     __secondary_init_first_phase_complete = 0;
     // Initialize the stack
 
-    void *stack_base = mm_boot_alloc_aligned(4096, 16);
+    void *stack_base = malloc(4096);
     if(stack_base == NULL) {
       INIT_ERROR("Could not allocate a stack for secondary core: %u\n", i);
       return -1;
@@ -269,13 +278,18 @@ extern void* _bssStart[];
 extern spinlock_t printk_lock;
 
 // The stack switch which happens halfway through "init" makes this needed
-static volatile const char *chardev_name = "serial0";
+static volatile const char *chardev_name = NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME;
 
-//#define ROCKCHIP
+#define ROCKCHIP
 
+static int rockchip_io_mapped = 0;
 int rockchip_leds(int val) {
-#ifdef ROCKCHIP
+#ifdef ROCKCHIP 
   void *bank_1_reg_base = (void*)0xff720000;
+  if(!rockchip_io_mapped) {
+    nk_io_map(bank_1_reg_base, 0x1000, 0);
+    rockchip_io_mapped = 1;
+  }
   int diy_led_index = 0x2;
   int work_led_index = 0xB;
 
@@ -366,6 +380,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   psci_init((void*)dtb);
 
+  dump_io_map();
+
   //INIT_PRINT("--- Device Tree ---\n");
   //print_fdt((void*)dtb);
 
@@ -390,6 +406,18 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
     panic("Could not set TPIDR_EL1 for BSP!\n");
   }
   
+  // Initialize NUMA
+  if(arch_numa_init(&(nautilus_info.sys))) {
+    INIT_ERROR("Could not get NUMA information!\n");
+    panic("Could not get NUMA information!\n");
+  }
+
+  mm_dump_page_map(); 
+
+  // Start using the main kernel allocator (with fake atomics potentially)
+  nk_kmem_init();
+  mm_boot_kmem_init();
+
   // Do this early to speed up the boot process with data caches enabled
   // (Plus atomics might not work without cacheability because ARM is weird)
   if(arch_paging_init(&(nautilus_info.sys.mem), (void*)dtb)) {
@@ -399,27 +427,39 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   per_cpu_paging_init();
  
-  // This should get us atomics
   if(start_secondaries(&(nautilus_info.sys))) {
     INIT_ERROR("Failed to start secondaries!\n");
     panic("Failed to start secondaries!\n");
   }
-
-  // Initialize NUMA
-  if(arch_numa_init(&(nautilus_info.sys))) {
-    INIT_ERROR("Could not get NUMA information!\n");
-    panic("Could not get NUMA information!\n");
-  }
-
-  mm_dump_page_map(); 
-
-  // Start using the main kernel allocator
-  nk_kmem_init();
-  mm_boot_kmem_init();
-
+  
   // Needs kmem to unflatten the device tree
+  INIT_PRINT("of_init(dtb=%p)\n", dtb);
   of_init((void*)dtb);
   nk_gpio_init();
+
+  nk_wait_queue_init();
+  nk_future_init();
+  nk_timer_init();
+  nk_rand_init(nautilus_info.sys.cpus[my_cpu_id()]);
+  nk_semaphore_init();
+  nk_msg_queue_init();
+
+  nk_sched_init(&sched_cfg);
+
+  nk_thread_group_init();
+  nk_group_sched_init();
+
+  init_core_barrier(&(nautilus_info.sys));
+
+  smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
+  INIT_DEBUG("Swapped to the thread stack!\n");
+
+  nk_thread_name(get_cur_thread(), "init");
+
+  /*
+  pci_init(&nautilus_info);
+  pci_dump_device_list();
+  */
 
 #if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
   if(gicv2_init()) {
@@ -440,29 +480,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   INIT_DEBUG("Initialized the Interrupt Controller\n");
 
   // Now we should be able to install irq handlers
-
-  nk_wait_queue_init();
-  nk_future_init();
-  nk_timer_init();
-  nk_rand_init(nautilus_info.sys.cpus[0]);
-  nk_semaphore_init();
-  nk_msg_queue_init();
-
-  nk_sched_init(&sched_cfg);
-
-  nk_thread_group_init();
-  nk_group_sched_init();
-
-  init_core_barrier(&(nautilus_info.sys));
-
-  smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, &nautilus_info);
-  INIT_DEBUG("Swapped to the thread stack!\n");
-
-  nk_thread_name(get_cur_thread(), "init");
-
-  pci_init(&nautilus_info);
-  pci_dump_device_list();
-
 #ifdef NAUT_CONFIG_PL011_UART
   pl011_uart_init();
 #endif
@@ -488,14 +505,22 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   global_timer_init();
 
   nk_dump_ivec_info();
-
-  // Let the secondary processors into their second phase
-  finish_secondaries(&(nautilus_info.sys));
  
-#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
-  nk_vc_start_chardev_console(chardev_name);
-  INIT_DEBUG("chardev console inited!\n");
-#endif
+  // Let the secondary processors into their second phase
+  finish_secondaries(&(nautilus_info.sys)); 
+
+  INIT_DEBUG("Starting the scheduler on BSP\n");
+  // Start the scheduler
+  nk_sched_start(); 
+  INIT_DEBUG("Scheduler started!\n");
+
+  /*
+  INIT_DEBUG("Printing CPU states:\n");
+  for(int i = 0; i < nautilus_info.sys.num_cpus; i++) {
+    INIT_DEBUG("Dumping CPU %u\n", i);
+    dump_cpu(nautilus_info.sys.cpus[i]);
+  }
+  */
 
   //enable the timer
   percpu_timer_init();
@@ -503,21 +528,30 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
  
   // Free device tree data structures
   of_cleanup();
- 
-  // Start the scheduler
-  nk_sched_start();  
-  
+   
   // Enable interrupts
   arch_enable_ints(); 
 
   INIT_PRINT("Interrupts are now enabled\n"); 
 
+  INIT_DEBUG("Starting the virtual console...\n");
+  nk_vc_init();
+
+#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
+  nk_vc_start_chardev_console(chardev_name);
+  INIT_DEBUG("chardev console inited!\n");
+#endif 
+  /*
+  const char ** script = {
+    "threadtest",
+    "\0",
+    0
+  };
+  */
+  //nk_launch_shell("root-shell",0,script,0);
   nk_launch_shell("root-shell",0,0,0);
 
   INIT_PRINT("Promoting init thread to idle\n");
-
-  nk_vc_init();
-  INIT_DEBUG("VC inited!\n");
 
   idle(NULL,NULL);
 }

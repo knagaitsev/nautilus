@@ -1148,6 +1148,13 @@ menu Debugging
       help
         This adds a built in monitor to Nautilus.  You probably also want to enable the watchdog
 
+    config DEBUG_IOMAP
+      bool "Debug I/O Mappings"
+      depends on DEBUG_PRINTS
+      default n
+      help
+        Turn on debug prints for IO map subsystem
+
     config DEBUG_PAGING
       bool "Debug Paging"
       depends on DEBUG_PRINTS

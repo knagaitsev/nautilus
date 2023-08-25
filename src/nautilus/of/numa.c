@@ -106,7 +106,7 @@ numa_dtb_find_domains(struct sys_info * sys) {
       }
 
       int lenp;
-      uint32_t *numa_id_ptr = fdt_getprop(sys->dtb, offset, "numa-node-id", &lenp);
+      const uint32_t *numa_id_ptr = fdt_getprop(sys->dtb, offset, "numa-node-id", &lenp);
 
       if(numa_id_ptr == NULL) {
         NUMA_WARN("Found \"%s\" node in DTB without numa-node-id property! Switching to Identity NUMA Mapping!\n", fdt_get_name(sys->dtb, offset, NULL));
@@ -175,7 +175,7 @@ numa_dtb_assign_cpus(struct sys_info * sys) {
       }
 
       int lenp;
-      void *numa_id_ptr = fdt_getprop(sys->dtb, offset, "numa-node-id", &lenp);
+      const void *numa_id_ptr = fdt_getprop(sys->dtb, offset, "numa-node-id", &lenp);
 
       if(numa_id_ptr == NULL) {
         NUMA_ERROR("Found \"%s\" CPU node in DTB without numa-node-id property!\n", fdt_get_name(sys->dtb, offset, NULL));

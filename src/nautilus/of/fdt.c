@@ -14,14 +14,14 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
     // if not specified, assume: 2 for #address-cells, 1 for #size-cells
 
 	int reg_lenp = 0;
-        char *reg_prop = fdt_getprop(fdt, offset, "reg", &reg_lenp);
+        const char *reg_prop = fdt_getprop(fdt, offset, "reg", &reg_lenp);
 
         if(reg_prop == NULL) {
           return -1;
         }
 
-	void *address_cells_p = NULL;
-	void *size_cells_p = NULL;
+	const void *address_cells_p = NULL;
+	const void *size_cells_p = NULL;
 	int parent_iter_offset = offset;
 	while (!address_cells_p || !size_cells_p) {
 		// unclear if we should return here or if we should fall back to the default values
@@ -70,7 +70,7 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, int *num) {
  
 	int reg_lenp = 0;
-        char *reg_prop = fdt_getprop(fdt, offset, "reg", &reg_lenp);
+        const char *reg_prop = fdt_getprop(fdt, offset, "reg", &reg_lenp);
 
         if(reg_prop == NULL) {
           return -1;
@@ -80,8 +80,8 @@ int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, int *num) {
           return -1;
         }
 
-	void *address_cells_p = NULL;
-	void *size_cells_p = NULL;
+	const void *address_cells_p = NULL;
+	const void *size_cells_p = NULL;
 	int parent_iter_offset = offset;
 	while (!address_cells_p || !size_cells_p) {
 		// unclear if we should return here or if we should fall back to the default values
@@ -142,27 +142,27 @@ off_t fdt_getreg_address(const void *fdt, int offset) {
 // TODO: this makes a lot of assumptions about the device:
 // it only grabs the first interrupt, and it assumes that
 // the #interrupt-cells property is 1 (32 bit)
-uint32_t *fdt_get_interrupt(const void *fdt, int offset) {
+uint32_t fdt_get_interrupt(const void *fdt, int offset) {
 	int lenp = 0;
 
-	void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
-	uint32_t *vals = (uint32_t *)ints;
+	const void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
+	const uint32_t *vals = (uint32_t *)ints;
 
 	return be32toh(vals[0]);
 }
 
 int print_device(const void *fdt, int offset, int depth) {
 	int lenp = 0;
-	char *name = fdt_get_name(fdt, offset, &lenp);
-	char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
-	char *status = fdt_getprop(fdt, offset, "status", &lenp);
+	const char *name = fdt_get_name(fdt, offset, &lenp);
+	const char *compat_prop = fdt_getprop(fdt, offset, "compatible", &lenp);
+	const char *status = fdt_getprop(fdt, offset, "status", &lenp);
 	// show tree depth with spaces
 	for (int i = 0; i < depth; i++) {
 		printk("  ");
 	}
 	printk("%s (%s - %s)\n", name, compat_prop, status);
 
-	void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
+	const void *ints = fdt_getprop(fdt, offset, "interrupts", &lenp);
 	uint32_t *vals = (uint32_t *)ints;
 	for (int i = 0; i < lenp / 4; i++) {
 		uint32_t val = be32toh(vals[i]);
@@ -170,7 +170,7 @@ int print_device(const void *fdt, int offset, int depth) {
 	}
 
 	if (compat_prop && strcmp(compat_prop, "sifive,plic-1.0.0") == 0) {
-		void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
+		const void *ints_extended_prop = fdt_getprop(fdt, offset, "interrupts-extended", &lenp);
 		if (ints_extended_prop != NULL) {
 			uint32_t *vals = (uint32_t *)ints_extended_prop;
 			int context_count = lenp / 8;
@@ -188,7 +188,7 @@ int print_device(const void *fdt, int offset, int depth) {
 
 				int intc_offset = fdt_node_offset_by_phandle(fdt, phandle);
 				int cpu_offset = fdt_parent_offset(fdt, intc_offset);
-				char *name = fdt_get_name(fdt, cpu_offset, &lenp);
+				const char *name = fdt_get_name(fdt, cpu_offset, &lenp);
 				printk("\tcpu: %s\n", name);
 			}
 		}

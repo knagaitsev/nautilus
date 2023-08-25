@@ -35,6 +35,12 @@ extern "C" {
 
 #define MAX_MMAP_ENTRIES 128
 
+#define NK_ALLOCATOR_NONE 0
+#define NK_ALLOCATOR_BOOT 1
+#define NK_ALLOCATOR_KMEM 2
+
+extern int nk_current_allocator;
+
 typedef struct mem_map_entry {
     uint64_t addr;
     uint64_t len;
@@ -153,7 +159,6 @@ int  kmem_sanity_check();
  * Can ifdef later it if need be
  */
 #define realloc(p, s) kmem_realloc(p, s)
-
 
 #ifdef NAUT_CONFIG_ENABLE_BDWGC
 void * GC_memalign(size_t, size_t);

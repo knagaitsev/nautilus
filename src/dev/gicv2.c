@@ -8,6 +8,8 @@
 #include<nautilus/endian.h>
 #include<nautilus/of/fdt.h>
 #include<nautilus/of/dt.h>
+#include<nautilus/atomic.h>
+#include<nautilus/iomap.h>
 
 #include<arch/arm64/sys_reg.h>
 
@@ -209,7 +211,7 @@ static int gicv2_dev_enable_irq(void *state, nk_irq_t irq) {
 
   GICD_BITMAP_SET(gic, GICD_ISENABLER_0_OFFSET, irq);
   if(irq >= 32) {
-    uint8_t target = __sync_fetch_and_add(&irq_target_round_robin, 1) % gic->num_cpus;
+    uint8_t target = atomic_add(irq_target_round_robin, 1) % gic->num_cpus;
     GICD_BYTEMAP_WRITE(gic, GICD_ITARGETSR_0_OFFSET, irq, 1<<target);
     GIC_DEBUG("Set IRQ %u Target to CPU %u\n", irq, target);
   }
@@ -291,8 +293,16 @@ static int gicv2_init_dev_info(struct nk_dev_info *info) {
     goto err_exit;
   }
 
-  gic->dist_base = (uint64_t)bases[0];
-  gic->cpu_base = (uint64_t)bases[1];
+  gic->dist_base = (uint64_t)nk_io_map(bases[0], sizes[0], 0);
+  if(gic->dist_base == NULL) {
+    GIC_ERROR("Failed to map GICD register region!\n");
+    goto err_exit;
+  }
+  gic->cpu_base = (uint64_t)nk_io_map(bases[1], sizes[0], 0);
+  if(gic->cpu_base == NULL) {
+    GIC_ERROR("Failed to map GICC register region!\n");
+    goto err_exit;
+  }
   GIC_DEBUG("GICD_BASE = 0x%x GICC_BASE = 0x%x\n", gic->dist_base, gic->cpu_base);
 
   gicd_type_reg_t d_type_reg;

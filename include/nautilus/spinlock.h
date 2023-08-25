@@ -36,11 +36,9 @@ extern "C" {
 #include <nautilus/cpu.h>
 #include <nautilus/cpu_state.h>
 #include <nautilus/instrument.h>
+#include <nautilus/atomic.h>
 
 typedef uint32_t spinlock_t;
-
-// defined in <nautilus/arch.h>
-int arch_atomics_enabled(void);
 
 void 
 spinlock_init (volatile spinlock_t * lock);
@@ -53,15 +51,8 @@ spin_lock (volatile spinlock_t * lock)
 {
     NK_PROFILE_ENTRY();
     
-    if(arch_atomics_enabled()) {
-      while (__sync_lock_test_and_set(lock, 1)) {
-	// spin away
-      }
-    } else {
-      // This is potentially really dangerous, but atomics should be enabled before
-      // any multiprocessing happens and this is hopefully better than nothing
-      while(*lock) {}
-      *lock = 1;
+    while (atomic_lock_test_and_set(*lock, 1)) {
+      // spin away
     }
 
     NK_PROFILE_EXIT();
@@ -71,49 +62,26 @@ spin_lock (volatile spinlock_t * lock)
 static inline int
 spin_try_lock(volatile spinlock_t *lock)
 { 
-    if(arch_atomics_enabled()) {
-      return  __sync_lock_test_and_set(lock,1) ? -1 : 0 ;
-    } else {
-      if(*lock) {
-        return -1;
-      }
-      *lock = 1;
-      return 0;
-    }
+    return  atomic_lock_test_and_set(*lock,1) ? -1 : 0 ;
 }
 
 static inline uint8_t
 spin_lock_irq_save (volatile spinlock_t * lock)
 {
     uint8_t flags = irq_disable_save();
-    if(arch_atomics_enabled()) { 
-      PAUSE_WHILE(__sync_lock_test_and_set(lock, 1));
-    } else {
-      while(*lock) {}
-      *lock = 1;
-    }
+    PAUSE_WHILE(atomic_lock_test_and_set(*lock, 1));
     return flags;
 }
 
 static inline int
 spin_try_lock_irq_save(volatile spinlock_t *lock, uint8_t *flags)
 {
-    if(arch_atomics_enabled()) {
-      *flags = irq_disable_save();
-      if (__sync_lock_test_and_set(lock,1)) {
-          irq_enable_restore(*flags);
-          return -1;
-      } else {
-          return 0;
-      }
-    } else {
-      *flags = irq_disable_save();
-      if(*lock) {
+    *flags = irq_disable_save();
+    if (atomic_lock_test_and_set(*lock,1)) {
         irq_enable_restore(*flags);
         return -1;
-      }
-      *lock = 1;
-      return 0;
+    } else {
+        return 0;
     }
 }
 
@@ -127,22 +95,14 @@ static inline void
 spin_unlock (volatile spinlock_t * lock) 
 {
     NK_PROFILE_ENTRY();
-    if(arch_atomics_enabled()) {
-      __sync_lock_release(lock);
-    } else {
-      *lock = 0;
-    }
+    atomic_lock_release(*lock);
     NK_PROFILE_EXIT();
 }
 
 static inline void
 spin_unlock_irq_restore (volatile spinlock_t * lock, uint8_t flags)
 {
-    if(arch_atomics_enabled()) {
-      __sync_lock_release(lock);
-    } else {
-      *lock = 0;
-    }
+    atomic_lock_release(*lock);
     irq_enable_restore(flags);
 }
 

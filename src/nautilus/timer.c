@@ -33,6 +33,7 @@
 #include <nautilus/scheduler.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 
 #include <stddef.h>
 
@@ -81,7 +82,7 @@ nk_timer_t *nk_timer_create(char *name)
     memset(t,0,sizeof(struct nk_timer));
 
     if (!name) {
-	snprintf(buf,NK_TIMER_NAME_LEN,"timer%lu",__sync_fetch_and_add(&count,1));
+	snprintf(buf,NK_TIMER_NAME_LEN,"timer%lu",atomic_add(count,1));
 	name = buf;
     }
 
@@ -133,7 +134,7 @@ int nk_timer_set(nk_timer_t *t,
 {
     int oldstate;
 
-    oldstate = __sync_lock_test_and_set(&t->state, NK_TIMER_INACTIVE);
+    oldstate = atomic_lock_test_and_set(t->state, NK_TIMER_INACTIVE);
 
     if (oldstate == NK_TIMER_ACTIVE) {
 	ERROR("Weird - setting active timer %s\n", t->name);
@@ -172,7 +173,7 @@ int nk_timer_reset(nk_timer_t *t,
 {
     int oldstate;
 
-    oldstate = __sync_lock_test_and_set(&t->state, NK_TIMER_INACTIVE);
+    oldstate = atomic_lock_test_and_set(t->state, NK_TIMER_INACTIVE);
 
     if (oldstate == NK_TIMER_ACTIVE) {
 	ERROR("Weird - resetting active timer %s\n", t->name);
@@ -258,7 +259,7 @@ int nk_timer_cancel(nk_timer_t *t)
 static int check(void *state)
 {
     nk_timer_t *t = state;
-    return __sync_fetch_and_add(&t->state,0) == NK_TIMER_SIGNALLED;
+    return atomic_add(t->state,0) == NK_TIMER_SIGNALLED;
 }
 
 int nk_timer_wait(nk_timer_t *t)

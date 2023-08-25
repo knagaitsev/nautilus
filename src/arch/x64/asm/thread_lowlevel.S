@@ -375,7 +375,7 @@ leaq 8(%rsp), %rsp ;                            // This instruction must not aff
 
 */	
 
-ENTRY(nk_thread_fork)
+ENTRY(arch_thread_fork)
 	REG_SAVE()                  // RBP and RSP will be handled in _thread_fork
 
 	// Note that callee will see us as part of the stack frame

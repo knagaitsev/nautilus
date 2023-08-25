@@ -253,6 +253,8 @@ struct pci_dev {
 struct pci_info {
     uint32_t num_buses;
     struct list_head bus_list;
+
+    uint64_t ecam_base_addr;
 };
 
 

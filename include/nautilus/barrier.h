@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include <nautilus/spinlock.h>
+#include <nautilus/atomic.h>
 
 #define NK_BARRIER_LAST 1
 
@@ -82,7 +83,7 @@ static inline void nk_counting_barrier(volatile nk_counting_barrier_t *b)
     long mycur = *curp;
     volatile uint64_t *countp = &(b->count[mycur]);
 
-    old = __sync_fetch_and_add(countp,1);
+    old = atomic_add(*countp,1);
 
     if (old==(b->size-1)) {
         // I'm the last to the party

@@ -227,13 +227,13 @@ void nk_watchdog_nmi(void)
     
     if (trigger_count >= timeout_limit || barking_on_some_cpu) {
 	DEBUG("barking on CPU %d\n",my_cpu->id);
-        __sync_fetch_and_or(&barking_on_some_cpu, 1);
+        atomic_or(barking_on_some_cpu, 1);
     } else {
 	if (my_cpu->id==0) {
 	    DEBUG("reseting PIT\n");
 	    if (i8254_set_oneshot(bark_timeout_ns)) {
 		ERROR("Failed to set i8254 timer\n");
-		__sync_fetch_and_or(&barking_on_some_cpu, -1);
+		atomic_or(barking_on_some_cpu, -1);
 	    }
 	} else {
 	    DEBUG("skipping PIT reset\n");
@@ -278,7 +278,7 @@ void nk_watchdog_reset(void)
 	    sys->cpus[i]->watchdog_count = 0;
 	}
 	
-	__sync_fetch_and_and(&barking_on_some_cpu, 0);
+	atomic_and(barking_on_some_cpu, 0);
     }
 	
 }

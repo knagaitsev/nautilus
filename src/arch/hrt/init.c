@@ -53,6 +53,7 @@
 #include <nautilus/mm.h>
 #include <nautilus/libccompat.h>
 #include <nautilus/barrier.h>
+#include <nautilus/atomic.h>
 #include <arch/hrt/hrt.h>
 
 #include <dev/apic.h>
@@ -287,7 +288,7 @@ hrt_bsp_init (unsigned long mbd,
     runtime_init();
 
     /* let the other cores loose */
-    __sync_lock_test_and_set(&hrt_core_sync, 1);
+    atomic_lock_test_and_set(hrt_core_sync, 1);
 
     printk("Nautilus boot thread yielding (indefinitely)\n");
 

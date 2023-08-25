@@ -112,7 +112,7 @@ struct nk_msg_queue *nk_msg_queue_create(char *name,
 					 void *type_chars)
 {
     STATE_LOCK_CONF;
-    uint64_t mynum = __sync_fetch_and_add(&count,1);
+    uint64_t mynum = atomic_add(count,1);
     char buf[NK_MSG_QUEUE_NAME_LEN];
     char mbuf[NK_WAIT_QUEUE_NAME_LEN];
     
@@ -493,7 +493,7 @@ static int check_queue(void *s)
 static int check_timer(void *s)
 {
     struct op *o = (struct op *)s;
-    return __sync_fetch_and_or(&o->timer->state,0)==NK_TIMER_SIGNALLED;
+    return atomic_or(o->timer->state,0)==NK_TIMER_SIGNALLED;
 }
 
 

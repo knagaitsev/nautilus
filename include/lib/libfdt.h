@@ -2222,9 +2222,7 @@ static inline const void *fdt_offset_ptr_(const void *fdt, int offset)
 {
         uint32_t off_dt_struct = fdt_off_dt_struct(fdt);
 	const char *c = (const char *)fdt + off_dt_struct + offset;
-        if(offset == 59932) {
-          printk("fdt_offset_ptr_(fdt=%p, offset=%d) off_dt_struct = %u, ret = %p\n", fdt, offset, off_dt_struct, c);
-        }
+        //printk("fdt_offset_ptr_(fdt=%p, offset=%d) off_dt_struct = %u, ret = %p\n", fdt, offset, off_dt_struct, c);
         return c;
 }
 

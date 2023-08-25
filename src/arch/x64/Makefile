@@ -11,4 +11,6 @@ obj-y += asm/ \
 		fpu.o \
                 idt.o \
                 msr.o \
-                mtrr.o
+                mtrr.o \
+                cpuid.o \
+                thread.o

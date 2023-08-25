@@ -1,6 +1,7 @@
 #include <linux/futex.h>
 #include <nautilus/nautilus.h>
 #include <nautilus/waitqueue.h>
+#include <nautilus/atomic.h>
 
 #define SYSCALL_NAME "sys_futex"
 #include "impl_preamble.h"
@@ -56,7 +57,7 @@ static struct futex* futex_find(int* uaddr) {
 static struct futex* futex_allocate(int* uaddr) {
   int i;
   for (i = 0; i < NUM_FUTEXES; i++) {
-    if (__sync_bool_compare_and_swap(&futex_pool[i].uaddr, 0, uaddr)) {
+    if (atomic_bool_cmpswap(futex_pool[i].uaddr, 0, uaddr)) {
       return &futex_pool[i];
     }
   }
@@ -66,7 +67,7 @@ static struct futex* futex_allocate(int* uaddr) {
 static void futex_free(int* uaddr) {
   struct futex* f = futex_find(uaddr);
   if (f) {
-    __sync_fetch_and_and(&f->uaddr, 0);
+    atomic_and(f->uaddr, 0);
   }
 }
 

@@ -6,6 +6,7 @@
 #include<nautilus/endian.h>
 #include<nautilus/interrupt.h>
 #include<nautilus/of/dt.h>
+#include<nautilus/iomap.h>
 
 typedef union msi_type_reg {
   uint32_t raw;
@@ -32,6 +33,11 @@ int gicv2m_of_init_frame(struct nk_dev_info *msi_info)
 
   int mmio_size = 0;
   nk_dev_info_read_register_block(msi_info, &frame.mmio_base, &mmio_size);
+  frame.mmio_base = nk_io_map(frame.mmio_base, mmio_size, 0);
+  if(frame.mmio_base == NULL) {
+    GIC_ERROR("Failed to map MSI_BASE registers!\n");
+    goto err_exit;
+  }
   GIC_DEBUG("\tMSI_BASE = 0x%x\n", frame.mmio_base);
 
   // First get frame from MSI_TYPER register

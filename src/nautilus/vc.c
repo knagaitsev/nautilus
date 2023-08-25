@@ -1428,24 +1428,28 @@ static void list(void *in, void **out)
   struct list_head *cur;
   int i;
 
-
+  DEBUG("VC list thread\n");
   if (!list_vc) {
     ERROR("No virtual console for list..\n");
     return;
   }
     
+  DEBUG("naming VC list thread\n");
   if (nk_thread_name(get_cur_thread(),"vc-list")) {
     ERROR_PRINT("Cannot name vc-list's thread\n");
     return;
   }
 
+  DEBUG("binding VC list thread\n");
   if (nk_bind_vc(get_cur_thread(), list_vc)) {
     ERROR("Cannot bind virtual console for list\n");
     return;
   }
 
+  DEBUG("declaring VC list thread is up\n");
   // declare we are up
-  __sync_fetch_and_add(&vc_list_inited,1);
+  atomic_add(vc_list_inited,1);
+  DEBUG("list thread up\n");
 
   while (1) {
     nk_vc_clear(0xf9);
@@ -1503,7 +1507,7 @@ static int start_list()
     DEBUG("Launched VC list\n");
   }
 
-  while (!__sync_fetch_and_add(&vc_list_inited,0)) {
+  while (!atomic_add(vc_list_inited,0)) {
       // wait for vc list to be up
       nk_yield();
   }
@@ -1694,7 +1698,7 @@ static void chardev_console(void *in, void **out)
     }
 
     // declare we are up
-    __sync_fetch_and_add(&c->inited,1);
+    atomic_add(c->inited,1);
 
 
     char buf[80];
@@ -1709,7 +1713,7 @@ static void chardev_console(void *in, void **out)
 
  top:
     cur = 0;
-    while (__sync_fetch_and_add(&c->shutdown,0) == 0) {
+    while (atomic_add(c->shutdown,0) == 0) {
 	if (nk_char_dev_read(c->dev,1,&data[cur],NK_DEV_REQ_BLOCKING)!=1) {
 	    cur = 0;
 	    // note that we could get kicked out here if we are being asked
@@ -1826,7 +1830,7 @@ static void chardev_console(void *in, void **out)
 	}
     }
     DEBUG("exiting console thread\n");
-    __sync_fetch_and_and(&c->inited,0);
+    atomic_and(c->inited,0);
 }
 
 
@@ -1847,7 +1851,7 @@ int nk_vc_start_chardev_console(const char *chardev)
     c->cur_vc = default_vc;
 
     // make sure everyone sees this is zeroed...
-    __sync_fetch_and_and(&c->inited,0);
+    atomic_and(c->inited,0);
 
     if (nk_thread_start(chardev_console, c, 0, 1, PAGE_SIZE_4KB, &c->tid, 0)) {
 	ERROR("Failed to launch chardev console handler for %s\n",c->name);
@@ -1855,7 +1859,7 @@ int nk_vc_start_chardev_console(const char *chardev)
 	return -1;
     }
 
-    while (!__sync_fetch_and_add(&c->inited,0)) {
+    while (!atomic_add(c->inited,0)) {
 	nk_yield();
 	// wait for console thread to start
     }
@@ -1896,11 +1900,11 @@ int nk_vc_stop_chardev_console(char *chardev)
     STATE_UNLOCK();
 
     if (found) {
-	__sync_fetch_and_or(&c->shutdown,1);
+	atomic_or(c->shutdown,1);
 	// kick it to make sure it sees the shutdown
 	nk_dev_signal((struct nk_dev *)(c->dev));
 	// wait for it to ack exit
-	while (__sync_fetch_and_add(&c->inited,0)!=0) {}
+	while (atomic_add(c->inited,0)!=0) {}
 	DEBUG("console %s has stopped\n",c->name);
 	free(c);
     }

@@ -106,7 +106,7 @@ fdt_detect_mem_map (mmap_info_t * mm_info,
 {
   int offset = fdt_node_offset_by_prop_value((void*)fdt, -1, "device_type", "memory", 7);
 
-    BMM_DEBUG("offset = 0x%x\n", offset);
+  BMM_DEBUG("FDT memory node offset = 0x%x\n", offset);
   while(offset != -FDT_ERR_NOTFOUND) {
 
     fdt_reg_t reg = { .address = 0, .size = 0 };
@@ -126,6 +126,6 @@ fdt_detect_mem_map (mmap_info_t * mm_info,
 
 err_continue:
     offset = fdt_node_offset_by_prop_value((void*)fdt, offset, "device_type", "memory", 7);
-    BMM_DEBUG("offset = 0x%x\n", offset);
+    BMM_DEBUG("FDT memory node offset = 0x%x\n", offset);
   }
 }

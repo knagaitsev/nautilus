@@ -9,7 +9,6 @@ obj-y += \
 	gpiodev.o \
 	interrupt.o \
 	naut_string.o \
-	cpuid.o \
 	crypto.o \
 	spinlock.o \
 	rwlock.o \
@@ -49,12 +48,12 @@ obj-y += \
 	linker.o \
 	getopt.o \
 	cmdline.o \
-	lru_cache.o
+	lru_cache.o \
+	iomap.o
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \
 	paging.o \
-	cpuid.o \
 	ticketlock.o \
 	cpu.o \
 	acpi.o \

@@ -35,6 +35,7 @@
 #include <nautilus/msr.h>
 #include <nautilus/thread.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 #include <test/cachepart.h>
 
 
@@ -323,7 +324,7 @@ int nk_cache_part_start()
 	return -1;
     }
     
-    __sync_fetch_and_or(&cat_started, 1);
+    atomic_or(cat_started, 1);
 
     DEBUG("Active\n");
     
@@ -342,7 +343,7 @@ int nk_cache_part_start_ap()
     
     DEBUG("Cache part start (waiting)\n");
 
-    while (!__sync_fetch_and_and(&cat_started,1)) {}
+    while (!atomic_and(cat_started,1)) {}
       
     return cache_part_shared_start();
 }

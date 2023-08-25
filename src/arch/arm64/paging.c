@@ -3,6 +3,8 @@
 #include<nautilus/of/fdt.h>
 #include<nautilus/macros.h>
 #include<nautilus/mm.h>
+#include<nautilus/atomic.h>
+#include<nautilus/iomap.h>
 
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/paging.h>
@@ -10,7 +12,17 @@
 // Allocation
 struct page_table *pt_allocate_table(void) 
 {
-  struct page_table *table = mm_boot_alloc(sizeof(struct page_table));
+  struct page_table *table = NULL;
+
+  switch(nk_current_allocator) {
+    case NK_ALLOCATOR_KMEM:
+      table = malloc(sizeof(struct page_table));
+      break;
+    default:
+      table = NULL;
+      break;
+  };
+
   if(table != NULL) {
     memset(table, 0, sizeof(struct page_table));
   }
@@ -18,14 +30,22 @@ struct page_table *pt_allocate_table(void)
 }
 void pt_free_table(struct page_table *table) 
 {
-  mm_boot_free(table, sizeof(struct page_table));
+  free(table); 
 }
 
 union pt_desc * pt_allocate_level(struct page_table *table, int level) 
 {
   int num_entries = pt_level_num_entries(table, level);
   int align = pt_level_alignment(table, level);
-  union pt_desc *level_ptr = (union pt_desc*)mm_boot_alloc_aligned(sizeof(union pt_desc) * num_entries, align); 
+  union pt_desc *level_ptr;
+  switch(nk_current_allocator) {
+    case NK_ALLOCATOR_KMEM:
+      level_ptr = (union pt_desc*)malloc(sizeof(union pt_desc) * num_entries); 
+      break;
+    default:
+      level_ptr = NULL;
+      break;
+  }
   if(level_ptr != NULL) {
     memset(level_ptr, 0, sizeof(union pt_desc*) * num_entries);
   }
@@ -34,13 +54,12 @@ union pt_desc * pt_allocate_level(struct page_table *table, int level)
 
 void pt_free_level(union pt_desc *level_ptr, struct page_table *table, int level) 
 {
-  int num_entries = pt_level_num_entries(table, level);
-  mm_boot_free(level_ptr, sizeof(union pt_desc) * num_entries);
+  free(level_ptr);
 }
 
 int pt_block_to_table(union pt_desc *desc, int level, struct page_table *table)
 {
-  PAGING_DEBUG("pt_block_to_table(desc.raw=0x%016x, level=%u, table=%p)\n", desc->raw, level, table);
+  //PAGING_DEBUG("pt_block_to_table(desc.raw=0x%016x, level=%u, table=%p)\n", desc->raw, level, table);
   if(level == table->page_level) {
     PAGING_ERROR("Trying to turn page descriptor into a table descriptor!\n");
     return -1;
@@ -61,9 +80,9 @@ int pt_block_to_table(union pt_desc *desc, int level, struct page_table *table)
     return -1;
   }
  
-  PAGING_DEBUG("\tNew Block Size = 0x%x\n", size);
-  PAGING_DEBUG("\tNew Table Count = %u\n", count);
-  PAGING_DEBUG("\tNew Table Alignment = %u\n", align);
+  //PAGING_DEBUG("\tNew Block Size = 0x%x\n", size);
+  //PAGING_DEBUG("\tNew Table Count = %u\n", count);
+  //PAGING_DEBUG("\tNew Table Alignment = %u\n", align);
 
   struct pt_block_desc *block_desc = (struct pt_block_desc*)desc;
 
@@ -73,7 +92,7 @@ int pt_block_to_table(union pt_desc *desc, int level, struct page_table *table)
   } 
    
   uint64_t paddr = (uint64_t)PT_BLOCK_DESC_PTR(block_desc);
-  PAGING_DEBUG("\tCurrent PADDR = %p\n", paddr);
+  //PAGING_DEBUG("\tCurrent PADDR = %p\n", paddr);
  
   union pt_desc *desc_table = pt_allocate_level(table, table_level);
   if(desc_table == NULL) {
@@ -100,10 +119,10 @@ int pt_block_to_table(union pt_desc *desc, int level, struct page_table *table)
    }
 
     desc_table[i].valid = block_desc->valid;
-    PAGING_DEBUG("\tDrilled new entry: PADDR = %p, RAW = 0x%016x\n", new_paddr, desc_table[i].raw);
+    //PAGING_DEBUG("\tDrilled new entry: PADDR = %p, RAW = 0x%016x\n", new_paddr, desc_table[i].raw);
   }
 
-  PAGING_DEBUG("Original Block: PADDR = %p, RAW = 0x%016x\n", PT_BLOCK_DESC_PTR(block_desc), ((union pt_desc*)block_desc)->raw);
+  //PAGING_DEBUG("Original Block: PADDR = %p, RAW = 0x%016x\n", PT_BLOCK_DESC_PTR(block_desc), ((union pt_desc*)block_desc)->raw);
 
   struct pt_table_desc *table_desc = (struct pt_table_desc*)block_desc;
 
@@ -140,12 +159,12 @@ int pt_drill_range(struct page_table *table, uint64_t start, uint64_t paddr, uin
   // Fix paddr if start was modified
   paddr += (adjusted_start - start);
   start = adjusted_start;
-  PAGING_DEBUG("Drilling Range: [%p - %p]%s%s%s%s\n", (void*)start, (void*)end,
-      valid ? " VALID" : "",
-      perm.priv_exec_never ? " PXN" : "",
-      perm.unpriv_exec_never ? " UXN" : "",
-      perm.user ? " USER" : "",
-      perm.readonly ? "RD_ONLY" : "");
+  //PAGING_DEBUG("Drilling Range: [%p - %p]%s%s%s%s\n", (void*)start, (void*)end,
+  //    valid ? " VALID" : "",
+  //    perm.priv_exec_never ? " PXN" : "",
+  //    perm.unpriv_exec_never ? " UXN" : "",
+  //    perm.user ? " USER" : "",
+  //    perm.readonly ? "RD_ONLY" : "");
 
   for(; start < end; start += block_size, paddr += block_size) {
     union pt_desc *desc;
@@ -288,8 +307,8 @@ static int handle_rodata_memory_regions(struct page_table *table) {
   return 0;
 }
 
-static struct page_table *ttbr0_table;
-static struct page_table *ttbr1_table;
+struct page_table *ttbr0_table;
+struct page_table *ttbr1_table;
 static int paddr_bits;
 
 int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
@@ -299,6 +318,7 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
   id_aa64mmfr0_el1_t mmfr0; 
   LOAD_SYS_REG(ID_AA64MMFR0_EL1, mmfr0.raw);
   paddr_bits = pt_get_paddr_bits(&mmfr0);
+  //paddr_bits = 32;
   int tnsz = 64 - paddr_bits;
 
   PAGING_DEBUG("Physical Address Bits = %u\n", paddr_bits);
@@ -311,10 +331,29 @@ int arch_paging_init(struct nk_mem_info *mm_info, void *fdt) {
     return -1;
   }
 
+  /*
   if(pt_init_table_device(ttbr0_table, 0, 0, 1ULL<<paddr_bits)) {
     PAGING_ERROR("Failed to handle device page regions!\n");
     return -1;
   }
+  */
+
+  int mapping_count = 0;
+  struct nk_io_mapping *iter = nk_io_map_first();
+  while(iter != NULL) 
+  {
+    mapping_count += 1;
+    int flags = atomic_or(iter->flags, NK_IO_MAPPING_FLAG_ENABLED);
+    if(flags & NK_IO_MAPPING_FLAG_ENABLED) {
+      // Do nothing
+      PAGING_DEBUG("Skipping adding device region [%p - %p] -> [%p - %p] (already enabled)\n", iter->vaddr, iter->vaddr + iter->size, iter->paddr, iter->paddr + iter->size);
+    } else {
+      PAGING_DEBUG("Adding device region: [%p - %p] -> [%p - %p] to the ttbr0 table\n", iter->vaddr, iter->vaddr + iter->size, iter->paddr, iter->paddr + iter->size);
+      pt_init_table_device(ttbr0_table, iter->vaddr, iter->paddr, iter->size);
+      iter = nk_io_map_next(iter);
+    }
+  }
+  PAGING_DEBUG("Found %u existing I/O mappings\n", mapping_count);
 
 #ifdef NAUT_CONFIG_DEBUG_PAGING
   //PAGING_DEBUG("TTBR0 Table with device memory region:\n");
@@ -466,7 +505,7 @@ int per_cpu_paging_init(void) {
 
   STORE_SYS_REG(TCR_EL1, tcr.raw);
 
-  PAGING_DEBUG("Enabling the MMU\n");
+  PAGING_PRINT("Enabling the MMU\n");
 
   asm volatile ("isb");
 

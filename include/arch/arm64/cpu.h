@@ -106,30 +106,5 @@ static void udelay(uint_t n) {
     io_delay();
   }
 }
-
-static inline uint8_t inb(uint64_t addr) {
-  return *(volatile uint8_t*)addr;
-}
-
-static inline uint16_t inw(uint64_t addr) {
-  return *(volatile uint16_t*)addr;
-}
-
-static inline uint32_t inl(uint64_t addr) {
-  return *(volatile uint32_t*)addr;
-}
-
-static inline void outb(uint8_t val, uint64_t addr) {
-  *(volatile uint8_t*)addr = val;
-}
-
-static inline void outw(uint16_t val, uint64_t addr) {
-  *(volatile uint16_t*)addr = val;
-}
-
-static inline void outl(uint32_t val, uint64_t addr) {
-  *(volatile uint64_t*)addr = val;
-}
-
 /* Status register flags */
 #endif

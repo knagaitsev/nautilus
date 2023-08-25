@@ -13,7 +13,7 @@
 #endif
 
 #include <nautilus/intrinsics.h>
-
+#include <nautilus/atomic.h>
 
 #define BIT_64(n)	(U64_C(1) << (n))
 
@@ -92,12 +92,7 @@ static inline int test_and_set_bit(int nr, volatile unsigned long * addr)
     unsigned long bit = 1UL<<((uint64_t)nr % BITS_PER_LONG);
 
     unsigned long old;
-    if(arch_atomics_enabled()) {
-      old = __atomic_fetch_or(addr, bit, __ATOMIC_SEQ_CST);
-    } else {
-      old = *addr;
-      *addr |= bit;
-    }
+    old = atomic_or(*(unsigned long*)addr, bit);
     return old & bit;
 }
 
@@ -115,12 +110,7 @@ static inline int test_and_clear_bit(int nr, volatile unsigned long * addr)
   unsigned long bit = 1UL<<((uint64_t)nr % BITS_PER_LONG);
   
   unsigned long old; 
-  if(arch_atomics_enabled()) {
-    old = __atomic_fetch_and(addr, ~bit, __ATOMIC_SEQ_CST);
-  } else {
-    old = *addr;
-    *addr &= ~bit;
-  }
+  old = atomic_and(*(unsigned long*)addr, ~bit);
   return (old & bit);
 }
 

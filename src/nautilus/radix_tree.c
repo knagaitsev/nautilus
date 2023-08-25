@@ -48,7 +48,9 @@ static inline int nk_radix_tree_add_layer(struct nk_radix_tree *tree)
     return -1;
   }
   new_root->ptrs[0] = tree->root;
-  tree->root->parent = new_root;
+  if(tree->root != NULL) {
+    tree->root->parent = new_root;
+  }
   tree->root = new_root;
   tree->height += 1;
 

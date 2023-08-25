@@ -36,6 +36,7 @@
 #include <nautilus/intrinsics.h>
 #include <nautilus/percpu.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 
 #include <dev/port_gpio.h>
 
@@ -220,13 +221,13 @@ static inline struct kmem_block_hdr * block_hash_alloc(void *ptr)
   uint64_t start = block_hash_hash(ptr);
   
   for (i=start;i<block_hash_num_entries;i++) { 
-    if (__sync_bool_compare_and_swap(&block_hash_entries[i].order,0,1)) {
+    if (atomic_bool_cmpswap(block_hash_entries[i].order,0,1)) {
       KMEM_DEBUG("Allocation scanned %lu entries\n", i-start+1);
       return &block_hash_entries[i];
     }
   }
   for (i=0;i<start;i++) { 
-    if (__sync_bool_compare_and_swap(&block_hash_entries[i].order,0,1)) {
+    if (atomic_bool_cmpswap(block_hash_entries[i].order,0,1)) {
       KMEM_DEBUG("Allocation scanned %lu entries\n", block_hash_num_entries-start + i + 1);
       return &block_hash_entries[i];
     }
@@ -239,7 +240,7 @@ static inline void block_hash_free_entry(struct kmem_block_hdr *b)
   b->addr = 0;
   b->zone = 0;
   b->flags = 0;
-  __sync_fetch_and_and (&b->order,0);
+  atomic_and(b->order,0);
 }
 
 static inline int block_hash_free(void *ptr)
