@@ -35,6 +35,7 @@ uint32_t nk_get_num_cpus (void);
 
 /******* !EXTERNAL INTERFACE! *********/
 
+#include <nautilus/printk.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/mm.h>
 #include <nautilus/queue.h>

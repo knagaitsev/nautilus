@@ -128,6 +128,13 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
     addr[BIT_WORD((uint64_t)nr)] ^= (1UL<<((uint64_t)nr % BITS_PER_LONG));
 }
 
+/**
+ * __clz - count leading zeros in word
+ */
+static inline unsigned long __clz(unsigned long word) 
+{
+  return (unsigned long)__builtin_clz(word);
+}
 
 /**
  * __ffs - find first set bit in word

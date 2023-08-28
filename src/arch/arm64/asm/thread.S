@@ -6,7 +6,7 @@
 
 nk_thread_entry:
 
-  mov x18, 0b0100
+  mov x18, 0b1111
   msr DAIF, x18
 
   ldr x18, [sp, 0x0]
@@ -22,22 +22,27 @@ nk_thread_entry:
 .GLOBAL nk_thread_switch
 .GLOBAL nk_thread_switch_intr_entry
 
-nk_thread_switch:
-
+.MACRO BECOME_THREADLESS_THREAD
   // Store the registers which would have 
   // been saved on the stack by an interrupt
   SAVE_CALLER_GPRS
 
   // Make sure that lr is zero if we don't enter through intr entry
   mov x30, 0
-
-nk_thread_switch_intr_entry:
+.ENDM
   
+.MACRO BECOME_THREADLESS
   // If we enter through interrupts, x30 should now be non-zero.
 
   // Save the other GP registers
   // That we normally can ignore on exception entry
   sub sp, sp, 0x70
+
+  // Store flags
+  mrs x2, DAIF
+  mrs x3, NZCV
+  stp x2, x3, [sp, 0x60]
+
   stp x19, x20, [sp, 0x00]
   stp x21, x22, [sp, 0x10]
   stp x23, x24, [sp, 0x20]
@@ -72,15 +77,12 @@ nk_thread_switch_intr_entry:
   mov x2, sp
   str x2, [x16] // RSP field of thread struct
 
-  // Store flags
-  mrs x2, DAIF
-  mrs x3, NZCV
-  stp x2, x3, [sp, 0x60]
+.ENDM
 
-nk_thread_switch_on_exit:
-  // Set this CPU's current thread to the function argument
+.MACRO RESTORE_THREAD
+  // Get the current thread
   mrs x16, TPIDR_EL1
-  str x0, [x16]
+  ldr x0, [x16]
 
   // Load the stack ptr
   ldr x2, [x0]
@@ -111,13 +113,39 @@ nk_thread_switch_on_exit:
  
   add sp, sp, 0x70
 
-  cbz x30, 1f // If lr is 0 then we shouldn't return early, because we didn't enter 
+  cbnz x30, 1f // If lr is 0 then we shouldn't return early, because we didn't enter 
               // through an interrupt
-  ret
-1:
 
   RESTORE_CALLER_GPRS
+1:
+.ENDM
 
+nk_thread_switch:
+  BECOME_THREADLESS_THREAD
+nk_thread_switch_intr_entry:
+  BECOME_THREADLESS
+nk_thread_switch_on_exit:
+  // We are now effectively threadless (our thread state was saved, or we don't care because we're leaving)
+  // Set this CPU's current thread to the function argument
+
+  mrs x16, TPIDR_EL1
+  str x0, [x16]
+
+  RESTORE_THREAD
+  ret
+
+.GLOBAL nk_thread_fork
+.EXTERN __thread_fork_threadless
+
+nk_thread_fork:
+  BECOME_THREADLESS_THREAD
+  BECOME_THREADLESS
+  // We are now threadless
+  mov x0, sp
+  add x0, x0, 0x70 // get nk_regs*
+  bl __thread_fork_threadless // Creates the child and sets x0 to 0 for the parent
+  // Return to our original thread
+  RESTORE_THREAD
   ret
 
 .GLOBAL nk_thread_switch_exit_helper

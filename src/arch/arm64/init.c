@@ -173,7 +173,7 @@ void secondary_init(void) {
     INIT_ERROR("Failed to initialize the IRQ chip locally for CPU %u!\n", my_cpu_id());
     return;
   }
-  INIT_PRINT("Initialized the GIC!\n", my_cpu_id());
+  INIT_PRINT("Initialized the IRQ chip!\n", my_cpu_id());
 
   nk_rand_init(nautilus_info.sys.cpus[my_cpu_id()]);
 
@@ -280,7 +280,7 @@ extern spinlock_t printk_lock;
 // The stack switch which happens halfway through "init" makes this needed
 static volatile const char *chardev_name = NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME;
 
-#define ROCKCHIP
+//#define ROCKCHIP
 
 static int rockchip_io_mapped = 0;
 int rockchip_leds(int val) {

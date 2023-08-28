@@ -56,7 +56,7 @@
 #include <nautilus/timer.h>
 #include <nautilus/vc.h>
 #include <nautilus/waitqueue.h>
-#include <nautilus/fdt/fdt.h>
+#include <nautilus/of/fdt.h>
 
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
 #include <nautilus/gdb-stub.h>

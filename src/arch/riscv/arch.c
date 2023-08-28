@@ -1,6 +1,6 @@
 #include <nautilus/arch.h>
 #include <nautilus/cpu_state.h>
-#include <nautilus/fdt/fdt_numa.h>
+#include <nautilus/of/numa.h>
 
 void arch_enable_ints(void)  { set_csr(sstatus, SSTATUS_SIE); }
 void arch_disable_ints(void) { clear_csr(sstatus, SSTATUS_SIE); }
@@ -123,3 +123,16 @@ int arch_little_endian(void) {
   return 1;
 }
 
+int arch_atomics_enabled(void) {
+  // KJH - I'm just assuming RISC-V atomics should be enabled always
+  return 1;
+}
+
+int arch_handle_io_map(struct nk_io_mapping *mapping) {
+  // KJH - do nothing we should be identity mapped
+  return 0;
+}
+int arch_handle_io_unmap(struct nk_io_mapping *mapping) {
+  // KJH - same as arch_handle_io_map
+  return 0;
+}

@@ -2,7 +2,7 @@
 #include <arch/riscv/sbi.h>
 #include <nautilus/cpu.h>
 #include <nautilus/naut_types.h>
-#include <nautilus/fdt/fdt.h>
+#include <nautilus/of/fdt.h>
 #include <nautilus/endian.h>
 
 typedef struct plic_context {

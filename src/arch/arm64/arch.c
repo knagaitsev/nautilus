@@ -22,15 +22,15 @@
 #endif
 
 void arch_enable_ints(void) {
-  __asm__ __volatile__ ("msr DAIFClr, 0xB; isb");
+  __asm__ __volatile__ ("msr DAIFClr, 0xF; isb");
 }
 void arch_disable_ints(void) {
-  __asm__ __volatile__ ("msr DAIFSet, 0xB; isb");
+  __asm__ __volatile__ ("msr DAIFSet, 0xF; isb");
 }
 int arch_ints_enabled(void) {
   uint_t daif;
   __asm__ __volatile__ ("mrs %0, DAIF; isb" : "=r" (daif));
-  return !((daif>>6) & 0xB);
+  return !((daif>>6) & 0xF);
 }
 
 void arch_print_regs(struct nk_regs *r) {

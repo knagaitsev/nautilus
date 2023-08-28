@@ -104,10 +104,7 @@ nk_thread_start (nk_thread_fun_t fun,
 //     the thread cleanup logic instead of to
 //     the caller
 // on error, parents gets NK_BAD_THREAD_ID
-nk_thread_id_t arch_thread_fork(void);
-inline static nk_thread_id_t nk_thread_fork(void) {
-  return arch_thread_fork();
-}
+extern nk_thread_id_t nk_thread_fork(void);
 
 // Allow a child thread to set output explicitly
 // This is not overwritten by an nk_thread_exit()

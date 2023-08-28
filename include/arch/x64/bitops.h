@@ -121,6 +121,13 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
 	asm volatile("btc %1,%0" : ADDR : "Ir" (nr));
 }
 
+/**
+ * __clz - count leading zeros in word
+ */
+static inline unsigned long __clz(unsigned long word) 
+{
+  return (unsigned long)__builtin_clz(word);
+}
 
 /**
  * __ffs - find first set bit in word

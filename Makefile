@@ -885,7 +885,7 @@ $(QEMU_FLASH):
 	qemu-img create -f raw $(QEMU_FLASH) 64M
 
 QEMU_GDB_FLAGS := #-gdb tcp::5060 -S
-QEMU_DEVICES := #-display none
+QEMU_DEVICES := -display none
 QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
 QEMU_DEVICES += -device virtio-gpu-pci #-netdev socket,id=net0,listen=localhost:4756 -device e1000e,netdev=net0,mac=00:11:22:33:44:55
 
@@ -899,7 +899,7 @@ endif
 
 qemu: uImage
 ifdef NAUT_CONFIG_ARCH_RISCV
-	qemu-system-riscv64 -bios none -m 2G -M sifive_u -kernel nautilus.bin -serial mon:stdio -display none -gdb tcp::1234
+	qemu-system-riscv64 -bios none -m 2G -M sifive_u -kernel nautilus.bin -serial stdio $(QEMU_DEVICES) $(QEMU_GDB_FLAGS)
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
 	qemu-system-aarch64 \

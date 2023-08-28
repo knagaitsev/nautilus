@@ -11,3 +11,4 @@ obj-y += asm/ \
         paging_4kb.o \
 	sys_reg.o \
 	iomap.o \
+	thread.o 

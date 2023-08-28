@@ -118,8 +118,6 @@ vprintk (const char * fmt, va_list args)
 	if (state.index != 0)
 	    flush(&state);
 
-        rockchip_leds(2);
-
         spin_unlock_irq_restore(&printk_lock, flags);
 	/* _doprnt currently doesn't pass back error codes,
 	   so just assume nothing bad happened.  */
@@ -158,7 +156,6 @@ panic (const char * fmt, ...)
 
    arch_disable_ints();
 
-   rockchip_halt_and_flash(1,2,1);
    while(1);
 }
 

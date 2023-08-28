@@ -95,5 +95,3 @@ int sifive_serial_getchar(void) {
     }
 }
 
-
-

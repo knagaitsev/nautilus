@@ -34,8 +34,6 @@ int arch_timer_handler(struct nk_irq_action *action, struct nk_regs *regs, void 
 
 uint64_t arch_read_timestamp(void);
 
-nk_thread_id_t arch_thread_fork(void);
-
 void *arch_read_sp(void);
 void arch_relax(void);
 void arch_halt(void);

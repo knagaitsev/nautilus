@@ -96,7 +96,7 @@
 #elif NAUT_CONFIG_ARCH_ARM64
 #include <arch/arm64/bitops.h>
 #elif NAUT_CONFIG_ARCH_X86
-#include <asm/bitops.h>
+#include <arch/x64/bitops.h>
 #endif
 
 static __inline__ unsigned get_bitmask_order(unsigned int count)
@@ -266,8 +266,6 @@ extern unsigned long find_next_zero_bit(const unsigned long *addr, unsigned
 
 #define find_first_bit(addr, size) find_next_bit((addr), (size), 0)
 #define find_first_zero_bit(addr, size) find_next_zero_bit((addr), (size), 0)
-
-
 
 
 #endif /* __BITOPS_H__ */

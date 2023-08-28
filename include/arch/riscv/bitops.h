@@ -143,6 +143,23 @@ static inline void change_bit(int nr, volatile unsigned long *addr)
 	__test_and_op_bit(xor, __NOP, nr, addr);
 }
 
+/**
+ * __clz - count leading zeros in word
+ */
+static inline unsigned long __clz(unsigned long word) 
+{
+  // KJH - This is not efficient but also not important
+  unsigned long zeros = sizeof(unsigned long) * 8;
+  while(word != 0 && zeros > 0) {
+    zeros -= 1;
+    word = word >> 1;
+  }
+  if(zeros == 1) {
+    zeros -= (word != 0);
+  }
+  return zeros;
+}
+
 
 /**
  * __ffs - find first set bit in word

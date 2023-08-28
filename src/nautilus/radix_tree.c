@@ -1,6 +1,7 @@
 
 #include<nautilus/radix_tree.h>
 #include<nautilus/nautilus.h>
+#include<lib/bitops.h>
 
 #define NAUT_CONFIG_DEBUG_RADIX_TREE
 
@@ -38,7 +39,7 @@ static struct nk_radix_tree_layer *nk_radix_tree_allocate_layer(void)
 
 static inline int nk_radix_tree_required_layers(unsigned long index)
 {
-  return (((sizeof(index)*8)-__builtin_clz(index))/8) + 1;
+  return (((sizeof(index)*8)-__clz(index))/8) + 1;
 }
 
 static inline int nk_radix_tree_add_layer(struct nk_radix_tree *tree) 
