@@ -140,13 +140,23 @@ c-------------------------------------------------------------------*/
     exit(1);
   }
 
+  printf("1\n");
+
   set_constants();
+
+  printf("2\n");
 
   initialize();
 
+  printf("3\n");
+
   lhsinit();
 
+  printf("4\n");
+
   exact_rhs();
+
+  printf("5\n");
   
 /*--------------------------------------------------------------------
 c      do one time step to touch all code, and reinitialize
@@ -155,11 +165,17 @@ c-------------------------------------------------------------------*/
 
     adi();
 
+    printf("6\n");
+
   
   initialize();
 
+  printf("7\n");
+
   timer_clear(1);
   timer_start(1);
+
+  printf("8\n");
 
   for (step = 1; step <= niter; step++) {
     if (step % 20 == 0 || step == 1) {
@@ -874,11 +890,18 @@ static void lhsinit(void) {
 /*--------------------------------------------------------------------
 c     zap the whole left hand side for starters
 c-------------------------------------------------------------------*/
+#pragma omp parallel for private(i, j, k) shared(lhs)
   for (n = 0; n < 15; n++) {
+
+    printf("n=%d\n", n);
+
 #pragma omp for nowait
     for (i = 0; i < grid_points[0]; i++) {
+      printf("    i=%d\n", i);
       for (j = 0; j < grid_points[1]; j++) {
+        printf("        j=%d\n", j);
 	for (k = 0; k < grid_points[2]; k++) {
+    printf("            k=%d\n", k);
 	  lhs[n][i][j][k] = 0.0;
 	}
       }
@@ -891,6 +914,9 @@ c      next, set all diagonal values to 1. This is overkill, but
 c      convenient
 c-------------------------------------------------------------------*/
   for (n = 0; n < 3; n++) {
+
+    printf("n=%d\n", n);
+
 #pragma omp for    
     for (i = 0; i < grid_points[0]; i++) {
       for (j = 0; j < grid_points[1]; j++) {
