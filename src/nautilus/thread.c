@@ -213,7 +213,7 @@ _nk_thread_init (nk_thread_t * t,
 
 uint64_t __nk_thread_fpu_state_offset = offsetof(struct nk_thread, fpu_state);
 
-static void
+void
 thread_cleanup (void)
 {
     THREAD_DEBUG("Thread (%d) exiting on core %d\n", get_cur_thread()->tid, my_cpu_id());
@@ -234,7 +234,7 @@ static inline void thread_print_stack(nk_thread_t *t) {
  * utility function for setting up
  * a thread's stack
  */
-static inline void
+void
 thread_push (nk_thread_t * t, uint64_t x)
 {
     THREAD_DEBUG("Pushing 0x%016x onto thread %p's stack\n", x, t);
@@ -242,11 +242,11 @@ thread_push (nk_thread_t * t, uint64_t x)
     *(uint64_t*)(t->rsp) = x;
 }
 
-static void
+void
 thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
 {
 
-  if(t == NULL || fun == NULL) {
+  if(t == NULL) {
     ERROR_PRINT("Trying to initialize the stack of a NULL thread!\n");
     panic("Trying to initialize the stack of a NULL thread!\n");
   }
@@ -1133,20 +1133,6 @@ nk_get_parent_tid (void)
 
 /********** END EXTERNAL INTERFACE **************/
 
-
-
-
-
-// push the child stack down by this much just in case
-// we only have one caller frame to mangle
-// the launcher function needs to put a new return address
-// prior to the current stack frame, at least.
-// should be at least 16
-#define LAUNCHPAD 16
-// Attempt to clone this many frames when doing a fork
-// If these cannot be resolved correctly, then only a single
-// frame is cloned
-#define STACK_CLONE_DEPTH 2
 
 static void
 tls_dummy (void * in, void ** out)

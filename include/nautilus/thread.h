@@ -62,6 +62,17 @@ typedef uint64_t nk_stack_size_t;
 #define TSTACK_1MB     0x100000
 #define TSTACK_2MB     0x200000
 
+// push the child stack down by this much just in case
+// we only have one caller frame to mangle
+// the launcher function needs to put a new return address
+// prior to the current stack frame, at least.
+// should be at least 16
+#define LAUNCHPAD 16
+// Attempt to clone this many frames when doing a fork
+// If these cannot be resolved correctly, then only a single
+// frame is cloned
+#define STACK_CLONE_DEPTH 2
+
 /******** EXTERNAL INTERFACE **********/
 
 // opaque pointer given to users

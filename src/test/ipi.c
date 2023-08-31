@@ -34,7 +34,7 @@
 #include <dev/apic.h>
 #include <test/test.h>
 #include <test/ipi.h>
-#include <asm/bitops.h>
+#include <lib/bitops.h>
 
 #define CEIL_DIV(x,y)  (((x)/(y)) + !!((x)%(y)))
 

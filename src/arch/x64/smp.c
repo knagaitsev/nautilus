@@ -1199,5 +1199,5 @@ smp_ap_entry (struct cpu * core)
 int 
 arch_smp_early_init (struct naut_info * naut)
 {
-  smp_early_init(naut);
+  return smp_early_init(naut);
 }

@@ -33,8 +33,6 @@ struct dw_8250
 
 static int dw_8250_handle_irq(struct uart_8250_port *uart, unsigned int iir)
 {
-  generic_8250_direct_putchar(uart, '$');
-
   unsigned int iir_reason = iir & 0xF;
 
   if(iir_reason == UART_8250_IIR_RECV_TIMEOUT) {
@@ -74,6 +72,7 @@ static void dw_8250_write_reg32(struct uart_8250_port *uart, int offset, unsigne
 
 const static struct uart_8250_ops dw_8250_ops = {
   .handle_irq = dw_8250_handle_irq,
+  .read_reg = generic_8250_read_reg_mem8,
   .write_reg = dw_8250_write_reg8
 };
 
@@ -107,9 +106,11 @@ static int dw_8250_fdt_init(uint64_t dtb, uint64_t offset, struct dw_8250 *dw) {
       uint32_t reg_width = be32toh(*reg_width_ptr);
       switch(reg_width) {
         case 1:
+          dw->port.ops.read_reg = generic_8250_read_reg_mem8;
           dw->port.ops.write_reg = dw_8250_write_reg8;
           break;
         case 4:
+          dw->port.ops.read_reg = generic_8250_read_reg_mem32;
           dw->port.ops.write_reg = dw_8250_write_reg32;
           break;
         default:

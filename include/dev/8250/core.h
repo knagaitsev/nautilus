@@ -182,7 +182,7 @@ extern struct uart_ops uart_8250_default_uart_ops;
  */
 
 // read_reg and write_reg
-#ifdef NAUT_CONFIG_HAS_PMIO
+#ifdef NAUT_CONFIG_HAS_PORT_IO
 unsigned int generic_8250_read_reg_port8(struct uart_8250_port *port, int offset);
 void generic_8250_write_reg_port8(struct uart_8250_port *port, int offset, unsigned int val);
 #endif

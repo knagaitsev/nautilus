@@ -64,9 +64,3 @@ void* arch_instr_ptr_reg(struct nk_regs *regs);
 #endif
 #endif
 
-#ifndef NAUT_CONFIG_SPARSE_IRQ_VECTORS
-#ifndef MAX_IVEC_NUM
-#error "Architecture did not specify MAX_IVEC_NUM or CONFIG_SPARSE_IRQ_VECTORS!"
-#endif
-#endif
-

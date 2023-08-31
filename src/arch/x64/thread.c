@@ -6,13 +6,27 @@
 * On success, parent gets child's tid, child gets 0
 * On failure, parent gets NK_BAD_THREAD_ID
 */
+
+#include <nautilus/nautilus.h>
+#include <nautilus/thread.h>
+#include <nautilus/scheduler.h>
+
+#ifndef NAUT_CONFIG_DEBUG_THREADS
+#undef  DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...)
+#endif
+#define THREAD_INFO(fmt, args...) INFO_PRINT("Thread: " fmt, ##args)
+#define THREAD_ERROR(fmt, args...) ERROR_PRINT("Thread: " fmt, ##args)
+#define THREAD_DEBUG(fmt, args...) DEBUG_PRINT("Thread: " fmt, ##args)
+#define THREAD_WARN(fmt, args...)  WARN_PRINT("Thread: " fmt, ##args)
+
+extern void thread_cleanup (void);
+extern void thread_push (nk_thread_t * t, uint64_t x);
+extern void thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg);
+
 nk_thread_id_t
 __thread_fork (void)
 {
-#ifdef NAUT_CONFIG_ARCH_ARM64
-#include<arch/arm64/unimpl.h>
- ARM64_ERR_UNIMPL;
-#endif
 
    nk_thread_t *parent = get_cur_thread();
    nk_thread_id_t  tid;

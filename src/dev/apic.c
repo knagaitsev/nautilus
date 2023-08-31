@@ -775,9 +775,14 @@ static int apic_dev_get_characteristics(void *state, struct nk_irq_dev_character
 
 
 
-static struct nk_irq_dev_int ops = {
+static struct nk_irq_dev_int apic_ops = {
   .get_characteristics = apic_dev_get_characteristics
   // Leave the rest as NULL
+};
+
+static struct nk_dev_int timer_ops = {
+  .open = 0,
+  .close = 0
 };
 
 void
@@ -899,7 +904,7 @@ apic_init (struct cpu * core)
 
     char n[32];
     snprintf(n,32,"apic%u",core->id);
-    struct nk_irq_dev *dev = nk_irq_dev_register(n,0,&ops,(void*)apic);
+    struct nk_irq_dev *dev = nk_irq_dev_register(n,0,&apic_ops,(void*)apic);
 
     // assign interrupt handlers
     // all cores share the same IDT/etc, so only the BSP needs to do this
@@ -970,7 +975,11 @@ apic_init (struct cpu * core)
 
     /* pass in quantum as milliseconds */
 #ifndef NAUT_CONFIG_XEON_PHI
-    apic_timer_setup(apic, 1000/NAUT_CONFIG_HZ, dev);
+    struct nk_dev *timer_dev = nk_dev_register(
+		    "apic-timer", 
+		    NK_DEV_TIMER,
+		    0,&timer_ops,0);
+    apic_timer_setup(apic, 1000/NAUT_CONFIG_HZ, timer_dev);
 #endif
 
     apic_dump(apic);

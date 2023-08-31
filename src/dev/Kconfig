@@ -95,6 +95,11 @@ config PC_8250_UART
       Driver for PC serial ports based on the generic 8250 framework in Nautilus.
       Selecting this disables the original serial port driver.
 
+config DEBUG_PC_8250_UART
+    bool "Debug PC 8250 UART"
+    depends on DEBUG_PRINTS && PC_8250_UART
+    select DEBUG_GENERIC_8250_UART
+
 config PC_8250_UART_EARLY_OUTPUT
     bool "PC 8250 UART Early Output"
     depends on PC_8250_UART

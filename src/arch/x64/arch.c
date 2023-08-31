@@ -116,3 +116,18 @@ void *arch_instr_ptr_reg(struct nk_regs *regs) {
   return regs->rip;
 }
 
+int arch_atomics_enabled(void) 
+{
+  return 1;
+}
+
+int arch_handle_io_map(struct nk_io_mapping *mapping) 
+{
+  return 0;
+}
+
+int arch_handle_io_unmap(struct nk_io_mapping *mapping) 
+{
+  return 0;
+}
+

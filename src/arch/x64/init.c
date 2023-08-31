@@ -348,6 +348,7 @@ init (unsigned long mbd,
     spinlock_init(&printk_lock);
 
     setup_idt();
+
     
 #ifdef NAUT_CONFIG_PC_8250_UART
 #ifdef NAUT_CONFIG_PC_8250_UART_EARLY_OUTPUT

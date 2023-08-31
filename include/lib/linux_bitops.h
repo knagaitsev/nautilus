@@ -43,7 +43,7 @@ extern unsigned long __sw_hweight64(__u64 w);
  * Include this here because some architectures need generic_ffs/fls in
  * scope
  */
-#include <asm/bitops.h>
+#include <lib/bitops.h>
 
 #define for_each_set_bit(bit, addr, size) \
 	for ((bit) = find_first_bit((addr), (size));		\

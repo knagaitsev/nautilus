@@ -357,9 +357,6 @@ int nmi_handler (struct nk_irq_action *action,
 
 int route_interrupt_vector(struct nk_regs *regs, nk_ivec_t ivec)
 {
-	if(ivec != 240) {
-  printk("interrupt: %u\n", ivec);
-	}
   struct nk_ivec_desc *desc = nk_ivec_to_desc(ivec);
   if(desc == NULL) {
     return ivec;
