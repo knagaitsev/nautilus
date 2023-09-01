@@ -308,7 +308,6 @@ def main(args):
         eprint(f'Cannot apply passes because {num_missing_enabled} enabled passes were filtered out!')
         return -1
 
-    # Resolve dependencies
     vprint('Resolving Pass Dependencies')
 
     num_failed = 0
@@ -339,9 +338,21 @@ def main(args):
         eprint(f'Failed to resolve pass dependencies: num_failed = {num_failed}')
         return -1
 
-    # Topologically sort the dependencies so we know the correct order to apply passes
+    for name, p in passes.items():
+        build_pass(name, p)
+        apply_pass(name, p)
 
     return 0
+
+def build_pass(name, p):
+    # TODO
+    vprint(f"Building pass {name}")
+    pass
+
+def apply_pass(name, p):
+    # TODO
+    vprint(f"Applying pass {name}")
+    pass
 
 if __name__ == "__main__":
 
