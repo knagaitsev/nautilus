@@ -40,6 +40,13 @@ extern void apic_do_eoi();
 #define IRQ_HANDLER_END() 
 #endif
 
+static nk_irq_t vector_base_irq;
+
+inline static nk_irq_t x86_vector_to_irq(unsigned int vector)
+{
+  return vector_base_irq + vector;
+}
+
 typedef enum { INT_TYPE_INT, INT_TYPE_NMI, INT_TYPE_SMI, INT_TYPE_EXT } int_type_t;
 typedef enum { INT_POL_BUS, INT_POL_ACTHI, INT_POL_RSVD, INT_POL_ACTLO } int_pol_t;
 typedef enum { INT_TRIG_BUS, INT_TRIG_EDGE, INT_TRIG_RSVD, INT_TRIG_LEVEL } int_trig_t;
@@ -48,6 +55,7 @@ struct nk_int_entry {
     int_trig_t trig_mode;
     int_pol_t  polarity;
     int_type_t type;
+
     uint8_t    src_bus_id;
     uint8_t    src_bus_irq;
     uint8_t    dst_ioapic_intin;

@@ -25,9 +25,9 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/paging.h>
-#include <nautilus/irq.h>
 #include <nautilus/mm.h>
 #include <arch/hrt/hrt.h>
+#include <arch/x64/irq.h>
 
 #define PML4_STRIDE (0x1ULL << (12+9+9+9))
 

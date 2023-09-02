@@ -28,7 +28,6 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/cpu.h>
 #include <nautilus/naut_assert.h>
-#include <nautilus/irq.h>
 #include <nautilus/idle.h>
 #include <nautilus/paging.h>
 #include <nautilus/fiber.h>
@@ -42,6 +41,10 @@
 #include <nautilus/random.h>
 #include <nautilus/scheduler.h>
 #include <nautilus/cpu_state.h>
+
+#ifndef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/irq.h>
+#endif
 
 #ifndef NAUT_CONFIG_DEBUG_FIBERS
 #undef  DEBUG_PRINT

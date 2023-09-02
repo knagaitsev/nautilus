@@ -1032,7 +1032,7 @@ int nk_gdb_handle_exception(struct nk_irq_action *action, struct nk_regs *regs, 
     nk_sched_stop_world();
     
     DEBUG("entry - vector %x, error_code=%lx rip=%lx:%lx fault_addr=%lx\n", 
-          action->ivec, regs->error_code, regs->cs, regs->rip, fault_addr);
+          action->desc->hwirq, regs->error_code, regs->cs, regs->rip, fault_addr);
 
     snapshot_regs(regs);
 
@@ -1046,11 +1046,11 @@ int nk_gdb_handle_exception(struct nk_irq_action *action, struct nk_regs *regs, 
         get_reg(EFLAGS,(char*)&eflags);
         
         DEBUG("vector=%d, rip=0x%lx, eflags=0x%x\n",
-             action->ivec, rip, eflags);
+             action->desc->hwirq, rip, eflags);
     }
     
     /* reply to host that an exception has occurred */
-    sigval = compute_signal(action->ivec,state_addr);
+    sigval = compute_signal(action->desc->hwirq,state_addr);
     
     out = remcomOutBuffer;
 
@@ -1395,7 +1395,7 @@ int nk_gdb_handle_exception(struct nk_irq_action *action, struct nk_regs *regs, 
  out:
 
 
-    switch (action->ivec) { 
+    switch (action->desc->hwirq) { 
     case DB_EXCP:
         DEBUG("Continuing from a debug exception (DB_EXCP) so not invoking nested handler\n");
         nk_sched_start_world();
@@ -1418,8 +1418,8 @@ int nk_gdb_handle_exception(struct nk_irq_action *action, struct nk_regs *regs, 
             // so it looks like a direct invocation of the next handler
             DEBUG("Invoking original handler\n");
             nk_sched_start_world();
-            return orig_exception_state[action->ivec].handler(action, regs, fault_addr, 
-                                                     orig_exception_state[action->ivec].state);
+            return orig_exception_state[action->desc->hwirq].handler(action, regs, fault_addr, 
+                                                     orig_exception_state[action->desc->hwirq].state);
         }
     }
 

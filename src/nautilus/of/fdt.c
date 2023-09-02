@@ -47,10 +47,12 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 		if (address_cells == 1) {
                   reg->address = be32toh(*((uint32_t *)reg_prop));
                 }
-		if (address_cells == 2) {
+                else if (address_cells == 2) {
                   // These need to be done as 32 bit loads because 64bit alignment isn't gaurenteed
                   uint32_t *addr_ptr = (uint32_t*)reg_prop;
                   reg->address = (uint64_t)be32toh(addr_ptr[1]) | (((uint64_t)be32toh(addr_ptr[0])) << 32);
+                } else {
+                  // Invalid number of address cells
                 }
 	}
 	reg_prop += 4 * address_cells;
@@ -58,9 +60,11 @@ int fdt_getreg(const void *fdt, int offset, fdt_reg_t *reg) {
 		if (size_cells == 1) {
                   reg->size = be32toh(*((uint32_t *)reg_prop));
                 }
-		if (size_cells == 2) {
+                else if (size_cells == 2) {
                   uint32_t *size_ptr = (uint32_t*)reg_prop;
                   reg->size = (uint64_t)be32toh(size_ptr[1]) | (((uint64_t)be32toh(size_ptr[0])) << 32);
+                } else {
+                  // Invalid number of size cells
                 }
 	}
 
@@ -110,9 +114,11 @@ int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, int *num) {
 		if (address_cells == 1) {
                   regs[i].address = be32toh(*((uint32_t *)reg_prop));
                 }
-		if (address_cells == 2) {
+                else if (address_cells == 2) {
                   uint32_t *addr_ptr = (uint32_t*)reg_prop;
                   regs[i].address = (uint64_t)be32toh(addr_ptr[1]) | (((uint64_t)be32toh(addr_ptr[0])) << 32);
+                } else {
+                  // Invalid number of address cells
                 }
 	    }
 	    reg_prop += 4 * address_cells;
@@ -120,9 +126,11 @@ int fdt_getreg_array(const void *fdt, int offset, fdt_reg_t *regs, int *num) {
 		if (size_cells == 1) {
                   regs[i].size = be32toh(*((uint32_t *)reg_prop));
                 }
-		if (size_cells == 2) {
+                else if (size_cells == 2) {
                   uint32_t *size_ptr = (uint32_t*)reg_prop;
                   regs[i].size = (uint64_t)be32toh(size_ptr[1]) | (((uint64_t)be32toh(size_ptr[0])) << 32);
+                } else {
+                  // Invalid number of size cells
                 }
 	    }
             reg_prop += 4 * size_cells;

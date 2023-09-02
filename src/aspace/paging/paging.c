@@ -1076,17 +1076,17 @@ static int exception(void *state, struct nk_irq_action *action, struct nk_regs *
     nk_aspace_paging_t *p = (nk_aspace_paging_t *)state;
     struct nk_thread *thread = get_cur_thread();
     
-    // DEBUG("exception 0x%x for address space %s in context of thread %d (%s)\n",action->ivec,ASPACE_NAME(p),thread->tid,THREAD_NAME(thread));
+    // DEBUG("exception 0x%x for address space %s in context of thread %d (%s)\n",action->desc->hwirq,ASPACE_NAME(p),thread->tid,THREAD_NAME(thread));
     
-    if (action->ivec==GP_EXCP) {
+    if (action->desc->hwirq==GP_EXCP) {
 	ERROR("general protection fault encountered.... uh...\n");
 	ERROR("i have seen things that you people would not believe.\n");
 	panic("general protection fault delivered to paging subsystem\n");
 	return -1; // will never happen
     }
 
-    if (action->ivec!=PF_EXCP) {
-	ERROR("Unknown exception %d delivered to paging subsystem\n",action->ivec);
+    if (action->desc->hwirq!=PF_EXCP) {
+	ERROR("Unknown exception %d delivered to paging subsystem\n",action->desc->hwirq);
 	panic("Unknown exception delivered to paging subsystem\n");
 	return -1; // will never happen
     }

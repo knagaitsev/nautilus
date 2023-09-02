@@ -119,7 +119,7 @@
 #endif
 
 #ifdef NAUT_CONFIG_REAL_MODE_INTERFACE 
-#include <nautilus/realmode.h>
+#include <arch/x64/realmode.h>
 #endif
 
 #ifdef NAUT_CONFIG_VESA

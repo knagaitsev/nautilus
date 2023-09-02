@@ -24,7 +24,7 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/dev.h>
 #include <dev/vesa.h>
-#include <nautilus/realmode.h>
+#include <arch/x64/realmode.h>
 
 #ifndef NAUT_CONFIG_DEBUG_VESA
 #undef DEBUG_PRINT

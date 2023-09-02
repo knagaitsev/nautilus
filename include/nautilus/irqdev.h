@@ -15,13 +15,15 @@ struct nk_irq_dev_int {
 
   int (*initialize_cpu)(void *state);
 
-  int (*ack_irq)(void *state, nk_irq_t *irq);
-  int (*eoi_irq)(void *state, nk_irq_t irq);
+  int (*ack_irq)(void *state, nk_hwirq_t *irq);
+  int (*eoi_irq)(void *state, nk_hwirq_t irq);
 
-  int (*enable_irq)(void *state, nk_irq_t irq);
-  int (*disable_irq)(void *state, nk_irq_t irq);
+  int (*enable_irq)(void *state, nk_hwirq_t irq);
+  int (*disable_irq)(void *state, nk_hwirq_t irq);
   
-  int (*irq_status)(void *state, nk_irq_t irq);
+  int (*irq_status)(void *state, nk_hwirq_t irq);
+
+  nk_irq_t(*hwirq_to_irq)(void *state, nk_hwirq_t irq);
 
   int(*translate_irqs)(void *state, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *buf, int *buf_count);
 };

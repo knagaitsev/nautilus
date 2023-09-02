@@ -54,7 +54,7 @@ void kernel_trap(struct nk_regs *regs) {
   int nr = regs->cause & ~(1llu << 63);
 
   if (interrupt) {
-      printk("int!, nr = %d, sie=%p, pending=%p\n", nr, read_csr(sie), plic_pending());
+    //printk("int!, nr = %d, sie=%p, pending=%p\n", nr, read_csr(sie), plic_pending());
     if (nr == 5) {
       // timer interrupt
       // on nautilus, we don't actaully want to set a new timer yet, we just
@@ -63,15 +63,20 @@ void kernel_trap(struct nk_regs *regs) {
     } else if (nr == 9) {
       // supervisor external interrupt
       // first, we claim the irq from the PLIC
-      int irq = plic_claim();
+      struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
 
-      // do something with the IRQ
-      panic("received irq: %d\n", irq);
+      nk_irq_t irq = 0;
+      nk_irq_dev_ack(irq_dev, &irq);
+      
+      if(irq != 0) {
+        struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+        nk_handle_irq_actions(desc, regs);
 
       // the PLIC allows each device to raise at most one
       // interrupt at a time; tell the PLIC the device is
       // now allowed to interrupt again.
-      if (irq) plic_complete(irq);
+        nk_irq_dev_eoi(irq_dev, irq);
+      }
     }
   } else {
     // it's a fault/trap (like illegal instruction)

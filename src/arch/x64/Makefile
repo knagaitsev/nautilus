@@ -14,3 +14,5 @@ obj-y += asm/ \
                 mtrr.o \
                 cpuid.o \
                 thread.o
+
+obj-$(NAUT_CONFIG_REAL_MODE_INTERFACE) += realmode.o

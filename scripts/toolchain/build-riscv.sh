@@ -16,9 +16,10 @@ check_error() {
     fi
 }
 
-BUILD_BINUTILS=true
+BUILD_BINUTILS=false
 BUILD_GCC=true
-BUILD_GDB=true
+BUILD_LIBGCC=true 
+BUILD_GDB=false
 
 BINUTILS_VERSION="2.39"
 GCC_VERSION="12.2.0"
@@ -140,6 +141,10 @@ PATH="${PATH}:${PREFIX}/bin"
 fi
 make all-gcc install-gcc
 check_error $? "Error compiling/installing GCC."
+if [ "$BUILD_LIBGCC" = true ]; then
+make all-target-libgcc install-target-libgcc
+check_error $? "Error compling/installing LibGCC."
+fi
 fi
 
 if [ "$BUILD_GDB" = true ]; then

@@ -42,6 +42,12 @@ config SERIAL_DEBUGGER_PORT
       
 endmenu      
 
+config SIFIVE_PLIC
+    bool "SiFive Platform Level Interrupt Controller"
+    depends on ARCH_RISCV
+    help
+      Provide a driver for the RISC-V Platform Level Interrupt Controller (PLIC)
+
 config ARM_GIC
     bool "ARM Generic Interrupt Controller Driver"
     depends on ARCH_ARM64
@@ -85,6 +91,29 @@ config DEBUG_GENERIC_8250_UART
     default n
     help
       Debug the generic 8250 UART implementation
+
+config OF_8250_UART
+    bool "Generic OF 8250 UART"
+    depends on USE_FDT
+    select GENERIC_8250_UART
+    default n
+    help
+      Driver for Generic NS8250 UART found in the device tree, see 
+      Linux's "linux/Documentation/device-tree/bindings/tty/serial/of-serial.txt" for the exact binding
+
+config DEBUG_OF_8250_UART
+    bool "Debug Generic OF 8250 UART"
+    depends on DEBUG_PRINTS && OF_8250_UART
+    default n
+    help
+      Debug the generic device tree NS8250 UART driver
+
+config OF_8250_UART_EARLY_OUTPUT
+    bool "Generic OF 8250 UART Early Output"
+    depends on OF_8250_UART
+    default n
+    help
+      Try to use the Generic 8250 UART found in the device tree for early output before the Virtual Console
 
 config PC_8250_UART
     bool "PC 8250 UART"
@@ -157,6 +186,27 @@ config DEBUG_PL011_UART
     default n
     help
       Turn on debug prints for the Primecell PL011 UART
+
+config SIFIVE_SERIAL
+    bool "SiFive Serial"
+    depends on ARCH_RISCV && USE_FDT
+    default n
+    help
+      Include driver for SiFive Serial Port
+
+config SIFIVE_SERIAL_EARLY_OUTPUT
+    bool "SiFive Serial Early Output"
+    depends on SIFIVE_SERIAL
+    default n
+    help
+      Register the SiFive serial port for output before the virtual console system is active
+
+config SIFIVE_SERIAL_DEBUG
+    bool "Debug SiFive Serial"
+    depends on SIFIVE_SERIAL && DEBUG_PRINTS
+    default n
+    help
+      Debug the driver for the SiFive serial port
 
 config APIC_FORCE_XAPIC_MODE
     bool "Force APIC to use XAPIC mode"

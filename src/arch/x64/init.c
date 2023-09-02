@@ -156,7 +156,7 @@
 #endif
 
 #ifdef NAUT_CONFIG_REAL_MODE_INTERFACE 
-#include <nautilus/realmode.h>
+#include <arch/x64/realmode.h>
 #endif
 
 #ifdef NAUT_CONFIG_VESA
@@ -191,9 +191,6 @@
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
 #include <nautilus/monitor.h>
 #endif
-
-
-extern spinlock_t printk_lock;
 
 extern struct gdt_desc64 gdtr64;
 
@@ -345,7 +342,7 @@ init (unsigned long mbd,
     // Now we are safe to use optimized code that relies
     // on SSE
 
-    spinlock_init(&printk_lock);
+    printk_init();
 
     setup_idt();
 

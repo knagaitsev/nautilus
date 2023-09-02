@@ -28,6 +28,9 @@
 #include <nautilus/barrier.h>
 #include <nautilus/blkdev.h>
 #include <nautilus/chardev.h>
+#include <nautilus/irqdev.h>
+#include <nautilus/gpiodev.h>
+#include <nautilus/endian.h>
 #include <nautilus/cmdline.h>
 #include <nautilus/cpu.h>
 #include <nautilus/dev.h>
@@ -62,11 +65,14 @@
 #include <nautilus/gdb-stub.h>
 #endif
 
-#include <arch/riscv/plic.h>
+#ifdef NAUT_CONFIG_SIFIVE_PLIC
+#include <dev/sifive_plic.h>
+#endif
+
 #include <arch/riscv/sbi.h>
 #include <arch/riscv/trap.h>
 
-#include <dev/sifive.h>
+#include <dev/sifive_serial.h>
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
 
@@ -77,6 +83,12 @@ struct nk_sched_config sched_cfg = {
     .aperiodic_quantum = QUANTUM_IN_NS,
     .aperiodic_default_priority = QUANTUM_IN_NS,
 };
+
+static inline int per_cpu_irq_init(void) 
+{
+  struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev); 
+  return nk_irq_dev_initialize_cpu(irq_dev);
+}
 
 static int sysinfo_init(struct sys_info *sys) {
   sys->core_barrier = (nk_barrier_t *)malloc(sizeof(nk_barrier_t));
@@ -128,11 +140,11 @@ void secondary_entry(int hartid) {
 
   w_tp((uint64_t)naut->sys.cpus[hartid]);
 
-  /* Initialize the platform level interrupt controller for this HART */
-  plic_init_hart(hartid);
-
   // Write supervisor trap vector location
   trap_init();
+
+  /* Initialize the platform level interrupt controller for this HART */
+  per_cpu_irq_init();
 
   nk_sched_init_ap(&sched_cfg);
 
@@ -200,14 +212,29 @@ void init(unsigned long hartid, unsigned long fdt) {
   struct naut_info *naut = &nautilus_info;
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
 
-  nk_vc_print(NAUT_WELCOME);
+#ifdef NAUT_CONFIG_SIFIVE_SERIAL_EARLY_OUTPUT
+  if(sifive_serial_pre_vc_init((void*)fdt)) {
+    // Nothing we can do
+  }
+#endif
+#ifdef NAUT_CONFIG_OF_8250_UART_EARLY_OUTPUT
+  if(of_8250_pre_vc_init((void*)fdt)) {
+    // Nothing we can do
+  }
+#endif
+
+  printk_init();
+
+  printk(NAUT_WELCOME);
 
   naut->sys.bsp_id = hartid;
   naut->sys.dtb = (struct dtb_fdt_header *)fdt;
 
+  /*
   printk("RISCV: hart %d mvendorid: %llx\n", hartid, sbi_call(SBI_GET_MVENDORID).value);
   printk("RISCV: hart %d marchid:   %llx\n", hartid, sbi_call(SBI_GET_MARCHID).value);
   printk("RISCV: hart %d mimpid:    %llx\n", hartid, sbi_call(SBI_GET_MIMPID).value);
+  */
 
   print_fdt(fdt);
 
@@ -220,7 +247,6 @@ void init(unsigned long hartid, unsigned long fdt) {
   nk_block_dev_init();
   nk_net_dev_init();
   nk_gpu_dev_init();
-
 
   // Setup the temporary boot-time allocator
   mm_boot_init(fdt);
@@ -243,43 +269,48 @@ void init(unsigned long hartid, unsigned long fdt) {
   /* now we switch to the real kernel memory allocator, pages
    * allocated in the boot mem allocator are kept reserved */
   mm_boot_kmem_init();
-
-  // Initialize platform level interrupt controller for this HART
-  plic_init(fdt);
-
-  /* from this point on, we can use percpu macros (even if the APs aren't up) */
-  plic_init_hart(hartid);
-
+  
   // We now have serial output without SBI
-  sifive_serial_init(fdt);
+  //sifive_serial_init(fdt);
 
   // my_monitor_entry();
 
-  sbi_init();
+  //sbi_init();
 
   sysinfo_init(&(naut->sys));
 
+  printk("of_init(dtb=%p)\n");
+  of_init((void*)fdt);
+
+  nk_gpio_init();
+
   nk_wait_queue_init();
-
   nk_future_init();
-
   nk_timer_init();
-
   nk_rand_init(naut->sys.cpus[hartid]);
-
   nk_semaphore_init();
-
   nk_msg_queue_init();
-
   nk_sched_init(&sched_cfg);
-
   nk_thread_group_init();
   nk_group_sched_init();
 
   /* we now switch away from the boot-time stack */
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+  nk_thread_name(get_cur_thread(), "init");
 
   /* mm_boot_kmem_cleanup(); */
+
+#ifdef NAUT_CONFIG_SIFIVE_PLIC
+  if(plic_init()) {
+    panic("failed to initialized the PLIC!\n");
+  }
+#endif
+
+  if(per_cpu_irq_init()) {
+    panic("Failed to initialize the IRQ chip locally for CPU %u!\n", my_cpu_id());
+  }
+
+  nk_dump_ivec_info();
 
   arch_enable_ints();
 
@@ -333,22 +364,22 @@ void init_simple(unsigned long hartid, unsigned long fdt) {
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
 
   // Initialize platform level interrupt controller for this HART
-  plic_init(fdt);
+  //plic_init(fdt);
 
-  plic_init_hart(hartid);
+  //plic_init_hart(hartid);
 
   arch_enable_ints();
 
   // We now have serial output without SBI
-  sifive_serial_init(fdt);
+  //sifive_serial_init(fdt);
 
   printk("hartid: %ld, fdt: %p (%x) \n", hartid, fdt, *(uint32_t*)fdt);
 
-  plic_dump();
+  //plic_dump();
 
   my_monitor_entry();
 
-  sifive_test();
+  //sifive_test();
 }
 
 

@@ -21,8 +21,8 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/spinlock.h>
-#include <nautilus/irq.h>
 #include <nautilus/atomic.h>
+#include <nautilus/cpu_state.h>
 
 void 
 spinlock_init (volatile spinlock_t * lock) 

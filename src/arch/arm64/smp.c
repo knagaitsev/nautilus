@@ -2,7 +2,6 @@
 //#include <nautilus/acpi.h>
 #include <nautilus/smp.h>
 //#include <nautilus/sfi.h>
-#include <nautilus/irq.h>
 #include <nautilus/mm.h>
 #include <nautilus/percpu.h>
 #include <nautilus/numa.h>

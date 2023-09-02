@@ -1021,15 +1021,15 @@ static int exception(void *state, struct nk_irq_action *action, struct nk_regs *
     nk_aspace_carat_t *carat = (nk_aspace_carat_t *)state;
     struct nk_thread *thread = FETCH_THREAD;
     
-    if (action->ivec==GP_EXCP) {
+    if (action->desc->hwirq==GP_EXCP) {
     ERROR("general protection fault encountered.... uh...\n");
     ERROR("i have seen things that you people would not believe.\n");
     panic("general protection fault delivered to paging subsystem\n");
     return -1; // will never happen
     }
 
-    if (action->ivec!=PF_EXCP) {
-    ERROR("Unknown exception %d delivered to paging subsystem\n",action->ivec);
+    if (action->desc->hwirq!=PF_EXCP) {
+    ERROR("Unknown exception %d delivered to paging subsystem\n",action->desc->hwirq);
     panic("Unknown exception delivered to paging subsystem\n");
     return -1; // will never happen
     }

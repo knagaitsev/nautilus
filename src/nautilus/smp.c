@@ -23,7 +23,6 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/smp.h>
 #include <nautilus/paging.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/naut_assert.h>
 #include <nautilus/thread.h>
@@ -33,6 +32,10 @@
 #include <nautilus/numa.h>
 #include <nautilus/mm.h>
 #include <nautilus/percpu.h>
+
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/irq.h>
+#endif
 
 #ifdef NAUT_CONFIG_ALLOCS
 #include <nautilus/alloc.h>

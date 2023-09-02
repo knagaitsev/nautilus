@@ -23,9 +23,10 @@
 
 #include <nautilus/nautilus.h>
 #include <nautilus/spinlock.h>
-#include <nautilus/irq.h>
-#include <nautilus/realmode.h>
 #include <nautilus/shell.h>
+
+#include <arch/x64/realmode.h>
+#include <arch/x64/irq.h>
 
 #ifndef NAUT_CONFIG_DEBUG_REAL_MODE_INTERFACE
 #undef DEBUG_PRINT

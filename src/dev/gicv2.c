@@ -242,7 +242,6 @@ static int gicv2_dev_irq_status(void *state, nk_irq_t irq) {
     IRQ_DEV_STATUS_ACTIVE : 0;
 
   return status;
-
 }
 
 static struct nk_irq_dev_int gicv2_dev_int = {
@@ -331,11 +330,19 @@ static int gicv2_init_dev_info(struct nk_dev_info *info) {
   nk_dev_info_set_device(info, (struct nk_dev*)dev);
   
   // Set up 0-15 for SGI
-  nk_alloc_ivec_descs(0, 16, dev, NK_IVEC_DESC_TYPE_DEFAULT, NK_IVEC_DESC_FLAG_PERCPU | NK_IVEC_DESC_FLAG_IPI);
+  nk_irq_t sgi_base = nk_alloc_irq_descs(16, dev, 0, NK_IRQ_DESC_TYPE_DEFAULT, NK_IRQ_DESC_FLAG_PERCPU | NK_IRQ_DESC_FLAG_IPI);
+  if(sgi_base == NK_NULL_IRQ) {
+    GIC_ERROR("Failed to allocate IRQ descriptors for SGI interrupts!\n");
+    return -1;
+  }
   GIC_DEBUG("Set Up SGI Vectors\n");
   
   // Set up 16-31 for PPI
-  nk_alloc_ivec_descs(16, 16, dev, NK_IVEC_DESC_TYPE_DEFAULT, NK_IVEC_DESC_FLAG_PERCPU);
+  gic->ppi_desc_base = nk_alloc_irq_descs(16, dev, 16, NK_IRQ_DESC_TYPE_DEFAULT, NK_IRQ_DESC_FLAG_PERCPU);
+  if(gic->ppi_desc_base == NK_NULL_IRQ) {
+    GIC_ERROR("Failed to allocate IRQ descriptors for PPI interrupts!\n");
+    return -1;
+  }
   GIC_DEBUG("Set Up PPI Vectors\n");
 
   // Set up the correct number of SPI

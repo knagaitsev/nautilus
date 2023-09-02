@@ -13,7 +13,20 @@ struct sifive_serial_regs {
     volatile uint32_t div;
 };
 
+struct sifive_serial 
+{
+  struct nk_char_dev *dev;
+
+  nk_irq_t irq;
+  struct sifive_serial_regs *regs;
+};
+
+#ifdef NAUT_CONFIG_SIFIVE_SERIAL_EARLY_OUTPUT
+int sifive_serial_pre_vc_init(void *fdt);
+#endif
+
 void sifive_serial_init(unsigned long fdt);
+
 void sifive_serial_write(const char *b);
 void sifive_serial_putchar(unsigned char ch);
 int  sifive_serial_getchar(void);

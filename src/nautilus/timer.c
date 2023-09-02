@@ -24,7 +24,6 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/nautilus.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/percpu.h>
 #include <nautilus/mm.h>

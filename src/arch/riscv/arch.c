@@ -1,19 +1,21 @@
 #include <nautilus/arch.h>
 #include <nautilus/cpu_state.h>
 #include <nautilus/of/numa.h>
+#include <nautilus/endian.h>
 
 void arch_enable_ints(void)  { set_csr(sstatus, SSTATUS_SIE); }
 void arch_disable_ints(void) { clear_csr(sstatus, SSTATUS_SIE); }
 int  arch_ints_enabled(void) { return read_csr(sstatus) & SSTATUS_SIE; };
 
 #include <arch/riscv/plic.h>
-
+/*
 void arch_irq_enable(int irq) { plic_enable(irq, 1); }
 void arch_irq_disable(int irq) { 
     printk("im disabling irq=%d\n", irq);
     plic_disable(irq); 
 }
-    
+*/
+
 uint32_t arch_cycles_to_ticks(uint64_t cycles) { /* TODO */ return cycles; }
 uint32_t arch_realtime_to_ticks(uint64_t ns) { return ((ns*RISCV_CLOCKS_PER_SECOND)/1000000000ULL); }
 uint64_t arch_realtime_to_cycles(uint64_t ns) { /* TODO */ return arch_realtime_to_ticks(ns); }
@@ -119,8 +121,7 @@ void arch_halt(void) {
 }
 
 int arch_little_endian(void) {
-  // TODO: actually check the architecture endianness
-  return 1;
+  return check_little_endian();
 }
 
 int arch_atomics_enabled(void) {

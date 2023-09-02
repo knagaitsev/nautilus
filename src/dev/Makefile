@@ -10,8 +10,6 @@ ifndef NAUT_CONFIG_XEON_PHI
 obj-$(NAUT_CONFIG_ARCH_X86) += serial.o
 endif
 
-obj-$(NAUT_CONFIG_ARCH_RISCV) += sifive.o
-
 obj-$(NAUT_CONFIG_ARCH_ARM64) += \
 	pci.o
 
@@ -20,9 +18,12 @@ obj-$(NAUT_CONFIG_GIC_VERSION_2M) += gicv2.o gicv2m.o
 obj-$(NAUT_CONFIG_GIC_VERSION_3) += gicv3.o
 obj-$(NAUT_CONFIG_GIC_VERSION_3_ITS) += gicv3.o gicv3-its.o
 
+obj-$(NAUT_CONFIG_SIFIVE_PLIC) += sifive_plic.o
+
 obj-$(NAUT_CONFIG_GENERIC_8250_UART) += 8250/
 
 obj-$(NAUT_CONFIG_PL011_UART) += pl011.o
+obj-$(NAUT_CONFIG_SIFIVE_SERIAL) += sifive_serial.o
 
 obj-$(NAUT_CONFIG_HPET) += hpet.o
 

@@ -45,8 +45,8 @@
 #include <nautilus/math.h>
 #include <nautilus/vc.h>
 
-#ifdef NAUT_CONFIG_ARCH_RISCV
-#include <dev/sifive.h>
+#ifdef NAUT_CONFIG_ARCH_RISCVBLAG
+#include <dev/sifive_serial.h>
 // All output is handled via UART
 #define do_putchar(x) do { sifive_serial_putchar(x); } while (0)
 #define do_puts(x)    do { sifive_serial_write(x); sifive_serial_putchar('\n'); } while (0)
@@ -58,8 +58,13 @@
 
 spinlock_t printk_lock;
 
-extern void sifive_serial_putchar(uchar_t c);
-extern void serial_putln(const char * ln);
+int printk_init(void) {
+  spinlock_init(&printk_lock);
+  return 0;
+}
+
+//extern void sifive_serial_putchar(uchar_t c);
+//extern void serial_putln(const char * ln);
 
 struct printk_state {
 	char buf[PRINTK_BUFMAX];

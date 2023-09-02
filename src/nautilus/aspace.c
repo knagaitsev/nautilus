@@ -339,7 +339,7 @@ int nk_aspace_exception(struct nk_irq_action *action, struct nk_regs *regs, void
     struct cpu *cpu  = get_cpu();
     nk_aspace_t *cur = cpu->cur_aspace;
 
-    if (action->ivec==PF_EXCP) {
+    if (action->desc->hwirq==PF_EXCP) {
 	if (cur->flags & NK_ASPACE_HOOK_PF) {
 	    return cur->interface->exception(cur->state,action,regs);
 	} else {

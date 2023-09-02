@@ -32,7 +32,6 @@
 #include <nautilus/msr.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/smp.h>
-#include <nautilus/irq.h>
 #include <nautilus/thread.h>
 #include <nautilus/fiber.h>
 #include <nautilus/waitqueue.h>
@@ -55,6 +54,7 @@
 #include <nautilus/barrier.h>
 #include <nautilus/atomic.h>
 #include <arch/hrt/hrt.h>
+#include <arch/x64/irq.h>
 
 #include <dev/apic.h>
 #include <dev/pci.h>

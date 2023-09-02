@@ -23,7 +23,6 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/idle.h>
 #include <nautilus/cpu.h>
-#include <nautilus/irq.h>
 #include <nautilus/thread.h>
 #include <nautilus/task.h>
 #include <nautilus/scheduler.h>

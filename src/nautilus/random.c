@@ -25,7 +25,6 @@
 #include <nautilus/cpu.h>
 #include <nautilus/percpu.h>
 #include <nautilus/smp.h>
-#include <nautilus/irq.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/random.h>
 #include <nautilus/mm.h>

@@ -50,7 +50,7 @@ menu "Platform"
 						select ARCH_RISCV
 
         config ARM64_GENERIC
-            bool "Generic ARM64 host (qemu-virt machine)"
+            bool "Generic ARM64 Host" 
 						select ARCH_ARM64
 
         config GEM5_FORCE_APIC_TIMER_CALIBRATION

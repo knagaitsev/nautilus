@@ -21,13 +21,12 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/nautilus.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/mm.h>
-
-#ifdef NAUT_CONFIG_ARCH_X86
 #include <arch/x64/idt.h>
-#endif
+#include <arch/x64/irq.h>
+
+#define PIC_MAX_IRQ_NUM    15     // this is really PIC-specific
 
 #define PIC_MASTER_CMD_PORT  0x20
 #define PIC_MASTER_DATA_PORT 0x21

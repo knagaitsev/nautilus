@@ -29,9 +29,11 @@
 #include <nautilus/backtrace.h>
 #include <nautilus/shell.h>
 #include <nautilus/topo.h>
-#include <nautilus/irq.h>
 #include <dev/i8254.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/irq.h>
+#endif
 
 static int
 get_vendor_string (char name[13])

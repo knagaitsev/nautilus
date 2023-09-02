@@ -1,7 +1,6 @@
 
 #include<nautilus/nautilus.h>
 #include<nautilus/interrupt.h>
-#include<nautilus/irq.h>
 #include<nautilus/printk.h>
 
 #include<arch/arm64/excp.h>

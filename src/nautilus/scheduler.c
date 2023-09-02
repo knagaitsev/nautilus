@@ -56,7 +56,6 @@
 #include <nautilus/task.h>
 #include <nautilus/timer.h>
 #include <nautilus/scheduler.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/random.h>
@@ -69,6 +68,7 @@
 
 #ifdef NAUT_CONFIG_ARCH_X86
 #include <dev/apic.h>
+#include <arch/x64/irq.h>
 #endif
 
 // enforce lower limits on period and slice / sporadic size

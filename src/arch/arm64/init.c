@@ -13,7 +13,6 @@
 #include<nautilus/gpudev.h>
 #include<nautilus/irqdev.h>
 #include<nautilus/arch.h>
-#include<nautilus/irq.h>
 #include<nautilus/interrupt.h>
 #include<nautilus/mm.h>
 #include<nautilus/waitqueue.h>
@@ -275,7 +274,6 @@ vga_make_entry (char c, uint8_t color)
 extern void* _bssEnd[];
 extern void* _bssStart[];
 
-extern spinlock_t printk_lock;
 
 // The stack switch which happens halfway through "init" makes this needed
 static volatile const char *chardev_name = NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME;
@@ -370,7 +368,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   dw_8250_pre_vc_init(dtb);
 #endif
 
-  spinlock_init(&printk_lock);
+  printk_init();
 
   printk(NAUT_WELCOME);
 

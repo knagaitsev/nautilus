@@ -5,196 +5,13 @@
 #include<nautilus/shell.h>
 #include<nautilus/naut_assert.h>
 
-#ifdef NAUT_CONFIG_DEBUG_INTERRUPT_FRAMEWORK
-#undef DEBUG_PRINT
-#define DEBUG_PRINT(fmt, args...)
-#endif
-
-#define IRQ_PRINT(fmt, args...) printk("[IRQ] " fmt, ##args)
-#define IRQ_DEBUG(fmt, args...) DEBUG_PRINT("[IRQ] " fmt, ##args)
-#define IRQ_ERROR(fmt, args...) ERROR_PRINT("[IRQ] " fmt, ##args)
-#define IRQ_WARN(fmt, args...) WARN_PRINT("[IRQ] " fmt, ##args)
-
-static nk_ivec_t __max_ivec_num = 0;
-static nk_irq_t __max_irq_num = 0;
-
-static inline nk_ivec_t max_ivec(void) {
-  return __max_ivec_num;
-}
-
-static inline nk_irq_t max_irq(void) {
-#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-  return (nk_irq_t)max_ivec();
-#else
-  return __max_irq_num;
-#endif
-}
-
-static inline void update_max_ivec(nk_ivec_t vec) {
-  __max_ivec_num = vec > __max_ivec_num ? vec : __max_ivec_num;
-}
-
-static inline void update_max_irq(nk_irq_t irq) {
-  __max_irq_num = irq > __max_irq_num ? irq : __max_irq_num;
-}
-
-#ifdef NAUT_CONFIG_SPARSE_IRQ_VECTORS
-
-#define SPARSE_IVEC_BITS (sizeof(nk_ivec_t) * 8)
-#define SPARSE_IVEC_NUM_LEVELS 2
-#define SPARSE_IVEC_BITS_PER_LEVEL (SPARSE_IVEC_BITS / SPARSE_IVEC_NUM_LEVELS)
-#define SPARSE_IVEC_NUM_ENTRIES_PER_LEVEL (1<<SPARSE_IVEC_BITS_PER_LEVEL)
-#define SPARSE_IVEC_INDEX_MASK (SPARSE_IVEC_NUM_ENTRIES_PER_LEVEL-1)
-
-#include<nautilus/radix_tree.h>
-
-_Static_assert(((SPARSE_IVEC_BITS_PER_LEVEL*SPARSE_IVEC_NUM_LEVELS) == SPARSE_IVEC_BITS), 
-    "Sparse IVEC: IVEC_BITS is not divisible by the number of levels in the radix tree!");
-
-static void *sparse_ivec_radix_tree_base = NULL;
-
-static struct nk_radix_tree sparse_ivec_radix_tree;
-
-int nk_alloc_ivec_desc(nk_ivec_t ivec_num, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
+int nk_irq_add_handler(nk_irq_t irq, nk_irq_handler_t handler, void *state) 
 {
-  update_max_ivec(ivec_num);
-
-  /*
-  void **radix_tree = &sparse_ivec_radix_tree_base;
-
-  for(int i = SPARSE_IVEC_NUM_LEVELS-1; i >= 0; i--) {
-
-    if(*radix_tree == NULL) {
-
-      *radix_tree = malloc(sizeof(void*) * SPARSE_IVEC_NUM_ENTRIES_PER_LEVEL);
-      if(*radix_tree == NULL)
-      {
-        return -1;
-      }
-      memset(*radix_tree, 0, sizeof(void*) * SPARSE_IVEC_NUM_ENTRIES_PER_LEVEL);
-    }
-
-    nk_ivec_t index = ((ivec_num >> (SPARSE_IVEC_BITS_PER_LEVEL * i)) & SPARSE_IVEC_INDEX_MASK);
-
-    radix_tree = ((void**)*radix_tree) + index;
-
-  }
-
-  if(*radix_tree == NULL) {
-    *radix_tree = malloc(sizeof(struct nk_ivec_desc));
-    memset(*radix_tree, 0, sizeof(struct nk_ivec_desc));
-  }
-
-  if(*radix_tree == NULL) 
-  {
-    return -1;
-  }
-
-  struct nk_ivec_desc *desc = (struct nk_ivec_desc*)(*radix_tree);
-  */
-
-  struct nk_ivec_desc *desc = malloc(sizeof(struct nk_ivec_desc)); 
-  if(desc == NULL) {
-    IRQ_ERROR("Failed to allocate ivec_desc!\n");
-    return -1;
-  }
-  memset((void*)desc, 0, sizeof(struct nk_ivec_desc));
-
-  if(nk_radix_tree_insert(&sparse_ivec_radix_tree, ivec_num, (void*)desc)) {
-    IRQ_ERROR("Failed to insert ivec_desc into radix tree!\n");
-    free(desc);
-    return -1;
-  }
-
-  desc->irq_dev = dev;
-  desc->ivec_num = ivec_num;
-  desc->type = type;
-
-  desc->flags = flags;
-  spinlock_init(&(desc->lock));
-
-  return 0;
-
+  return nk_irq_add_handler_dev(irq, handler, state, NULL);
 }
-
-int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
+int nk_irq_add_handler_dev(nk_irq_t irq, nk_irq_handler_t handler, void *state, struct nk_dev *dev)
 {
-  IRQ_DEBUG("Allocating Interrupt Vectors: [%u - %u]\n", base, base+n-1); 
-
-  for(uint32_t i = 0; i < n; i++) 
-  {
-
-    if(nk_alloc_ivec_desc(base + i, dev, type, flags)) 
-    {
-      IRQ_ERROR("Failed to allocate ivec decriptor: %u\n", base+i);
-      return -1;
-    }
-
-  }
-
-  return 0;
-}
-
-struct nk_ivec_desc * nk_ivec_to_desc(nk_ivec_t ivec_num) 
-{
-  return (struct nk_ivec_desc*)nk_radix_tree_get(&sparse_ivec_radix_tree, (unsigned long)ivec_num);
-}
-
-#else /* NAUT_CONFIG_SPARSE_IRQ_VECTORS */
-
-#ifndef MAX_IVEC_NUM
-#error "MAX_IVEC_NUM is undefined!"
-#endif
-
-static struct nk_ivec_desc descriptors[MAX_IVEC_NUM+1];
-
-int nk_alloc_ivec_desc(nk_ivec_t num, struct nk_irq_dev *dev, uint16_t type, uint16_t flags) 
-{
-  update_max_ivec(num);
-  descriptors[num].ivec_num = num;
-  descriptors[num].flags = flags;
-  descriptors[num].type = type;
-  descriptors[num].irq_dev = dev;
-  spinlock_init(&(descriptors[num].lock));
-
-  return 0;
-}
-
-int nk_alloc_ivec_descs(nk_ivec_t base, uint32_t n, struct nk_irq_dev *dev, uint16_t type, uint16_t flags)
-{
-  // Inefficient but should work
-  for(uint32_t i = 0; i < n; i++) 
-  {
-
-    if(nk_alloc_ivec_desc(base + i, dev, type, flags)) 
-    {
-      return -1;  
-    }
-
-  }
-
-  return 0;
-}
-
-struct nk_ivec_desc * nk_ivec_to_desc(nk_ivec_t ivec) 
-{
-  struct nk_ivec_desc *desc = descriptors + ivec;
-  if(desc->ivec_num != ivec) {
-    panic("desc->ivec_num (%u) != ivec (%u)\n", desc->ivec_num, ivec);
-    return NULL;
-  }
-  return desc; 
-}
-
-#endif /* NAUT_CONFIG_SPARSE_INTERRUPT_IVECS */
-
-int nk_ivec_add_handler(nk_ivec_t vec, nk_irq_handler_t handler, void *state) 
-{
-  return nk_ivec_add_handler_dev(vec, handler, state, NULL);
-}
-int nk_ivec_add_handler_dev(nk_ivec_t vec, nk_irq_handler_t handler, void *state, struct nk_dev *dev)
-{
-  struct nk_ivec_desc *desc = nk_ivec_to_desc(vec);
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
   if(desc == NULL) {
     return -1;
   }
@@ -212,9 +29,9 @@ int nk_ivec_add_handler_dev(nk_ivec_t vec, nk_irq_handler_t handler, void *state
     action->handler = handler;
     action->handler_state = state;
     action->type = NK_IRQ_ACTION_TYPE_HANDLER;
-    action->ivec_desc = desc;
+    action->desc = desc;
     action->flags |= NK_IRQ_ACTION_FLAG_NO_IRQ;
-    action->ivec = vec;
+    action->irq = irq;
     action->dev = dev;
 
     action->next = desc->action.next;
@@ -225,30 +42,22 @@ int nk_ivec_add_handler_dev(nk_ivec_t vec, nk_irq_handler_t handler, void *state
     desc->action.handler = handler;
     desc->action.handler_state = state;
     desc->action.type = NK_IRQ_ACTION_TYPE_HANDLER;
-    desc->action.ivec_desc = desc;
+    desc->action.desc = desc;
     desc->action.flags |= NK_IRQ_ACTION_FLAG_NO_IRQ;
-    desc->action.ivec = vec;
+    desc->action.irq = irq;
     desc->action.dev = dev;
 
   }
 
   desc->num_actions += 1;
 
-#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-  // KJH - This is a dirty hack to get around how x86 made most drivers expect "vectors" to always be enabled always
-  //       So if we assign a handler through the "ivec" interface instead of the IRQ interface, we need to enable 
-  //       the actual IRQ vector if we are identity mapping
-  nk_unmask_irq(nk_ivec_to_irq(vec));
-#endif
-
   spin_unlock(&desc->lock);
-
   return 0;
 }
 
-int nk_ivec_set_handler_early(nk_ivec_t vec, nk_irq_handler_t handler, void *state)
+int nk_irq_set_handler_early(nk_irq_t irq, nk_irq_handler_t handler, void *state)
 {
-  struct nk_ivec_desc *desc = nk_ivec_to_desc(vec);
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
   if(desc == NULL) {
     return -1;
   }
@@ -263,18 +72,11 @@ int nk_ivec_set_handler_early(nk_ivec_t vec, nk_irq_handler_t handler, void *sta
   desc->action.handler = handler;
   desc->action.handler_state = state;
   desc->action.type = NK_IRQ_ACTION_TYPE_HANDLER;
-  desc->action.ivec_desc = desc;
+  desc->action.desc = desc;
   desc->action.flags |= NK_IRQ_ACTION_FLAG_NO_IRQ;
-  desc->action.ivec = vec;
+  desc->action.irq = irq;
 
   desc->num_actions += 1;
-
-#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-  // KJH - This is a dirty hack to get around how x86 made most drivers expect "vectors" to always be enabled always
-  //       So if we assign a handler through the "ivec" interface instead of the IRQ interface, we need to enable 
-  //       the actual IRQ vector if we are identity mapping
-  nk_unmask_irq(nk_ivec_to_irq(vec));
-#endif
 
   spin_unlock(&desc->lock);
 
@@ -286,25 +88,23 @@ static inline int flags_compat(uint16_t flags, uint16_t requested, uint16_t bann
   return ((flags & requested) == requested) & !(flags & banned);
 }
 
-int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags, uint16_t banned_flags, uint16_t set_flags, uint16_t clear_flags, nk_ivec_t *first) 
+nk_irq_t nk_irq_find_range(int num_needed, int flags, uint16_t needed_flags, uint16_t banned_flags, uint16_t set_flags, uint16_t clear_flags) 
 {
-  nk_ivec_t i,j;
+  nk_irq_t i,j;
+  int aligned = flags & NK_IRQ_RANGE_ALIGNED;
 
-  // This a limit from the IDT but it seems reasonable for now
-  if (num_needed>32) { 
-    return -1;
-  }
-
-  for (i=0;i <= (max_ivec()+1)-num_needed;i += aligned ? num_needed : 1) {
+  for (i=0;i <= (max_irq()+1)-num_needed;i += aligned ? num_needed : 1) {
     int run_good = 1;
     for(j=0;j<num_needed;j++) {
       
-      struct nk_ivec_desc *desc = nk_ivec_to_desc(i+j);
+      struct nk_irq_desc *desc = nk_irq_to_desc(i+j);
       if(desc == NULL) {
-        run_good = 0;
-	break;
+        if(flags & NK_IRQ_RANGE_ALLOC) {
+          run_good = 0;
+	  break;
+        }
       }
-      else if(desc->type == NK_IVEC_DESC_TYPE_INVALID) {
+      else if(desc->type == NK_IRQ_DESC_TYPE_INVALID) {
         run_good = 0;
 	break;
       }
@@ -316,32 +116,23 @@ int nk_ivec_find_range(nk_ivec_t num_needed, int aligned, uint16_t needed_flags,
 
     if(run_good) {
       for(j = 0; j < num_needed; j++) {
-        struct nk_ivec_desc *desc = nk_ivec_to_desc(i+j);
+        struct nk_irq_desc *desc = nk_irq_to_desc(i+j);
 	desc->flags |= set_flags;
         desc->flags &= ~clear_flags;
       }
-      *first = i;
-      return 0;
+      return i;
     }
   }
 
-  return -1;
-
+  return NK_NULL_IRQ;
 }
 
 /*
  * IRQ Action Functions
  */
 
-int nk_handle_irq_actions(struct nk_ivec_desc * desc, struct nk_regs *regs) 
+int nk_handle_irq_actions(struct nk_irq_desc * desc, struct nk_regs *regs) 
 { 
-
-  /*
-  if(desc->ivec_num != 240) {
-    printk("Interrupt Vector: %u\n", desc->ivec_num);
-  }
-  */
-
   int ret = 0;
 
   // This is just to get a rough estimate,
@@ -367,37 +158,16 @@ int nk_handle_irq_actions(struct nk_ivec_desc * desc, struct nk_regs *regs)
  * IRQ Functions
  */
 
-#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-int nk_irq_init(void) 
-{
-  return 0;
-}
-inline int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec) 
-{ 
-  return irq != ivec;
-}
-inline nk_ivec_t nk_irq_to_ivec(nk_irq_t irq) 
-{ 
-  return (nk_ivec_t)irq; 
-}
-inline nk_irq_t nk_ivec_to_irq(nk_ivec_t ivec) 
-{
-  return (nk_irq_t)ivec;
-}
-inline struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq) 
-{ 
-  return nk_ivec_to_desc((nk_ivec_t)irq); 
-}
-
-inline int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
+int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
 {
   nk_irq_to_desc(irq)->irq_dev = dev;
   return 0;
 }
-inline struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
+
+struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
 {
-  struct nk_ivec_desc *desc = nk_ivec_to_desc((nk_ivec_t)irq);
-  if(desc->flags & NK_IVEC_DESC_FLAG_PERCPU) {
+  struct nk_irq_desc *desc = nk_irq_to_desc((nk_irq_t)irq);
+  if(desc->flags & NK_IRQ_DESC_FLAG_PERCPU) {
     return per_cpu_get(irq_dev);
   }
   else {
@@ -405,137 +175,9 @@ inline struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq)
   }
 }
 
-#else
-
-#ifdef NAUT_CONIFG_SPARSE_IRQ
-
-int nk_irq_init(void) 
-{
-  return 0;
-}
-// We have no architectures which need this case yet
-// so I'm just going to leave it empty for now, 
-// potentially this would just be another radix tree
-int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec) 
-{
-  update_max_irq(irq);
-  // TODO
-}
-nk_ivec_t nk_irq_to_ivec(nk_irq_t irq) 
-{
-  // TODO
-}
-struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq) 
-{
-  // TODO
-}
-
-int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
-{
-  // TODO
-}
-struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
-{
-  // TODO
-}
-
-#else
-
-#ifndef MAX_IRQ_NUM
-#error "MAX_IRQ_NUM is undefined!"
-#endif
-
-static nk_ivec_t irq_to_ivec_array[MAX_IRQ_NUM];
-static struct nk_irq_dev * irq_to_irqdev_array[MAX_IRQ_NUM];
-
-int nk_irq_init(void) {
-  memset(irq_to_ivec_array, 0, sizeof(irq_to_ivec_array));
-  memset(irq_to_irqdev_array, 0, sizeof(irq_to_irqdev_array));
-  return 0;
-}
-int nk_map_irq_to_ivec(nk_irq_t irq, nk_ivec_t ivec) 
-{
-  update_max_irq(irq);
-  irq_to_ivec_array[irq] = ivec;
-  return 0;
-}
-nk_ivec_t nk_irq_to_ivec(nk_irq_t irq) 
-{
-  return irq_to_ivec_array[irq];
-}
-struct nk_ivec_desc * nk_irq_to_desc(nk_irq_t irq) 
-{
-  return nk_ivec_to_desc(irq_to_ivec_array[irq]);
-}
-
-int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
-{
-  irq_to_irqdev_array[irq] = dev;
-  return 0;
-}
-struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
-{
-  return irq_to_irqdev_array[irq];
-}
-
-#endif /* NAUT_CONFIG_SPARSE_IRQ */
-
-#endif /* !NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS */
-
 int nk_irq_is_assigned_to_irqdev(nk_irq_t irq) 
 {
   return nk_irq_to_irqdev(irq) != NULL;
-}
-
-int nk_irq_add_handler(nk_irq_t irq, nk_irq_handler_t handler, void *state) 
-{
-  return nk_irq_add_handler_dev(irq, handler, state, NULL);
-}
-int nk_irq_add_handler_dev(nk_irq_t irq, nk_irq_handler_t handler, void *state, struct nk_dev *dev)
-{
-  nk_ivec_t vec = nk_irq_to_ivec(irq);
-  struct nk_ivec_desc *desc = nk_ivec_to_desc(vec);
-  if(desc == NULL) {
-    return -1;
-  }
-
-  spin_lock(&desc->lock);
-
-  if(desc->num_actions > 0) {
-
-    struct nk_irq_action *action = malloc(sizeof(struct nk_irq_action));
-    if(action == NULL) {
-      return -1;
-    }
-    memset(action, 0, sizeof(struct nk_irq_action));
-
-    action->handler = handler;
-    action->handler_state = state;
-    action->type = NK_IRQ_ACTION_TYPE_HANDLER;
-    action->ivec_desc = desc;
-    action->irq = irq;
-    action->ivec = vec;
-    action->dev = dev;
-
-    action->next = desc->action.next;
-    desc->action.next = action;
-
-  } else {
-
-    desc->action.handler = handler;
-    desc->action.handler_state = state;
-    desc->action.type = NK_IRQ_ACTION_TYPE_HANDLER;
-    desc->action.ivec_desc = desc;
-    desc->action.irq = irq;
-    desc->action.ivec = vec;
-    desc->action.dev = dev;
-
-  }
-
-  desc->num_actions += 1;
-  spin_unlock(&desc->lock);
-
-  return 0;
 }
 
 int nk_mask_irq(nk_irq_t irq) {
@@ -554,85 +196,63 @@ int nk_unmask_irq(nk_irq_t irq) {
   return nk_irq_dev_enable_irq(dev, irq);
 }
 
-void nk_dump_ivec_info(void) 
+void nk_dump_irq_info(void) 
 {
-  IRQ_PRINT("--- Interrupt Vector Information: (max = %u) ---\n", max_ivec()+1);
-  for(nk_ivec_t i = 0; i < max_ivec()+1; i++) 
+  IRQ_PRINT("--- Interrupt Descriptors: (max = %u) ---\n", max_irq()+1);
+  for(nk_irq_t i = 0; i < max_irq()+1; i++) 
   {
-    struct nk_ivec_desc *desc = nk_ivec_to_desc(i);
-    if(desc == NULL || desc->type == NK_IVEC_DESC_TYPE_INVALID) 
+    struct nk_irq_desc *desc = nk_irq_to_desc(i);
+    if(desc == NULL || !(desc->flags & NK_IRQ_DESC_FLAG_ALLOCATED)) 
     {
       continue;
     }
 
-#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-    nk_irq_t irq = nk_ivec_to_irq(i);
     struct nk_irq_dev *dev = nk_irq_to_irqdev(irq);
     int status = nk_irq_dev_irq_status(dev, irq);
-#endif
    
-    IRQ_PRINT("Interrupt Vector %u: type = %s, triggered count = %u, num_actions = %u, irqdev = %s, "
-#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-              "irq = %u, %s%s%s"       
-#endif
-              "%s%s%s%s%s%s\n",
-		    desc->ivec_num,
-                    desc->type == NK_IVEC_DESC_TYPE_DEFAULT ? "DEFAULT" :
-                    desc->type == NK_IVEC_DESC_TYPE_EXCEPTION ? "EXCEPTION" :
-                    desc->type == NK_IVEC_DESC_TYPE_INVALID ? "INVALID" : // It should be skipped but check just in case there's a bug
-                    desc->type == NK_IVEC_DESC_TYPE_SPURRIOUS ? "SPURRIOUS" : "UNKNOWN",
+    IRQ_PRINT("Interrupt Descriptor %u: type = %s, triggered count = %u, num_actions = %u, irqdev = %s, "
+              "%s%s%s%s%s%s%s\n",
+		    desc->irq,
                     desc->triggered_count,
 		    desc->num_actions,
-		    desc->irq_dev != NULL ? desc->irq_dev->dev.name : desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "PERCPU" : "NULL",
-#ifdef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-                    irq,
+		    desc->irq_dev != NULL ? desc->irq_dev->dev.name : desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "PERCPU" : "NULL",
                     status & IRQ_DEV_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
                     status & IRQ_DEV_STATUS_PENDING ? "[PENDING] " : "",
                     status & IRQ_DEV_STATUS_ACTIVE ? "[ACTIVE] " : "",
-#endif
-		    desc->flags & NK_IVEC_DESC_FLAG_RESERVED ? "[RESERVED] " : "",
-		    desc->flags & NK_IVEC_DESC_FLAG_MSI ? "[MSI] " : "",
-		    desc->flags & NK_IVEC_DESC_FLAG_MSI_X ? "[MSI-X] " : "",
-		    desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "[PERCPU] " : "",
-		    desc->flags & NK_IVEC_DESC_FLAG_IPI ? "[IPI] " : "",
-                    desc->flags & NK_IVEC_DESC_FLAG_NMI ? "[NMI] " : ""
+		    desc->flags & NK_IRQ_DESC_FLAG_MSI ? "[MSI] " : "",
+		    desc->flags & NK_IRQ_DESC_FLAG_MSI_X ? "[MSI-X] " : "",
+		    desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "[PERCPU] " : "",
+		    desc->flags & NK_IRQ_DESC_FLAG_IPI ? "[IPI] " : "",
+                    desc->flags & NK_IRQ_DESC_FLAG_NMI ? "[NMI] " : ""
 		    );
 
     struct nk_irq_action *action = &desc->action;
     for(int act_num = 0; (act_num < desc->num_actions) && (action != NULL); act_num++, action = action->next) 
     {
-      IRQ_PRINT("\tAction %u: type = %s, handler = %p, handler_state = %p, device = %s %s%s\n",
+      IRQ_PRINT("\tAction %u: type = %s, device = %s %s\n",
 		act_num,
 		action->type == NK_IRQ_ACTION_TYPE_HANDLER ? "handler" : "invalid",
-		action->handler,
-		action->handler_state,
 		action->dev == NULL ? "NULL" : action->dev->name,
-                action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED]" : "",
-                action->flags & NK_IRQ_ACTION_FLAG_NO_IRQ ? "[NO IRQ]" : ""
+                action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED] " : "",
                 );
-#ifndef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-      if(!(action->flags & NK_IRQ_ACTION_FLAG_NO_IRQ)) {
-        struct nk_irq_dev *dev = nk_irq_to_irqdev(action->irq);
-	int status = 0;
-	if(dev != NULL) {
-          status = nk_irq_dev_irq_status(dev, action->irq);
-	}
-	IRQ_PRINT("\t\tirq = %u, irq_dev = %s, %s%s%s\n",
-			action->irq,
-			dev == NULL ? "NULL" : desc->flags & NK_IVEC_DESC_FLAG_PERCPU ? "PERCPU" : dev->dev.name,
-                        dev == NULL ? "" : status & IRQ_DEV_STATUS_ENABLED ? "[ENABLED]" : "[DISABLED]",
-                        dev == NULL ? "" : status & IRQ_DEV_STATUS_PENDING ? "[PENDING]" : "",
-                        dev == NULL ? "" : status & IRQ_DEV_STATUS_ACTIVE ? "[ACTIVE]" : ""
-                 );	
+      switch(action->type) {
+        case NK_IRQ_ACTION_TYPE_HANDLER:
+          IRQ_PRINT("\t\t{handler = %p, state = %p}\n",
+              action->handler,
+              action->handler_state
+              );
+          break;
+        default:
+          IRQ_PRINT("\t\t{INVALID ACTION TYPE}\n");
+          break;
       }
-#endif
     }    
   }
 }
 
 static int handle_shell_interrupt(char * buf, void * priv) 
 {
-  nk_dump_ivec_info();
+  nk_dump_irq_info();
   return 0;
 }
 

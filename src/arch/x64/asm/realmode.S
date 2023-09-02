@@ -33,7 +33,7 @@ _nk_real_mode_int is called from long mode and returns to long mode
 	-the caller must assume all GPRs are smashed, although we will attempt
 	 to recover them
 
-	RDI = argument pointer - argument as in include/nautilus/realmode.h
+	RDI = argument pointer - argument as in include/x64/realmode.h
 
 	All registers are saved and restored
 */

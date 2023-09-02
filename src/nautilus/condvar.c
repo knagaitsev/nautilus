@@ -25,7 +25,6 @@
 #include <nautilus/queue.h>
 #include <nautilus/thread.h>
 #include <nautilus/errno.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/atomic.h>
 #include <nautilus/mm.h>

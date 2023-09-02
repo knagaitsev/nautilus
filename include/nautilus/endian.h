@@ -5,19 +5,35 @@
 
 #ifdef NAUT_CONFIG_ARCH_RISCV
 inline static uint16_t bswap16(uint16_t n) {
-  return (n << 8) | ((n>>8)&0xFF);
+  return ((n & 0xFF) << 8) | ((n >> 8) & 0xFF);
 }
 inline static uint32_t bswap32(uint32_t n) {
-  return (16<<(uint32_t)bswap16(n&0xFFFF))|((uint32_t)bswap16((n>>16)&0xFFFF));
+  return ((uint32_t)bswap16(n & 0xFFFF) << 16) | ((uint32_t)bswap16(n >> 16) & 0xFFFF);
 }
 inline static uint64_t bswap64(uint64_t n) {
-  return (32<<(uint64_t)bswap32(n&0xFFFFFFFF))|((uint64_t)bswap32((n>>32)&0xFFFFFFFF));
+  return ((uint64_t)bswap32(n & 0xFFFFFFFF) << 32) | ((uint64_t)bswap32(n >> 32) & 0xFFFFFFFF);
 }
 #else
 #define bswap16(n) __builtin_bswap16(n)
 #define bswap32(n) __builtin_bswap32(n)
 #define bswap64(n) __builtin_bswap64(n)
 #endif
+
+// Sketchy function
+static inline int check_little_endian(void) {
+  volatile uint8_t arr[4] = {};
+  for(int i = 0; i < 4; i++) {
+    arr[i] = 0;
+  }
+  arr[0] = 1;
+
+  volatile uint32_t val = *(uint32_t*)arr;
+  if(val == 1) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
 
 static inline uint16_t htobe16(uint16_t host) {
   return !arch_little_endian() ? host : bswap16(host);

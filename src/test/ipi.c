@@ -21,7 +21,6 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/nautilus.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/percpu.h>
 #include <nautilus/atomic.h>
@@ -158,17 +157,17 @@ ipi_exp_setup (ipi_exp_data_t * data)
 {
     nk_fs_fd_t fd;
 
-    if (nk_ivec_add_handler(PING_VEC, ping, NULL) != 0) {
+    if (nk_irq_add_handler(x86_vector_to_irq(PING_VEC), ping, NULL) != 0) {
         ERROR("Could not register int handler");
         return -1;
     }
 
-    if (nk_ivec_add_handler(PONG_VEC, pong, NULL) != 0) {
+    if (nk_irq_add_handler(x86_vector_to_irq(PONG_VEC), pong, NULL) != 0) {
         ERROR("Could not register int handler");
         return -1;
     }
 
-    if (nk_ivec_add_handler(PONG_BCAST_VEC, pong_bcast, NULL) != 0) {
+    if (nk_irq_add_handler(x86_vector_to_irq(PONG_BCAST_VEC), pong_bcast, NULL) != 0) {
         ERROR("Could not register int handler");
         return -1;
     }
