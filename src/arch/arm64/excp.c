@@ -85,14 +85,20 @@ void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el_
 {
   struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
   
-  nk_irq_t irq;
-  nk_irq_dev_ack(irq_dev, &irq);
+  nk_hwirq_t irq;
+  nk_irq_dev_ack(irq_dev, &hwirq);
+
+  nk_irq_t irq = NK_NULL_IRQ;
+  if(nk_irq_dev_revmap(irq_dev, hwirq, &irq)) {
+    goto spurrious_irq;
+  }
 
   struct nk_ivec_desc *desc = nk_irq_to_desc(irq);
   nk_handle_irq_actions(desc, regs);
 
-  nk_irq_dev_eoi(irq_dev, irq);
- 
+  nk_irq_dev_eoi(irq_dev, hwirq);
+
+spurrious_irq:
   void *thread = NULL;
   if(per_cpu_get(in_timer_interrupt)) {
     thread = nk_sched_need_resched();

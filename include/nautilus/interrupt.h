@@ -23,10 +23,7 @@ struct nk_irq_action;
 typedef int(*nk_irq_handler_t)(struct nk_irq_action *, struct nk_regs *, void *state);
 
 /*
- * irq_actions are different actions which can be registered with
- * each "ivec" and (optionally) associated with an IRQ.
- *
- * When the interrupt vector is invoked the architecture should call
+ * When the interrupt is invoked the architecture should call
  * "nk_handle_irq_actions()" with the correct arguments.
  *
  * Right now the only option is setting a handler function.
@@ -37,6 +34,7 @@ typedef int(*nk_irq_handler_t)(struct nk_irq_action *, struct nk_regs *, void *s
 
 #define NK_IRQ_ACTION_TYPE_INVALID       0
 #define NK_IRQ_ACTION_TYPE_HANDLER       1
+#define NK_IRQ_ACTION_TYPE_CHAINED_IRQ   2
 
 struct nk_irq_action {
 
@@ -51,6 +49,14 @@ struct nk_irq_action {
             void *handler_state;
 
         };
+
+        struct { // NK_IRQ_ACTION_TYPE_CHAINED_IRQ
+
+          nk_irq_t chained_irq;
+          struct nk_irq_desc *chained_desc;
+
+        };
+
     };
 
     struct nk_dev *dev;
@@ -61,19 +67,7 @@ struct nk_irq_action {
 
 };
 
-int nk_handle_irq_actions(struct nk_ivec_desc *desc, struct nk_regs *regs);
-
-/*
- * "ivec" -> "Interrupt Vector"
- * 
- * "ivec"s represent the granule at which the hardware/architecture
- * can differentiate between different interrupt sources.
- *
- * As opposed to an "irq" which is more conceptual, and multiple
- * "irq"s could share the same "ivec" and the architecture won't
- * be able to tell which is which and should call both "irq"s handlers
- *
- */
+int nk_handle_irq_actions(struct nk_irq_desc *desc, struct nk_regs *regs);
 
 #define NK_IRQ_DESC_FLAG_ALLOCATED    (1<<0)
 #define NK_IRQ_DESC_FLAG_MSI          (1<<1)
@@ -105,7 +99,6 @@ struct nk_irq_desc {
 
   nk_irq_t irq;
   uint16_t flags;
-  uint16_t type;
 
   uint32_t triggered_count;
 };
@@ -113,13 +106,24 @@ struct nk_irq_desc {
 void nk_dump_irq_info(void);
 
 // Returns base IRQ number or NK_NULL_IRQ if an error occurred
-nk_irq_t nk_alloc_irq_descs(int n, struct nk_irq_dev *dev, nk_hwirq_t hwirq, uint16_t type, uint16_t flags);
-int nk_free_irq_descs(nk_irq_t base, int n);
+int nk_request_irq_range(int n, nk_irq_t *out_base);
+
+// Allocates and intializes IRQ descriptors using Kmem
+struct nk_irq_desc * nk_alloc_irq_desc(nk_hwirq_t hwirq, int flags, struct nk_irq_dev *);
+struct nk_irq_desc * nk_alloc_irq_descs(int n, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *);
+
+// Initializes statically allocated IRQ descriptors
+//int nk_setup_irq_desc(struct nk_irq_desc *desc, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
+//int nk_setup_irq_descs(int n, struct nk_irq_desc *descs, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
+
+// Associates an IRQ descriptor with an IRQ number
+int nk_assign_irq_desc(nk_irq_t irq, struct nk_irq_desc *desc);
+int nk_assign_irq_descs(int n, nk_irq_t irq, struct nk_irq_desc *desc);
 
 struct nk_irq_desc * nk_irq_to_desc(nk_irq_t irq);
 
 /*
- * nk_irq_find_range (finds and possibly modifies a range of NK_IVEC_DESC_TYPE_DEFAULT descriptors with certain flags)
+ * nk_irq_find_range (finds and possibly modifies a range of descriptors with certain flags)
  *
  * num: size of the range to find
  * flags: flags for the search, not the descriptor
@@ -137,14 +141,14 @@ struct nk_irq_desc * nk_irq_to_desc(nk_irq_t irq);
 #define NK_IRQ_RANGE_FLAG_ALIGNED    (1<<0)
 nk_irq_t nk_irq_find_range(int num, int flags, uint16_t needed_flags, uint16_t banned_flags, uint16_t set_flags, uint16_t clear_flags);
 
-// Adds a handler to the ivec (can allocate memory using kmem)
+// Adds a handler to the irq (can allocate memory using kmem)
 // Can fail if the vector is reserved
-int nk_irq_add_handler(nk_ivec_t, nk_irq_handler_t, void *state);
-int nk_irq_add_handler_dev(nk_ivec_t, nk_irq_handler_t, void *state, struct nk_dev *dev);
+int nk_irq_add_handler(nk_irq_t, nk_irq_handler_t, void *state);
+int nk_irq_add_handler_dev(nk_irq_t, nk_irq_handler_t, void *state, struct nk_dev *dev);
 
-// Adds a handler to the ivec (Should not allocate memory,
+// Adds a handler to the irq (Should not allocate memory,
 // fails if the vector already has an action regardless if it is reserved or not)
-int nk_irq_set_handler_early(nk_ivec_t, nk_irq_handler_t, void *state);
+int nk_irq_set_handler_early(nk_irq_t, nk_irq_handler_t, void *state);
 
 /*
  * IRQ Functions

@@ -183,6 +183,24 @@ int nk_irq_dev_translate_irqs(struct nk_irq_dev *dev, nk_dev_info_type_t type, v
 #endif
 }
 
+int nk_irq_dev_revmap(struct nk_irq_dev *d, nk_hwirq_t hwirq, nk_irq_t *out_irq) 
+{
+  struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
+  struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
+
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+  if(di->revmap) {
+    return di->revmap(d->state, hwirq, out_irq);
+  } else {
+    // This device doesn't have translation support!
+    ERROR("NULL revmap in interface of device %s\n", d->name);
+    return -1;
+  }
+#else
+  return di->revmap(d->state, hwirq, out_irq);
+#endif 
+}
+
 int nk_assign_cpu_irq_dev(struct nk_irq_dev* dev, cpu_id_t cpuid) {
   
   struct naut_info *naut = nk_get_nautilus_info();

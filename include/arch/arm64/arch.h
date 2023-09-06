@@ -1,12 +1,8 @@
 #ifndef __NAUT_ARM64_ARCH_H__
 #define __NAUT_ARM64_ARCH_H__
 
-#ifndef NAUT_CONFIG_SPARSE_IRQ_VECTORS
-#error "ARM64 requires that SPARSE_IRQ_VECTORS is enabled!"
-#endif
-
-#ifndef NAUT_CONFIG_IDENTITY_MAP_IRQ_VECTORS
-#error "ARM64 requires that IDENTITY_MAP_IRQ_VECTORS is enabled!"
+#ifndef NAUT_CONFIG_SPARSE_IRQ
+#error "ARM64 requires that NAUT_CONFIG_SPARSE_IRQ is enabled!"
 #endif
 
 #define MAX_IRQ_NUM 0

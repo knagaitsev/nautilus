@@ -76,6 +76,7 @@ typedef unsigned int nk_ivec_t;
 
 // Must be large enough to represent every IRQ line number in the system
 typedef unsigned int nk_irq_t;
+typedef unsigned int nk_hwirq_t;
 
 typedef uint32_t nk_gpio_t;
 

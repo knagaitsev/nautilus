@@ -18,6 +18,11 @@ struct gicv2 {
   uint64_t dist_base;
   uint64_t cpu_base;
 
+  nk_irq_t irq_base;
+  struct nk_irq_desc *sgi_descs;
+  struct nk_irq_desc *ppi_descs;
+  struct nk_irq_desc *spi_descs;
+
   uint32_t max_spi;
   uint32_t num_cpus;
 

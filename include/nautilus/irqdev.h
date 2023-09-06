@@ -23,7 +23,7 @@ struct nk_irq_dev_int {
   
   int (*irq_status)(void *state, nk_hwirq_t irq);
 
-  nk_irq_t(*hwirq_to_irq)(void *state, nk_hwirq_t irq);
+  int (*revmap)(void *state, nk_hwirq_t hwirq, nk_irq_t *irq);
 
   int(*translate_irqs)(void *state, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *buf, int *buf_count);
 };
@@ -74,6 +74,11 @@ int nk_irq_dev_disable_irq(struct nk_irq_dev *d, nk_irq_t irq);
 #define IRQ_DEV_STATUS_PENDING (1<<3) // Interrupt is pending (signalled but not ack'ed)
 #define IRQ_DEV_STATUS_ACTIVE  (1<<4) // Interrupt is active (between ack and eoi)
 int nk_irq_dev_irq_status(struct nk_irq_dev *d, nk_irq_t irq);
+
+/*
+ * Maps from IRQ device local interrupt numbers to global nk_irq_t
+ */
+int nk_irq_dev_revmap(struct nk_irq_dev *d, nk_hwirq_t hwirq, nk_irq_t *out_irq);
 
 int nk_irq_dev_translate_irqs(struct nk_irq_dev *d, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *irq_buf, int *irq_buf_count);
 

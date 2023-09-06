@@ -1,9 +1,138 @@
 #include<nautilus/interrupt.h>
 
-// Gives us MAX_IRQ_NUM and MAX_IVEC_NUM
+#ifndef NAUT_CONFIG_DEBUG_INTERRUPT_FRAMEWORK
+#undef DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...) 
+#endif
+
+#define IRQ_ERROR(fmt, args...) ERROR_PRINT("[IRQ] " fmt, ##args)
+#define IRQ_DEBUG(fmt, args...) DEBUG_PRINT("[IRQ] " fmt, ##args)
+#define IRQ_PRINT(fmt, args...) INFO_PRINT("[IRQ] " fmt, ##args)
+
+// Gives us MAX_IRQ_NUM
 #include<nautilus/arch.h>
+
 #include<nautilus/shell.h>
 #include<nautilus/naut_assert.h>
+
+static nk_irq_t irq_next_base = 0;
+
+static nk_irq_t max_irq(void) {
+  return irq_next_base - 1;
+}
+
+#ifdef NAUT_CONFIG_SPARSE_IRQ
+#include<nautilus/radix_tree.h>
+
+static struct nk_radix_tree sparse_irq_radix_tree;
+
+static inline struct nk_irq_desc * __irq_to_desc(nk_irq_t irq_num) 
+{
+  return (struct nk_irq_desc*)nk_radix_tree_get(&sparse_irq_radix_tree, (unsigned long)irq_num);
+}
+
+static inline int __irq_insert_desc(nk_irq_t irq_num, struct nk_irq_desc *desc) 
+{
+  return nk_radix_tree_insert(&sparse_irq_radix_tree, irq_num, (void*)desc);
+}
+
+#else /* NAUT_CONFIG_SPARSE_IRQ */
+
+#ifndef MAX_IRQ_NUM
+#error "MAX_IRQ_NUM is undefined while NAUT_CONFIG_SPARSE_IRQ is not selected!"
+#endif
+
+static struct nk_irq_desc * descriptors[MAX_IRQ_NUM];
+
+static inline struct nk_irq_desc * __irq_to_desc(nk_irq_t irq) 
+{
+  struct nk_irq_desc *desc = descriptors + irq;
+  if(desc->irq != irq) {
+    panic("desc->irq (%u) != irq (%u)\n", desc->irq, irq);
+
+    return NULL;
+  }
+  if(desc->flags & NK_IRQ_DESC_FLAG_ALLOCATED) {
+
+    return desc;
+  }
+  return NULL; 
+}
+
+static inline int __irq_insert_desc(nk_irq_t irq, struct nk_irq_desc *desc) 
+{
+  if(irq < 0 || irq > MAX_IRQ_NUM) {
+    return -1;
+  }
+  descriptors[irq] = desc; 
+  return 0;
+}
+
+#endif /* NAUT_CONFIG_SPARSE_IRQ */
+
+struct nk_irq_desc * nk_irq_to_desc(nk_irq_t irq) 
+{
+  return __irq_to_desc(irq);
+}
+
+int nk_request_irq_range(int n, nk_irq_t *out_base) 
+{
+#ifndef NAUT_CONFIG_SPARSE_IRQ
+  if(irq_next_base + n > MAX_IRQ_NUM) {
+    // Ran out of room 
+    return -1;
+  }
+#endif
+  // This could use some synchronization
+  *out_base = irq_next_base;
+  irq_next_base += n;
+  return 0;
+}
+
+struct nk_irq_desc * nk_alloc_irq_desc(nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev) 
+{
+  struct nk_irq_desc *desc = malloc(sizeof(struct nk_irq_desc));
+  if(desc == NULL) {
+    return desc;
+  }
+  memset(desc, 0, sizeof(struct nk_irq_desc));
+  desc->irq = NK_NULL_IRQ;
+  desc->hwirq = hwirq;
+  desc->flags = flags;
+  desc->irq_dev = dev;
+  return desc;
+}
+struct nk_irq_desc * nk_alloc_irq_descs(int num, nk_hwirq_t base_hwirq, int flags, struct nk_irq_dev *dev) {
+  struct nk_irq_desc *descs = malloc(sizeof(struct nk_irq_desc) * num);
+  if(descs == NULL) {
+    return descs;
+  }
+  memset(descs, 0, sizeof(struct nk_irq_desc) * num);
+  for(int i = 0; i < num; i++) {
+    descs[i].irq = NK_NULL_IRQ;
+    descs[i].hwirq = base_hwirq + i;
+    descs[i].flags = flags;
+    descs[i].irq_dev = dev;
+  }
+  return descs;
+}
+
+int nk_assign_irq_desc(nk_irq_t irq, struct nk_irq_desc *desc) 
+{
+  desc->irq = irq;
+  return __irq_insert_desc(irq, desc);
+}
+
+int nk_assign_irq_descs(int num, nk_irq_t base_irq, struct nk_irq_desc *descs) 
+{
+  for(int i = 0; i < num; i++) {
+    descs[i].irq = base_irq + i;
+    if(__irq_insert_desc(base_irq + i, &descs[i])) {
+      return -1;
+    }
+  }
+  return 0;
+}
 
 int nk_irq_add_handler(nk_irq_t irq, nk_irq_handler_t handler, void *state) 
 {
@@ -30,7 +159,6 @@ int nk_irq_add_handler_dev(nk_irq_t irq, nk_irq_handler_t handler, void *state, 
     action->handler_state = state;
     action->type = NK_IRQ_ACTION_TYPE_HANDLER;
     action->desc = desc;
-    action->flags |= NK_IRQ_ACTION_FLAG_NO_IRQ;
     action->irq = irq;
     action->dev = dev;
 
@@ -39,11 +167,12 @@ int nk_irq_add_handler_dev(nk_irq_t irq, nk_irq_handler_t handler, void *state, 
 
   } else {
 
+    memset(&desc->action, 0, sizeof(struct nk_irq_action));
+
     desc->action.handler = handler;
     desc->action.handler_state = state;
     desc->action.type = NK_IRQ_ACTION_TYPE_HANDLER;
     desc->action.desc = desc;
-    desc->action.flags |= NK_IRQ_ACTION_FLAG_NO_IRQ;
     desc->action.irq = irq;
     desc->action.dev = dev;
 
@@ -73,7 +202,6 @@ int nk_irq_set_handler_early(nk_irq_t irq, nk_irq_handler_t handler, void *state
   desc->action.handler_state = state;
   desc->action.type = NK_IRQ_ACTION_TYPE_HANDLER;
   desc->action.desc = desc;
-  desc->action.flags |= NK_IRQ_ACTION_FLAG_NO_IRQ;
   desc->action.irq = irq;
 
   desc->num_actions += 1;
@@ -87,9 +215,9 @@ static inline int flags_compat(uint16_t flags, uint16_t requested, uint16_t bann
 {
   return ((flags & requested) == requested) & !(flags & banned);
 }
-
 nk_irq_t nk_irq_find_range(int num_needed, int flags, uint16_t needed_flags, uint16_t banned_flags, uint16_t set_flags, uint16_t clear_flags) 
 {
+/*
   nk_irq_t i,j;
   int aligned = flags & NK_IRQ_RANGE_ALIGNED;
 
@@ -98,13 +226,7 @@ nk_irq_t nk_irq_find_range(int num_needed, int flags, uint16_t needed_flags, uin
     for(j=0;j<num_needed;j++) {
       
       struct nk_irq_desc *desc = nk_irq_to_desc(i+j);
-      if(desc == NULL) {
-        if(flags & NK_IRQ_RANGE_ALLOC) {
-          run_good = 0;
-	  break;
-        }
-      }
-      else if(desc->type == NK_IRQ_DESC_TYPE_INVALID) {
+      if(desc->type == NK_IRQ_DESC_TYPE_INVALID) {
         run_good = 0;
 	break;
       }
@@ -123,7 +245,7 @@ nk_irq_t nk_irq_find_range(int num_needed, int flags, uint16_t needed_flags, uin
       return i;
     }
   }
-
+*/
   return NK_NULL_IRQ;
 }
 
@@ -207,8 +329,8 @@ void nk_dump_irq_info(void)
       continue;
     }
 
-    struct nk_irq_dev *dev = nk_irq_to_irqdev(irq);
-    int status = nk_irq_dev_irq_status(dev, irq);
+    struct nk_irq_dev *dev = nk_irq_to_irqdev(i);
+    int status = nk_irq_dev_irq_status(dev, i);
    
     IRQ_PRINT("Interrupt Descriptor %u: type = %s, triggered count = %u, num_actions = %u, irqdev = %s, "
               "%s%s%s%s%s%s%s\n",
@@ -233,7 +355,7 @@ void nk_dump_irq_info(void)
 		act_num,
 		action->type == NK_IRQ_ACTION_TYPE_HANDLER ? "handler" : "invalid",
 		action->dev == NULL ? "NULL" : action->dev->name,
-                action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED] " : "",
+                action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED] " : ""
                 );
       switch(action->type) {
         case NK_IRQ_ACTION_TYPE_HANDLER:

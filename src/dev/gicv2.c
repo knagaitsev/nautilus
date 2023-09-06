@@ -112,6 +112,17 @@ static int gicv2_dev_initialize_cpu(void *state) {
   return 0;
 }
 
+static int gicv2_dev_revmap(void *state, nk_hwirq_t hwirq, nk_irq_t *irq) 
+{
+  struct gicv2 *gic = (struct gicv2*)state;
+  if(hwirq >= 0 && hwirq <= gic->max_spi) {
+    *irq = gic->irq_base + hwirq;
+    return 0;
+  }
+  *irq = NK_NULL_IRQ;
+  return -1;
+}
+
 static int gicv2_dev_translate_irqs(void *state, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *buffer, int *buf_count) {
 
   if(type != NK_DEV_INFO_OF) {
@@ -174,7 +185,7 @@ static inline int gicv2_is_spurrious_int(uint32_t id) {
   return ((id & (~0b11)) == 0x3FC);
 }
 
-static int gicv2_dev_ack_irq(void *state, nk_irq_t *irq) {
+static int gicv2_dev_ack_irq(void *state, nk_hwirq_t *irq) {
 
   struct gicv2 *gic = (struct gicv2 *)state;
 
@@ -190,7 +201,7 @@ static int gicv2_dev_ack_irq(void *state, nk_irq_t *irq) {
 
 }
 
-static int gicv2_dev_eoi_irq(void *state, nk_irq_t irq) {
+static int gicv2_dev_eoi_irq(void *state, nk_hwirq_t irq) {
 
   struct gicv2 *gic = (struct gicv2 *)state;
 
@@ -204,7 +215,7 @@ static int gicv2_dev_eoi_irq(void *state, nk_irq_t irq) {
 
 static uint8_t irq_target_round_robin;
 
-static int gicv2_dev_enable_irq(void *state, nk_irq_t irq) {
+static int gicv2_dev_enable_irq(void *state, nk_hwirq_t irq) {
 
   struct gicv2 *gic = (struct gicv2*)state;
   GIC_DEBUG("Enabled IRQ: %u\n", irq);
@@ -219,14 +230,14 @@ static int gicv2_dev_enable_irq(void *state, nk_irq_t irq) {
 
 }
 
-static int gicv2_dev_disable_irq(void *state, nk_irq_t irq) {
+static int gicv2_dev_disable_irq(void *state, nk_hwirq_t irq) {
 
   GICD_BITMAP_SET((struct gicv2*)state, GICD_ICENABLER_0_OFFSET, irq);
 
   return 0;
 }
 
-static int gicv2_dev_irq_status(void *state, nk_irq_t irq) {
+static int gicv2_dev_irq_status(void *state, nk_hwirq_t irq) {
 
   struct gicv2 *gic = (struct gicv2*)state;
 
@@ -252,6 +263,7 @@ static struct nk_irq_dev_int gicv2_dev_int = {
   .enable_irq = gicv2_dev_enable_irq,
   .disable_irq = gicv2_dev_disable_irq,
   .irq_status = gicv2_dev_irq_status,
+  .revmap = gicv2_dev_revmap,
   .translate_irqs = gicv2_dev_translate_irqs
 };
 
@@ -328,31 +340,57 @@ static int gicv2_init_dev_info(struct nk_dev_info *info) {
   }
 
   nk_dev_info_set_device(info, (struct nk_dev*)dev);
+
+#define SGI_HWIRQ      0
+#define SGI_NUM        16
+#define PPI_HWIRQ      16
+#define PPI_NUM        16
+#define SPI_HWIRQ      32
   
+  if(nk_request_irq_range(gic->max_spi + 1, &gic->irq_base)) {
+    GIC_ERROR("Failed to get IRQ numbers for interrupts!\n");
+    goto err_exit;
+  } 
+
   // Set up 0-15 for SGI
-  nk_irq_t sgi_base = nk_alloc_irq_descs(16, dev, 0, NK_IRQ_DESC_TYPE_DEFAULT, NK_IRQ_DESC_FLAG_PERCPU | NK_IRQ_DESC_FLAG_IPI);
-  if(sgi_base == NK_NULL_IRQ) {
+  gic->sgi_descs = nk_alloc_irq_descs(SGI_NUM, SGI_HWIRQ, NK_IRQ_DESC_FLAG_PERCPU | NK_IRQ_DESC_FLAG_IPI, dev);
+  if(gic->sgi_descs == NULL) {
     GIC_ERROR("Failed to allocate IRQ descriptors for SGI interrupts!\n");
-    return -1;
+    goto err_exit;
   }
-  GIC_DEBUG("Set Up SGI Vectors\n");
+  if(nk_assign_irq_descs(SGI_NUM, gic->irq_base + SGI_HWIRQ, gic->sgi_descs)) {
+    GIC_ERROR("Failed to assign IRQ descriptors for SGI interrupts!\n");
+    goto err_exit;
+  } 
+  GIC_DEBUG("Set Up SGI's\n");
   
   // Set up 16-31 for PPI
-  gic->ppi_desc_base = nk_alloc_irq_descs(16, dev, 16, NK_IRQ_DESC_TYPE_DEFAULT, NK_IRQ_DESC_FLAG_PERCPU);
-  if(gic->ppi_desc_base == NK_NULL_IRQ) {
+  gic->ppi_descs = nk_alloc_irq_descs(PPI_NUM, PPI_HWIRQ, NK_IRQ_DESC_FLAG_PERCPU, dev);
+  if(gic->ppi_descs == NULL) {
     GIC_ERROR("Failed to allocate IRQ descriptors for PPI interrupts!\n");
-    return -1;
+    goto err_exit;
+  }
+  if(nk_assign_irq_descs(PPI_NUM, gic->irq_base + PPI_HWIRQ, gic->ppi_descs)) {
+    GIC_ERROR("Failed to assign IRQ descriptors for PPI interrupts!\n");
+    goto err_exit;
   }
   GIC_DEBUG("Set Up PPI Vectors\n");
 
   // Set up the correct number of SPI
   GIC_DEBUG("gic->max_spi = %u\n", gic->max_spi);
-  nk_alloc_ivec_descs(32, gic->max_spi - 32, dev, NK_IVEC_DESC_TYPE_DEFAULT, 0);
+  int num_spi = gic->max_spi - 31;
+  gic->spi_descs = nk_alloc_irq_descs(num_spi, SPI_HWIRQ, 0, dev);
+  if(gic->spi_descs == NULL) {
+    GIC_ERROR("Failed to allocate IRQ descriptors for SPI interrupts!\n");
+    goto err_exit;
+  }
+  if(nk_assign_irq_descs(num_spi, gic->irq_base + SPI_HWIRQ, gic->spi_descs)) {
+    GIC_ERROR("Failed to assign IRQ descriptors for SPI interrupts!\n");
+    goto err_exit;
+  }
   GIC_DEBUG("Set Up SPI Vectors\n");
 
-  // Add the special INTIDS
-  GIC_DEBUG("Set Up Special Interrupt Vectors!\n");
-  nk_alloc_ivec_descs(1020, 4, dev, NK_IVEC_DESC_TYPE_SPURRIOUS, 0);
+  // TODO add spurrious interrupt descriptors
 
   if(nk_assign_all_cpus_irq_dev(dev)) {
     GIC_ERROR("Failed to assign the GIC to all CPU's in the system!\n");

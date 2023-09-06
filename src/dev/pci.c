@@ -1896,6 +1896,8 @@ int pci_dev_is_pending_msi_x(struct pci_dev *dev, int num)
 
 int nk_msi_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
 {
+  return -1;
+/*
   return nk_ivec_find_range(
       num,
       1,
@@ -1904,9 +1906,12 @@ int nk_msi_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
       NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
       0, // Flags to clear
       first);
+*/
 }
 int nk_msi_x_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
 {
+  return -1;
+  /*
   return nk_ivec_find_range(
       num,
       1,
@@ -1915,6 +1920,7 @@ int nk_msi_x_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
       NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
       0, // Flags to clear
       first);
+      */
 }
 
 void pci_dev_dump_msi_x(struct pci_dev *dev)
