@@ -26,11 +26,11 @@
  */
 
 #include <nautilus/nautilus.h>
-#include <nautilus/irq.h>
 #include <nautilus/thread.h>
 #include <dev/ps2.h>
 #include <nautilus/vc.h>
 #include <nautilus/dev.h>
+#include <arch/x64/irq.h>
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
 #include <nautilus/gdb-stub.h>
 #endif

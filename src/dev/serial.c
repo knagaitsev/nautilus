@@ -27,12 +27,12 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/fmtout.h>
 #include <nautilus/interrupt.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/shutdown.h>
 #include <nautilus/dev.h>
 #include <nautilus/chardev.h>
 #include <dev/serial.h>
+#include <arch/x64/irq.h>
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
 #include <nautilus/gdb-stub.h>
 #endif

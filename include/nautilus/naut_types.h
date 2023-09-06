@@ -78,6 +78,8 @@ typedef unsigned int nk_ivec_t;
 typedef unsigned int nk_irq_t;
 typedef unsigned int nk_hwirq_t;
 
+#define NK_NULL_IRQ (nk_irq_t)(-1)
+
 typedef uint32_t nk_gpio_t;
 
 typedef uint32_t cpu_id_t;

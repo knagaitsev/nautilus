@@ -30,12 +30,12 @@
 #include <nautilus/acpi.h>
 #include <nautilus/smp.h>
 #include <nautilus/sfi.h>
-#include <nautilus/irq.h>
 #include <nautilus/mm.h>
 #include <nautilus/percpu.h>
 #include <nautilus/numa.h>
 #include <nautilus/cpu.h>
 #include <nautilus/fpu.h>
+#include <arch/x64/irq.h>
 
 #ifndef NAUT_CONFIG_DEBUG_SMP
 #undef DEBUG_PRINT
@@ -1023,7 +1023,7 @@ smp_setup_xcall_bsp (struct cpu * core)
     SMP_PRINT("Setting up cross-core IPI event queue\n");
     smp_xcall_init_queue(core);
 
-    if (nk_ivec_add_handler(IPI_VEC_XCALL, xcall_handler, NULL) != 0) {
+    if (nk_irq_add_handler(x86_vector_to_irq(IPI_VEC_XCALL), xcall_handler, NULL) != 0) {
         ERROR_PRINT("Could not assign interrupt handler for XCALL on core %u\n", core->id);
         return -1;
     }

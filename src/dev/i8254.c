@@ -24,9 +24,9 @@
 #include <nautilus/cpu.h>
 #include <nautilus/math.h>
 #include <nautilus/interrupt.h>
-#include <nautilus/irq.h>
 #include <nautilus/dev.h>
 #include <dev/i8254.h>
+#include <arch/x64/irq.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PIT
 #undef DEBUG_PRINT

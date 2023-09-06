@@ -30,7 +30,6 @@
 #include <nautilus/percpu.h>
 #include <nautilus/cpu.h>
 #include <nautilus/thread.h>
-#include <nautilus/irq.h>
 #include <nautilus/backtrace.h>
 #ifdef NAUT_CONFIG_WATCHDOG
 #include <nautilus/watchdog.h>
@@ -39,6 +38,7 @@
 #include <nautilus/monitor.h>
 #endif
 #include<nautilus/interrupt.h>
+#include<arch/x64/irq.h>
 
 struct gate_desc64 idt64[NUM_IDT_ENTRIES] __align(8);
 
@@ -107,17 +107,17 @@ null_excp_handler (
     
     printk("\n+++ UNHANDLED EXCEPTION +++\n");
     
-    if (action->ivec < 32) {
+    if (action->desc->hwirq < 32) {
         printk("[%s] (0x%x) error=0x%x <%s>\n    RIP=%p      (core=%u, thread=%u)\n", 
-	       excp_codes[action->ivec][EXCP_NAME],
-                action->ivec,
+	       excp_codes[action->desc->hwirq][EXCP_NAME],
+                action->desc->hwirq,
 	       regs->error_code,
-	       excp_codes[action->ivec][EXCP_MNEMONIC],
+	       excp_codes[action->desc->hwirq][EXCP_MNEMONIC],
 	       (void*)regs->rip, 
 	       cpu_id, tid);
     } else {
         printk("[Unknown Exception] (vector=0x%x)\n    RIP=(%p)     (core=%u)\n", 
-	       action->ivec,
+	       action->desc->hwirq,
 	       (void*)regs->rip,
 	       cpu_id);
     }
@@ -148,7 +148,7 @@ null_irq_handler (struct nk_irq_action *action,
 #else
     
     printk("[Unhandled IRQ] (vector=0x%x)\n    RIP=(%p)     (core=%u)\n", 
-            action->ivec,
+            action->desc->hwirq,
             (void*)regs->rip,
             my_cpu_id());
 
@@ -180,10 +180,10 @@ debug_excp_handler (struct nk_irq_action *action,
     printk("\n+++ UNHANDLED DEBUG EXCEPTION +++\n");
 
     printk("[%s] (0x%x) error=0x%x <%s>\n    RIP=%p      (core=%u, thread=%u)\n", 
-	   excp_codes[action->ivec][EXCP_NAME],
-	   action->ivec,
+	   excp_codes[action->desc->hwirq][EXCP_NAME],
+	   action->desc->hwirq,
 	   regs->error_code,
-	   excp_codes[action->ivec][EXCP_MNEMONIC],
+	   excp_codes[action->desc->hwirq][EXCP_MNEMONIC],
 	   (void*)regs->rip, 
 	   cpu_id, tid);
     
@@ -204,7 +204,7 @@ reserved_irq_handler (struct nk_irq_action * action,
 		      void       *state)
 {
   printk("[Reserved IRQ] (vector=0x%x)\n    RIP=(%p)     (core=%u)\n", 
-	 action->ivec,
+	 action->desc->hwirq,
 	 (void*)regs->rip,
 	 my_cpu_id());
   printk("You probably have a race between reservation and assignment....\n");
@@ -338,10 +338,10 @@ int nmi_handler (struct nk_irq_action *action,
     unsigned tid = cpu_info_ready ? get_cur_thread()->tid : 0xffffffff;
 
     printk("[%s] (0x%x) error=0x%x <%s>\n    RIP=%p      (core=%u, thread=%u)\n", 
-	   excp_codes[action->ivec][EXCP_NAME],
-	   action->ivec,
+	   excp_codes[action->desc->hwirq][EXCP_NAME],
+	   action->desc->hwirq,
 	   regs->error_code,
-	   excp_codes[action->ivec][EXCP_MNEMONIC],
+	   excp_codes[action->desc->hwirq][EXCP_MNEMONIC],
 	   (void*)regs->rip, 
 	   cpu_id, tid);
 
@@ -355,15 +355,15 @@ int nmi_handler (struct nk_irq_action *action,
     return 0;
 }
 
-int route_interrupt_vector(struct nk_regs *regs, nk_ivec_t ivec)
+int route_interrupt_vector(struct nk_regs *regs, nk_hwirq_t vec)
 {
-  struct nk_ivec_desc *desc = nk_ivec_to_desc(ivec);
+  struct nk_irq_desc *desc = nk_irq_to_desc(x86_vector_to_irq(vec));
   if(desc == NULL) {
-    return ivec;
+    return vec;
   }
   int ret = nk_handle_irq_actions(desc, regs); 
   if(ret) {
-    return ivec;
+    return vec;
   } else {
     return 0;
   }
@@ -428,49 +428,47 @@ setup_idt (void)
 
     for (i = 0; i < NUM_EXCEPTIONS; i++) {
         set_intr_gate(idt64, i, (void*)(excp_start + i*16));
-        //nk_ivec_set_handler_early(i, (ulong_t)null_excp_handler, 0);
+        //nk_irq_set_handler_early(x86_vector_to_irq(i), (ulong_t)null_excp_handler, 0);
     }
 
     for (i = 32; i < NUM_IDT_ENTRIES; i++) {
         set_intr_gate(idt64, i, (void*)(irq_start + (i-32)*16));
-        //nk_ivec_set_handler_early(i, (ulong_t)null_irq_handler, 0);
+        //nk_irq_set_handler_early(x86_vector_to_irq(i), (ulong_t)null_irq_handler, 0);
     }
 
-    if (nk_ivec_set_handler_early(PF_EXCP, nk_pf_handler, 0) < 0) {
+    if (nk_irq_set_handler_early(x86_vector_to_irq(PF_EXCP), nk_pf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign page fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_set_handler_early(GP_EXCP, nk_gpf_handler, 0) < 0) {
+    if (nk_irq_set_handler_early(x86_vector_to_irq(GP_EXCP), nk_gpf_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign general protection fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_set_handler_early(DF_EXCP, df_handler, 0) < 0) {
+    if (nk_irq_set_handler_early(x86_vector_to_irq(DF_EXCP), df_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign double fault handler\n");
         return -1;
     }
 
-    if (nk_ivec_set_handler_early(0xf, pic_spur_int_handler, 0) < 0) {
+    if (nk_irq_set_handler_early(x86_vector_to_irq(0xf), pic_spur_int_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign PIC spur int handler\n");
         return -1;
     }
 
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
-    if (nk_ivec_set_handler_early(DB_EXCP, debug_excp_handler, 0) < 0) {
+    if (nk_irq_set_handler_early(x86_vector_to_irq(DB_EXCP), debug_excp_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign debug excp handler\n");
         return -1;
     }
 #endif
 
 #if defined(NAUT_CONFIG_ENABLE_MONITOR) || defined(NAUT_CONFIG_WATCHDOG)
-    if (nk_ivec_set_handler_early(NMI_INT, nmi_handler, 0) < 0) {
+    if (nk_irq_set_handler_early(x86_vector_to_irq(NMI_INT), nmi_handler, 0) < 0) {
         ERROR_PRINT("Couldn't assign NMI handler\n");
         return -1;
     }
 #endif
-
-
 
     lidt(&idt_descriptor);
 

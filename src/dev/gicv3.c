@@ -180,8 +180,16 @@ struct gicd_v3
   uint64_t *redist_bases;
   uint64_t *redist_sizes;
   struct gicr_v3 *redists;
-
   uint32_t num_redists;
+
+  nk_irq_t irq_base;
+  struct nk_irq_desc *sgi_descs;
+  struct nk_irq_desc *ppi_descs;
+  struct nk_irq_desc *spi_descs;
+  nk_irq_t special_irq_base;
+  struct nk_irq_desc *special_descs;
+  nk_irq_t espi_irq_base;
+  struct nk_irq_desc *espi_descs;
 
   // Optional
   uint32_t interrupt_cells;
@@ -403,6 +411,31 @@ static int gicr_v3_dev_irq_status(void *state, nk_irq_t irq)
   return status;
 }
 
+static int gicd_v3_dev_revmap(void *state, nk_hwirq_t hwirq, nk_irq_t *irq) 
+{
+  struct gicd_v3 *gicd = (struct gicd_v3*)state;
+
+  if(hwirq < 0) {
+    return -1;
+  }
+  else if(hwirq <= gicd->num_spi + 31) {
+    *irq = gicd->irq_base + hwirq;
+    return 0;
+  } else if(hwirq >= 1020 && hwirq < 1024) {
+    *irq = gicd->special_irq_base + (hwirq - 1020);
+    return 0;
+  } else if(hwirq >= 4096 && hwirq < (4096 + gicd->num_espi)) {
+    *irq = gicd->espi_irq_base + (hwirq - 4096);
+  }
+
+  return -1;
+}
+static int gicr_v3_dev_revmap(void *state, nk_hwirq_t hwirq, nk_irq_t *irq) 
+{
+  struct gicr_v3 *gicr = (struct gicr_v3*)state;
+  return gicd_v3_dev_revmap((void*)gicr->gicd, hwirq, irq);
+}
+
 static int gicv3_translate_of_irq(struct gicd_v3 *gicd, nk_irq_t *irq, uint32_t *raw) 
 {
   if(gicd->interrupt_cells < 3) {
@@ -473,6 +506,7 @@ static struct nk_irq_dev_int gicd_v3_dev_int = {
   .enable_irq = gicd_v3_dev_enable_irq,
   .disable_irq = gicd_v3_dev_disable_irq,
   .irq_status = gicd_v3_dev_irq_status,
+  .revmap = gicd_v3_dev_revmap,
   .translate_irqs = gicd_v3_dev_translate_irqs
 };
 
@@ -484,6 +518,7 @@ static struct nk_irq_dev_int gicr_v3_dev_int = {
   .enable_irq = gicr_v3_dev_enable_irq,
   .disable_irq = gicr_v3_dev_disable_irq,
   .irq_status = gicr_v3_dev_irq_status,
+  .revmap = gicr_v3_dev_revmap,
   .translate_irqs = gicr_v3_dev_translate_irqs
 };
 
@@ -776,40 +811,101 @@ static int gicv3_init_dev_info(struct nk_dev_info *info)
 
   GIC_DEBUG("GICD_CTLR Configured\n");
 
-  // Setting up ivec descriptors
-  nk_alloc_ivec_descs(0, 16, NULL,
-      NK_IVEC_DESC_TYPE_DEFAULT,
-      NK_IVEC_DESC_FLAG_PERCPU | NK_IVEC_DESC_FLAG_IPI);
-  GIC_DEBUG("Set up SGI Vector Range\n");
+  // Setting up irq descriptors
 
-  nk_alloc_ivec_descs(16, 16, NULL,
-      NK_IVEC_DESC_TYPE_DEFAULT,
-      NK_IVEC_DESC_FLAG_PERCPU);
-  GIC_DEBUG("Set up PPI Vector Range\n");
+#define SGI_HWIRQ      0
+#define SGI_NUM        16
+#define PPI_HWIRQ      16
+#define PPI_NUM        16
+#define SPI_HWIRQ      32
+#define SPECIAL_HWIRQ  1020
+#define SPECIAL_NUM    4
+#define ESPI_HWIRQ     4096
 
-  if(gicd->num_spi) {
-    nk_alloc_ivec_descs(32, gicd->num_spi, gicd_dev,
-        NK_IVEC_DESC_TYPE_DEFAULT,
-        gicd->spi_are_msi ? NK_IVEC_DESC_FLAG_MSI | NK_IVEC_DESC_FLAG_MSI_X : 0
-        );
-    GIC_DEBUG("Set up standard SPI Vector Range\n");
+  if(nk_request_irq_range(SGI_NUM + PPI_NUM + gicd->num_spi + SPECIAL_NUM + gicd->num_espi, &gicd->irq_base)) {
+    GIC_ERROR("Failed to get IRQ numbers for interrupts!\n");
+    goto err_exit;
+  } 
+
+  nk_irq_t curr_base = gicd->irq_base;
+
+  // Set up 0-15 for SGI
+  gicd->sgi_descs = nk_alloc_irq_descs(SGI_NUM, SGI_HWIRQ, NK_IRQ_DESC_FLAG_PERCPU | NK_IRQ_DESC_FLAG_IPI, gicd_dev);
+  if(gicd->sgi_descs == NULL) {
+    GIC_ERROR("Failed to allocate IRQ descriptors for SGI interrupts!\n");
+    goto err_exit;
+  }
+  if(nk_assign_irq_descs(SGI_NUM, curr_base, gicd->sgi_descs)) {
+    GIC_ERROR("Failed to assign IRQ descriptors for SGI interrupts!\n");
+    goto err_exit;
+  } 
+  curr_base += SGI_NUM;
+  GIC_DEBUG("Set Up SGI's\n");
+  
+  // Set up 16-31 for PPI
+  gicd->ppi_descs = nk_alloc_irq_descs(PPI_NUM, PPI_HWIRQ, NK_IRQ_DESC_FLAG_PERCPU, gicd_dev);
+  if(gicd->ppi_descs == NULL) {
+    GIC_ERROR("Failed to allocate IRQ descriptors for PPI interrupts!\n");
+    goto err_exit;
+  }
+  if(nk_assign_irq_descs(PPI_NUM, curr_base, gicd->ppi_descs)) {
+    GIC_ERROR("Failed to assign IRQ descriptors for PPI interrupts!\n");
+    goto err_exit;
+  }
+  curr_base += PPI_NUM;
+  GIC_DEBUG("Set Up PPI Vectors\n");
+
+  // Set up the correct number of SPI
+  if(gicd->num_spi) 
+  {
+    gicd->spi_descs = nk_alloc_irq_descs(gicd->num_spi, SPI_HWIRQ, 0, gicd_dev);
+    if(gicd->spi_descs == NULL) {
+      GIC_ERROR("Failed to allocate IRQ descriptors for SPI interrupts!\n");
+      goto err_exit;
+    }
+    if(nk_assign_irq_descs(gicd->num_spi, gicd->irq_base + SPI_HWIRQ, gicd->spi_descs)) 
+    {
+      GIC_ERROR("Failed to assign IRQ descriptors for SPI interrupts!\n");
+      goto err_exit;
+    }
+    curr_base += gicd->num_spi;
+    GIC_DEBUG("Set Up SPI Vectors\n");
   } else {
-    GIC_WARN("No SPI were found in the standard range!\n");
+    GIC_DEBUG("No SPI in the standard range\n");
   }
 
+  // Set up spurrious interrupt descriptors
+  gicd->special_irq_base = curr_base;
+  gicd->special_descs = nk_alloc_irq_descs(SPECIAL_NUM, SPECIAL_HWIRQ, 0, gicd_dev);
+  if(gicd->special_descs == NULL) {
+    GIC_ERROR("Failed to allocate IRQ descriptors for Special INTID's!\n");
+    goto err_exit;
+  }
+  if(nk_assign_irq_descs(SPECIAL_NUM, curr_base, gicd->special_descs)) {
+    GIC_ERROR("Failed to assign IRQ descriptors for Special INTID's!\n");
+    goto err_exit;
+  }
+  curr_base += SPECIAL_NUM;
+  GIC_DEBUG("Added Special INTID's\n");
+
+  // Extended SPI
+  gicd->espi_irq_base = curr_base;
   if(gicd->num_espi) {
-    nk_alloc_ivec_descs(4096, gicd->num_espi, gicd_dev,
-        NK_IVEC_DESC_TYPE_DEFAULT,
-        0
-        );
-    GIC_DEBUG("Set up Extended SPI Vector Range\n");
+    gicd->espi_descs = nk_alloc_irq_descs(gicd->num_espi, ESPI_HWIRQ, 0, gicd_dev);
+    if(gicd->espi_descs == NULL) {
+      GIC_ERROR("Failed to allocate IRQ descriptors for Extended SPI interrupts!\n");
+      goto err_exit;
+    }
+    if(nk_assign_irq_descs(gicd->num_espi, curr_base, gicd->espi_descs)) 
+    {
+      GIC_ERROR("Failed to assign IRQ descriptors for Extended SPI interrupts!\n");
+      goto err_exit;
+    }
+    curr_base += gicd->num_espi;
+    GIC_DEBUG("Set Up SPI Vectors\n");
   } else {
     GIC_DEBUG("Extended SPI are not supported\n");
   }
-
-  // Add the special INTIDS
-  nk_alloc_ivec_descs(1020, 4, gicd_dev, NK_IVEC_DESC_TYPE_SPURRIOUS, 0);
-  GIC_DEBUG("Set up Special Interrupt Vector Range\n");
 
 #ifdef NAUT_CONFIG_GIC_VERSION_3_ITS
   if(gicv3_its_init(dtb, state)) {

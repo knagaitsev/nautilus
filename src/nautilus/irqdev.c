@@ -74,7 +74,7 @@ int nk_irq_dev_get_characteristics(struct nk_irq_dev *dev, struct nk_irq_dev_cha
   }
 }
 
-int nk_irq_dev_ack(struct nk_irq_dev *dev, nk_irq_t *irq) {
+int nk_irq_dev_ack(struct nk_irq_dev *dev, nk_irq_t *hwirq) {
  
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
@@ -82,35 +82,35 @@ int nk_irq_dev_ack(struct nk_irq_dev *dev, nk_irq_t *irq) {
   // We want this to be as fast as possible
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->ack_irq) {
-    return di->ack_irq(d->state, irq);
+    return di->ack_irq(d->state, hwirq);
   } else {
     // This device doesn't have ACK 
     ERROR("NULL ack_irq in interface of device %s\n", d->name);
     return IRQ_DEV_ACK_UNIMPL;
   }
 #else
-  return di->ack_irq(d->state, irq);
+  return di->ack_irq(d->state, hwirq);
 #endif
 }
 
-int nk_irq_dev_eoi(struct nk_irq_dev *dev, nk_irq_t irq) {
+int nk_irq_dev_eoi(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
 
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->eoi_irq) {
-    return di->eoi_irq(d->state, irq);
+    return di->eoi_irq(d->state, hwirq);
   } else {
     // This device doesn't have EOI!
     return IRQ_DEV_EOI_UNIMPL;
   }
 #else
-  return di->eoi_irq(d->state, irq);
+  return di->eoi_irq(d->state, hwirq);
 #endif
 }
 
-int nk_irq_dev_enable_irq(struct nk_irq_dev *dev, nk_irq_t irq) {
+int nk_irq_dev_enable_irq(struct nk_irq_dev *dev, nk_hwirq_t irq) {
  
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
@@ -126,42 +126,42 @@ int nk_irq_dev_enable_irq(struct nk_irq_dev *dev, nk_irq_t irq) {
     return 1;
   }
 #else
-  return di->enable_irq(d->state, irq);
+  return di->enable_irq(d->state, hwirq);
 #endif 
 }
 
-int nk_irq_dev_disable_irq(struct nk_irq_dev *dev, nk_irq_t irq) {
+int nk_irq_dev_disable_irq(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
  
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->disable_irq) {
-    return di->disable_irq(d->state, irq);
+    return di->disable_irq(d->state, hwirq);
   } else {
     // This device doesn't have disable!
     ERROR("NULL disable_irq in interface of device %s\n", d->name);
     return 1;
   }
 #else
-  return di->disable_irq(d->state, irq);
+  return di->disable_irq(d->state, hwirq);
 #endif 
 }
 
-int nk_irq_dev_irq_status(struct nk_irq_dev *dev, nk_irq_t irq) {
+int nk_irq_dev_irq_status(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
  
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->irq_status) {
-    return di->irq_status(d->state, irq);
+    return di->irq_status(d->state, hwirq);
   } else {
     ERROR("NULL irq_status in interface of device %s\n", d->name);
     return IRQ_DEV_STATUS_ERROR;
   }
 #else
-  return di->irq_status(d->state, irq);
+  return di->irq_status(d->state, hwirq);
 #endif 
 }
 
@@ -183,7 +183,7 @@ int nk_irq_dev_translate_irqs(struct nk_irq_dev *dev, nk_dev_info_type_t type, v
 #endif
 }
 
-int nk_irq_dev_revmap(struct nk_irq_dev *d, nk_hwirq_t hwirq, nk_irq_t *out_irq) 
+int nk_irq_dev_revmap(struct nk_irq_dev *dev, nk_hwirq_t hwirq, nk_irq_t *out_irq) 
 {
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);

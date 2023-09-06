@@ -85,7 +85,7 @@ void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el_
 {
   struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
   
-  nk_hwirq_t irq;
+  nk_hwirq_t hwirq;
   nk_irq_dev_ack(irq_dev, &hwirq);
 
   nk_irq_t irq = NK_NULL_IRQ;

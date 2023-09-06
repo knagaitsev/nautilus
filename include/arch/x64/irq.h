@@ -28,6 +28,7 @@ extern "C" {
 #endif
 
 #include <nautilus/nautilus.h>
+#include <nautilus/naut_types.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpu_state.h>
 #include <nautilus/list.h>
@@ -40,11 +41,18 @@ extern void apic_do_eoi();
 #define IRQ_HANDLER_END() 
 #endif
 
-static nk_irq_t vector_base_irq;
+extern nk_irq_t x86_irq_vector_base;
 
-inline static nk_irq_t x86_vector_to_irq(unsigned int vector)
+inline static nk_irq_t x86_vector_to_irq(nk_hwirq_t vector)
 {
-  return vector_base_irq + vector;
+  if(x86_irq_vector_base == NK_NULL_IRQ) {
+    return NK_NULL_IRQ;
+  }
+  if(vector >= 0 && vector < 256) {
+    return x86_irq_vector_base + vector;
+  }
+
+  return NK_NULL_IRQ;
 }
 
 typedef enum { INT_TYPE_INT, INT_TYPE_NMI, INT_TYPE_SMI, INT_TYPE_EXT } int_type_t;

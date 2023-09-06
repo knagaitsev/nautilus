@@ -39,7 +39,7 @@
 #else
 
 #include <nautilus/nautilus.h>
-#include <nautilus/irq.h>
+#include <arch/x64/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/libccompat.h>
 #include <nautilus/mwait.h>

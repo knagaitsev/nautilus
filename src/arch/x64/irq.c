@@ -147,34 +147,41 @@ nk_add_int_entry (int_trig_t trig_mode,
     list_add(&(new->elm), &(naut->sys.int_info.int_list));
 }
 
+nk_irq_t x86_irq_vector_base = NK_NULL_IRQ;
+static struct nk_irq_desc x86_irq_vector_descs[256];
 
 int 
-nk_ivec_init (struct sys_info * sys)
+x86_irq_vector_init (struct sys_info * sys)
 {
     struct nk_int_info * info = &(sys->int_info);
-    int i;
-    uint8_t vector;
 
-    nk_alloc_ivec_descs(0, 32,
-	NULL,
-        NK_IVEC_DESC_TYPE_EXCEPTION,
-	0);
-    nk_alloc_ivec_descs(32, 256-32,
-	NULL,
-        NK_IVEC_DESC_TYPE_DEFAULT,
-        NK_IVEC_DESC_FLAG_MSI | NK_IVEC_DESC_FLAG_MSI_X);
-
-    /* set it up so we get an illegal vector if we don't
-     * assign IRQs properly. 0xff is reserved for APIC 
-     * suprious interrupts */
-    for (i = 0; i < 256; i++) {
-        nk_map_irq_to_ivec(i, 0xfe);
+    if(nk_request_irq_range(256, &x86_irq_vector_base)) {
+      // Couldn't get a range of IRQ's
     }
 
-    /* we're going to count down in decreasing priority 
-     * when we run out of vectors, we'll stop */
-    for (i = 0, vector = 0xef; vector > 0x1f; vector--, i++) {
-        nk_map_irq_to_ivec(i, vector);
+    struct nk_irq_desc *excp_desc = x86_irq_vector_descs;
+    struct nk_irq_desc *other_desc = x86_irq_vector_descs + 32;
+
+    int res;
+    res = nk_setup_irq_descs(32, excp_desc,
+        0, // hwirq
+	0, // flags
+        NULL // IRQ device
+        );
+    if(res) {
+      return -1;
+    }
+    res = nk_setup_irq_descs(256-32, other_desc,
+        32, 
+        NK_IRQ_DESC_FLAG_MSI | NK_IRQ_DESC_FLAG_MSI_X,
+        NULL);
+    if(res) {
+      return -1;
+    }
+
+    res = nk_assign_irq_descs(256, x86_irq_vector_base, x86_irq_vector_descs);
+    if(res) {
+      return -1;
     }
 
     INIT_LIST_HEAD(&(info->int_list));

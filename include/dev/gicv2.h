@@ -22,6 +22,8 @@ struct gicv2 {
   struct nk_irq_desc *sgi_descs;
   struct nk_irq_desc *ppi_descs;
   struct nk_irq_desc *spi_descs;
+  nk_irq_t special_irq_base;
+  struct nk_irq_desc *special_descs;
 
   uint32_t max_spi;
   uint32_t num_cpus;

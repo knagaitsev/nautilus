@@ -7,8 +7,6 @@
 #include<nautilus/spinlock.h>
 #include<nautilus/irqdev.h>
 
-#define NK_NULL_IRQ (nk_irq_t)(-1)
-
 nk_irq_t nk_max_irq(void);
 
 struct nk_regs;
@@ -34,7 +32,7 @@ typedef int(*nk_irq_handler_t)(struct nk_irq_action *, struct nk_regs *, void *s
 
 #define NK_IRQ_ACTION_TYPE_INVALID       0
 #define NK_IRQ_ACTION_TYPE_HANDLER       1
-#define NK_IRQ_ACTION_TYPE_CHAINED_IRQ   2
+#define NK_IRQ_ACTION_TYPE_LINK          2
 
 struct nk_irq_action {
 
@@ -50,10 +48,9 @@ struct nk_irq_action {
 
         };
 
-        struct { // NK_IRQ_ACTION_TYPE_CHAINED_IRQ
+        struct { // NK_IRQ_ACTION_TYPE_LINK
 
-          nk_irq_t chained_irq;
-          struct nk_irq_desc *chained_desc;
+          nk_irq_t link_irq;
 
         };
 
@@ -113,8 +110,8 @@ struct nk_irq_desc * nk_alloc_irq_desc(nk_hwirq_t hwirq, int flags, struct nk_ir
 struct nk_irq_desc * nk_alloc_irq_descs(int n, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *);
 
 // Initializes statically allocated IRQ descriptors
-//int nk_setup_irq_desc(struct nk_irq_desc *desc, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
-//int nk_setup_irq_descs(int n, struct nk_irq_desc *descs, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
+int nk_setup_irq_desc(struct nk_irq_desc *desc, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
+int nk_setup_irq_descs(int n, struct nk_irq_desc *descs, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
 
 // Associates an IRQ descriptor with an IRQ number
 int nk_assign_irq_desc(nk_irq_t irq, struct nk_irq_desc *desc);
@@ -142,9 +139,13 @@ struct nk_irq_desc * nk_irq_to_desc(nk_irq_t irq);
 nk_irq_t nk_irq_find_range(int num, int flags, uint16_t needed_flags, uint16_t banned_flags, uint16_t set_flags, uint16_t clear_flags);
 
 // Adds a handler to the irq (can allocate memory using kmem)
-// Can fail if the vector is reserved
 int nk_irq_add_handler(nk_irq_t, nk_irq_handler_t, void *state);
 int nk_irq_add_handler_dev(nk_irq_t, nk_irq_handler_t, void *state, struct nk_dev *dev);
+
+// Adds a link between the two IRQ's so that if "src" has it's actions handled, so will "dest"
+// Common example is linking an x86 vector IRQ to an IOAPIC IRQ
+int nk_irq_add_link(nk_irq_t src, nk_irq_t dest);
+int nk_irq_add_link_dev(nk_irq_t src, nk_irq_t dest, struct nk_dev *dev);
 
 // Adds a handler to the irq (Should not allocate memory,
 // fails if the vector already has an action regardless if it is reserved or not)

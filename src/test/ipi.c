@@ -35,6 +35,8 @@
 #include <test/ipi.h>
 #include <lib/bitops.h>
 
+#include <arch/x64/irq.h>
+
 #define CEIL_DIV(x,y)  (((x)/(y)) + !!((x)%(y)))
 
 // TODO: take in input file from command line

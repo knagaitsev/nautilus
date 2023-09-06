@@ -26,11 +26,11 @@
 #include <nautilus/fpu.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
-#include <nautilus/irq.h>
 #include <nautilus/smp.h>
 
 #include <arch/x64/idt.h>
 #include <arch/x64/msr.h>
+#include <arch/x64/irq.h>
 
 #include <nautilus/backtrace.h>
 #ifndef NAUT_CONFIG_DEBUG_FPU
@@ -537,12 +537,12 @@ fpu_init (struct naut_info * naut, int is_ap)
 
     if (is_ap == 0) {
 
-        if (nk_ivec_set_handler_early(XM_EXCP, xm_handler, NULL) != 0) {
+        if (nk_irq_set_handler_early(x86_vector_to_irq(XM_EXCP), xm_handler, NULL) != 0) {
             ERROR_PRINT("Could not register excp handler for XM\n");
             return;
         }
 
-        if (nk_ivec_set_handler_early(MF_EXCP, mf_handler, NULL) != 0) {
+        if (nk_irq_set_handler_early(x86_vector_to_irq(MF_EXCP), mf_handler, NULL) != 0) {
             ERROR_PRINT("Could not register excp handler for MF\n");
             return;
         }

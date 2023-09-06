@@ -24,11 +24,12 @@
 #include <nautilus/paging.h>
 #include <nautilus/dev.h>
 #include <dev/ioapic.h>
-#include <nautilus/irq.h>
 #include <nautilus/irqdev.h>
 #include <nautilus/interrupt.h>
 #include <nautilus/shell.h>
 #include <nautilus/mm.h>
+
+#include <arch/x64/irq.h>
 
 #ifndef NAUT_CONFIG_DEBUG_IOAPIC
 #undef DEBUG_PRINT
@@ -38,6 +39,7 @@
 #define IOAPIC_DEBUG(fmt, args...) DEBUG_PRINT("IOAPIC: " fmt, ##args)
 #define IOAPIC_PRINT(fmt, args...) printk("IOAPIC: " fmt, ##args)
 
+static nk_hwirq_t ioapic_irq_vector_map[256];
 
 static uint64_t 
 ioapic_read_irq_entry (struct ioapic * ioapic, uint8_t irq)
@@ -107,26 +109,37 @@ ioapic_unmask_irq (struct ioapic * ioapic, uint8_t irq)
 }
 
 static int
-ioapic_dev_unmask_irq(void *state, nk_irq_t irq) {
-  ioapic_unmask_irq((struct ioapic*)state, (uint8_t)irq);
+ioapic_dev_unmask_irq(void *state, nk_irq_t hwirq) {
+  ioapic_unmask_irq((struct ioapic*)state, (uint8_t)hwirq);
   return 0;
 }
 
 static int
-ioapic_dev_irq_status(void *state, nk_irq_t irq) {
+ioapic_dev_irq_status(void *state, nk_irq_t hwirq) {
 
   int status = 0;
 
-  status |= ioapic_irq_enabled((struct ioapic*)state, (uint8_t)irq) ?
+  status |= ioapic_irq_enabled((struct ioapic*)state, (uint8_t)hwirq) ?
     IRQ_DEV_STATUS_ENABLED : 0;
 
   // No info on PENDING or ACTIVE right now
 
   return status;
-
 }
 
-static void 
+static int
+ioapic_dev_revmap(void *state, nk_hwirq_t hwirq, nk_irq_t *out)
+{
+  struct ioapic *ioapic = (struct ioapic*)state;
+  if(hwirq < ioapic->num_entries) {
+    *out = ioapic->base_irq + hwirq; 
+    return 0;
+  } else {
+    return -1;
+  }
+};
+
+static int
 ioapic_assign_irq (struct ioapic * ioapic,
                    uint8_t irq, 
                    uint8_t vector,
@@ -135,6 +148,22 @@ ioapic_assign_irq (struct ioapic * ioapic,
                    uint8_t mask_it)
 {
     ASSERT(irq < ioapic->num_entries);
+
+    // Get the global IRQ
+    nk_irq_t nk_irq;
+    if(ioapic_dev_revmap((void*)ioapic, irq, &nk_irq)) 
+    {
+      return -1;
+    }
+
+    // Link the Vector to the IOAPIC IRQ
+    if(nk_irq_add_link_dev(
+          x86_vector_to_irq(vector), 
+          nk_irq,
+          (struct nk_dev*)ioapic->dev)) 
+    {
+      return -1;
+    }
     ioapic_write_irq_entry(ioapic, irq, 
                            vector                             |
                            (mask_it ? IOAPIC_MASK_IRQ : 0)    |
@@ -169,6 +198,8 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
     int i;
     struct nk_int_entry * ioint = NULL;
 
+    ioapic->dev = ioapic_dev;
+
     if (nk_map_page_nocache(ROUND_DOWN_TO_PAGE(ioapic->base), PTE_PRESENT_BIT|PTE_WRITABLE_BIT, PS_4K) == -1) {
         panic("Could not map IOAPIC\n");
         return -1;
@@ -197,17 +228,44 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
     IOAPIC_DEBUG("\tMapping at %p\n", (void*)ioapic->base);
     IOAPIC_DEBUG("\tNum Entries: %u\n", ioapic->num_entries);
 
+    if(nk_request_irq_range(ioapic->num_entries, &ioapic->base_irq)) {
+      ERROR_PRINT("Failed to get IRQ numbers for IOAPIC!\n");
+      return -1;
+    }
+
+    ioapic->irq_descs = nk_alloc_irq_descs(
+        ioapic->num_entries,
+        0, // base hwirq
+        0, // flags
+        (struct nk_dev*)ioapic_dev);
+
+    if(ioapic->irq_descs == NULL) {
+      ERROR_PRINT("Failed to allocate IRQ descriptors for IOAPIC!\n");
+      return -1;
+    } 
+
+    if(nk_assign_irq_descs(
+          ioapic->num_entries,
+          ioapic->base_irq,
+          ioapic->irq_descs)) {
+      ERROR_PRINT("Failed to assign IRQ descriptors for IOAPIC!\n");
+      return -1;
+    }
+
     /* we assign 0xf7 as our "bogus" vector. If we see this,
      * something is wrong because it doesn't correspond to an
      * assigned interrupt
      */
     for (i = 0; i < ioapic->num_entries; i++) {
-        ioapic_assign_irq(ioapic,
+        if(ioapic_assign_irq(ioapic,
                 i,
                 0xf7,
                 0,
                 0,
-                1 /* mask it */);
+                1 /* mask it */)) {
+          ERROR_PRINT("Failed to assign IOAPIC IRQ to vector %u!\n", 0xf7);
+          return -1;
+        }
     }
 
     /* now walk through the MP Table IO INT entries */
@@ -252,20 +310,25 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
          */
         if (!nk_irq_is_assigned_to_irqdev(newirq)) {
 
+            nk_hwirq_t vector = ioapic_irq_vector_map[newirq];
+
             IOAPIC_DEBUG("Unit %u assigning new IRQ 0x%x (src_bus=0x%x, src_bus_irq=0x%x, vector=0x%x) to IORED entry %u\n",
                     ioapic->id,
                     newirq,
                     ioint->src_bus_id,
                     ioint->src_bus_irq,
-                    nk_irq_to_ivec(newirq),
+                    vector,
                     ioint->dst_ioapic_intin);
 
-            ioapic_assign_irq(ioapic, 
+            if(ioapic_assign_irq(ioapic, 
                     ioint->dst_ioapic_intin,
-                    nk_irq_to_ivec(newirq),
+                    vector,
                     pol,
                     trig,
-                    1 /* mask it */);
+                    1 /* mask it */)) {
+              ERROR_PRINT("Failed to assign IOAPIC IRQ!\n");
+              return -1;
+            }
 
             struct iored_entry * iored_entry = &(ioapic->entries[ioint->dst_ioapic_intin]);
             iored_entry->boot_info  = ioint;
@@ -292,13 +355,27 @@ static struct nk_irq_dev_int ops = {
   .enable_irq = ioapic_dev_unmask_irq,
   .disable_irq = ioapic_dev_mask_irq,
   .irq_status  = ioapic_dev_irq_status,
+  .revmap = ioapic_dev_revmap,
 };
-
 
 int 
 ioapic_init (struct sys_info * sys)
 {
-    int i = 0;
+    int i;
+    nk_hwirq_t vector;
+    /* set it up so we get an illegal vector if we don't
+     * assign IRQs properly. 0xff is reserved for APIC 
+     * suprious interrupts */
+    for (i = 0; i < 256; i++) {
+        ioapic_irq_vector_map[i] = 0xfe;
+    }
+
+    /* we're going to count down in decreasing priority 
+     * when we run out of vectors, we'll stop */
+    for (i = 0, vector = 0xef; vector > 0x1f; vector--, i++) {
+        ioapic_irq_vector_map[i] = vector;
+    }
+
     for (i = 0; i < sys->num_ioapics; i++) {
         char n[32];
 	snprintf(n,32,"ioapic%u",i);

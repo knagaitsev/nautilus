@@ -23,6 +23,7 @@
 #define __NAUTILUS_MAIN__
 
 #include <arch/x64/idt.h>
+#include <arch/x64/irq.h>
 #include <arch/x64/msr.h>
 #include <arch/x64/mtrr.h>
 
@@ -34,7 +35,6 @@
 #include <nautilus/cpuid.h>
 #include <nautilus/smp.h>
 #include <nautilus/interrupt.h>
-#include <nautilus/irq.h>
 #include <nautilus/thread.h>
 #include <nautilus/fiber.h>
 #include <nautilus/waitqueue.h>
@@ -332,9 +332,6 @@ init (unsigned long mbd,
 
     vga_early_init();
 
-    nk_irq_init();
-    nk_ivec_init(&(naut->sys));
-
     // At this point we have VGA output only
     
     fpu_init(naut, FPU_BSP_INIT);
@@ -343,6 +340,11 @@ init (unsigned long mbd,
     // on SSE
 
     printk_init();
+
+    if(x86_irq_vector_init()) {
+      //Nothing we can really do
+      panic("Couldn't initialize x86 vector IRQ descriptors!\n");
+    }
 
     setup_idt();
 
@@ -642,7 +644,7 @@ init (unsigned long mbd,
     init_syscall_table();
 #endif
 
-    nk_dump_ivec_info();
+    nk_dump_irq_info();
  
     // nk_launch_shell("root-shell",0,script,0);
     nk_launch_shell("root-shell",0,0,0);

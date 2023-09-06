@@ -116,10 +116,15 @@ struct ioapic {
     uint8_t usable;
     addr_t  base;
 
+    struct nk_irq_dev *dev;
+
     uint8_t num_entries;
     struct iored_entry * entries;
 
     unsigned first_hrt_entry;
+
+    nk_irq_t base_irq;
+    struct nk_irq_desc *irq_descs;
 };
 
 struct sys_info;
