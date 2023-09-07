@@ -30,6 +30,8 @@
 #include <dev/ps2.h>
 #include <nautilus/vc.h>
 #include <nautilus/dev.h>
+#include <nautilus/interrupt.h>
+#include <dev/ioapic.h>
 #include <arch/x64/irq.h>
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
 #include <nautilus/gdb-stub.h>
@@ -53,6 +55,8 @@
     GENERAL PS2
 ****************************************************************/
 
+static nk_irq_t ps2_kbd_irq;
+static nk_irq_t ps2_mouse_irq;
 
 typedef union ps2_status {
     uint8_t  val;
@@ -764,15 +768,30 @@ int ps2_init(struct naut_info * naut)
   if (rc==HAVE_NO_KEYBOARD) { 
     return -1;
   } else {
-    if (rc==HAVE_KEYBOARD || rc == HAVE_KEYBOARD_AND_MOUSE) { 
+    struct nk_irq_dev *ioapic = ioapic_get_dev_by_id(0);
+    if(ioapic == NULL) {
+      ERROR("Could not get IOAPIC device to get PS2 IRQ's!\n");
+      return -1;
+    } 
+
+    if(nk_irq_dev_revmap(ioapic, 1, &ps2_kbd_irq)) {
+      ERROR("IOAPIC revmap failed for PS2 Keyboard!\n");
+      return -1;
+    }
+    if(nk_irq_dev_revmap(ioapic, 12, &ps2_mouse_irq)) {
+      ERROR("IOAPIC revmap failed for PS2 Mouse!\n");
+      return -1;
+    }
+
+    if (rc==HAVE_KEYBOARD || rc == HAVE_KEYBOARD_AND_MOUSE) {  
       struct nk_dev *kbd_dev = nk_dev_register("ps2-keyboard",NK_DEV_GENERIC,0,&kops,0);
-      nk_irq_add_handler_dev(1, kbd_handler, NULL, kbd_dev);
-      nk_unmask_irq(1);
+      nk_irq_add_handler_dev(ps2_kbd_irq, kbd_handler, NULL, kbd_dev);
+      nk_unmask_irq(ps2_kbd_irq);
     } 
     if (rc==HAVE_KEYBOARD_AND_MOUSE) { 
       struct nk_dev *mouse_dev = nk_dev_register("ps2-mouse",NK_DEV_GENERIC,0,&mops,0);
-      nk_irq_add_handler_dev(12, mouse_handler, NULL, mouse_dev);
-      nk_unmask_irq(12);
+      nk_irq_add_handler_dev(ps2_mouse_irq, mouse_handler, NULL, mouse_dev);
+      nk_unmask_irq(ps2_mouse_irq);
     }
   }
 
@@ -785,8 +804,8 @@ int ps2_deinit()
 {
   INFO("deinit\n");
   ps2_reset();
-  nk_mask_irq(1);
-  nk_mask_irq(12);
+  nk_mask_irq(ps2_kbd_irq);
+  nk_mask_irq(ps2_mouse_irq);
   return 0;
 }
 

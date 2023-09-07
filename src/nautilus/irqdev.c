@@ -110,16 +110,16 @@ int nk_irq_dev_eoi(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
 #endif
 }
 
-int nk_irq_dev_enable_irq(struct nk_irq_dev *dev, nk_hwirq_t irq) {
+int nk_irq_dev_enable_irq(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
  
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
-  DEBUG_PRINT("nk_irq_dev_enable_irq(%s, %u)\n", d->name, irq);
+  DEBUG_PRINT("nk_irq_dev_enable_irq(%s, %u)\n", d->name, hwirq);
 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->enable_irq) {
-    return di->enable_irq(d->state, irq);
+    return di->enable_irq(d->state, hwirq);
   } else {
     // This device doesn't have enable!
     ERROR("NULL enable_irq in interface of device %s\n", d->name);
@@ -158,7 +158,7 @@ int nk_irq_dev_irq_status(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
     return di->irq_status(d->state, hwirq);
   } else {
     ERROR("NULL irq_status in interface of device %s\n", d->name);
-    return IRQ_DEV_STATUS_ERROR;
+    return IRQ_STATUS_ERROR;
   }
 #else
   return di->irq_status(d->state, hwirq);

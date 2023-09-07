@@ -95,6 +95,7 @@ struct nk_irq_desc * nk_alloc_irq_desc(nk_hwirq_t hwirq, int flags, struct nk_ir
     free(desc);
     return NULL;
   }
+  IRQ_DEBUG("Allocated nk_irq_desc (hwirq=%u, flags=%p, dev=%p)\n", hwirq, flags, dev);
   return desc;
 }
 struct nk_irq_desc * nk_alloc_irq_descs(int num, nk_hwirq_t base_hwirq, int flags, struct nk_irq_dev *dev) {
@@ -106,6 +107,8 @@ struct nk_irq_desc * nk_alloc_irq_descs(int num, nk_hwirq_t base_hwirq, int flag
     free(descs);
     return NULL;
   } 
+
+  IRQ_DEBUG("Allocated %u nk_irq_descs (base_hwirq=%u, flags=%p, dev=%p)\n", num, base_hwirq, flags, dev);
   return descs;
 }
 
@@ -130,10 +133,38 @@ int nk_setup_irq_descs(int n, struct nk_irq_desc *descs, nk_hwirq_t base_hwirq, 
   return 0;
 }
 
+int nk_setup_irq_desc_devless(struct nk_irq_desc *desc, nk_hwirq_t hwirq, int flags, int status) 
+{
+  memset(desc, 0, sizeof(struct nk_irq_desc));
+  desc->irq = NK_NULL_IRQ;
+  desc->hwirq = hwirq;
+  desc->flags = flags;
+  desc->irq_dev = NULL;
+  desc->devless_status = status;
+  return 0;
+}
+int nk_setup_irq_descs_devless(int n, struct nk_irq_desc *descs, nk_hwirq_t base_hwirq, int flags, int status) 
+{
+  memset(descs, 0, sizeof(struct nk_irq_desc) * n);
+  for(int i = 0; i < n; i++) {
+    descs[i].irq = NK_NULL_IRQ;
+    descs[i].hwirq = base_hwirq + i;
+    descs[i].flags = flags;
+    descs[i].irq_dev = NULL;
+    descs[i].devless_status = status;
+  }
+  return 0;
+}
+
 int nk_assign_irq_desc(nk_irq_t irq, struct nk_irq_desc *desc) 
 {
   desc->irq = irq;
-  return __irq_insert_desc(irq, desc);
+  int res = __irq_insert_desc(irq, desc);
+  if(res) {
+    return res;
+  }
+  IRQ_DEBUG("Assigned irq=%u, irq_desc=%p\n", irq, desc);
+  return 0;
 }
 
 int nk_assign_irq_descs(int num, nk_irq_t base_irq, struct nk_irq_desc *descs) 
@@ -144,6 +175,7 @@ int nk_assign_irq_descs(int num, nk_irq_t base_irq, struct nk_irq_desc *descs)
       return -1;
     }
   }
+  IRQ_DEBUG("Assigned irq range [%u - %u] to descs=%p\n", base_irq, base_irq + (num-1), descs);
   return 0;
 }
 
@@ -346,7 +378,11 @@ int nk_handle_irq_actions(struct nk_irq_desc * desc, struct nk_regs *regs)
 
 int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev) 
 {
-  nk_irq_to_desc(irq)->irq_dev = dev;
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+  if(desc == NULL) {
+    return -1;
+  }
+  desc->irq_dev = dev;
   return 0;
 }
 
@@ -367,24 +403,38 @@ int nk_irq_is_assigned_to_irqdev(nk_irq_t irq)
 }
 
 int nk_mask_irq(nk_irq_t irq) {
-  struct nk_irq_dev *dev = nk_irq_to_irqdev(irq);
-  if(dev == NULL) {
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+  if(desc == NULL) {
     return 1;
   }
-  return nk_irq_dev_disable_irq(dev, irq);
+  if(desc->irq_dev == NULL) {
+    if(desc->devless_status & IRQ_STATUS_ENABLED) {
+      return -1;
+    } else {
+      return 0;
+    }
+  }
+  return nk_irq_dev_disable_irq(desc->irq_dev, desc->hwirq);
 }
 
 int nk_unmask_irq(nk_irq_t irq) {
-  struct nk_irq_dev *dev = nk_irq_to_irqdev(irq);
-  if(dev == NULL) {
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+  if(desc == NULL) {
     return 1;
   }
-  return nk_irq_dev_enable_irq(dev, irq);
+  if(desc->irq_dev == NULL) {
+    if(desc->devless_status & IRQ_STATUS_ENABLED) {
+      return 0;
+    } else {
+      return -1;
+    }
+  }
+  return nk_irq_dev_enable_irq(desc->irq_dev, desc->hwirq);
 }
 
 void nk_dump_irq_info(void) 
 {
-  IRQ_PRINT("--- Interrupt Descriptors: (max = %u) ---\n", max_irq()+1);
+  IRQ_PRINT("--- Interrupt Descriptors: (total = %u) ---\n", max_irq()+1);
   for(nk_irq_t i = 0; i < max_irq()+1; i++) 
   {
     struct nk_irq_desc *desc = nk_irq_to_desc(i);
@@ -394,19 +444,23 @@ void nk_dump_irq_info(void)
       continue;
     }
 
-    struct nk_irq_dev *dev = nk_irq_to_irqdev(i);
-    int status = nk_irq_dev_irq_status(dev, i);
+    int status = 0;
+    if(desc->irq_dev != NULL) {
+      status = nk_irq_dev_irq_status(desc->irq_dev, i);
+    } else {
+      status = desc->devless_status;
+    }
    
-    IRQ_PRINT("Interrupt Descriptor %u: triggered count = %u, num_actions = %u, irqdev = %s, hwirq = %u "
+    IRQ_PRINT("%u: triggered count = %u, num_actions = %u, irqdev = %s, hwirq = %u "
               "%s%s%s%s%s%s%s\n",
 		    desc->irq,
                     desc->triggered_count,
 		    desc->num_actions,
 		    desc->irq_dev != NULL ? desc->irq_dev->dev.name : desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "PERCPU" : "NULL",
                     desc->hwirq,
-                    status & IRQ_DEV_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
-                    status & IRQ_DEV_STATUS_PENDING ? "[PENDING] " : "",
-                    status & IRQ_DEV_STATUS_ACTIVE ? "[ACTIVE] " : "",
+                    status & IRQ_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
+                    status & IRQ_STATUS_PENDING ? "[PENDING] " : "",
+                    status & IRQ_STATUS_ACTIVE ? "[ACTIVE] " : "",
 		    desc->flags & NK_IRQ_DESC_FLAG_MSI ? "[MSI] " : "",
 		    desc->flags & NK_IRQ_DESC_FLAG_MSI_X ? "[MSI-X] " : "",
 		    desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "[PERCPU] " : "",
@@ -419,7 +473,9 @@ void nk_dump_irq_info(void)
     {
       IRQ_PRINT("\tAction %u: type = %s, device = %s %s\n",
 		act_num,
-		action->type == NK_IRQ_ACTION_TYPE_HANDLER ? "handler" : "invalid",
+		action->type == NK_IRQ_ACTION_TYPE_HANDLER ? "HANDLER" : 
+		action->type == NK_IRQ_ACTION_TYPE_LINK    ? "LINK" :
+		"INVALID",
 		action->dev == NULL ? "NULL" : action->dev->name,
                 action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED] " : ""
                 );
@@ -429,6 +485,9 @@ void nk_dump_irq_info(void)
               action->handler,
               action->handler_state
               );
+	  break;
+	case NK_IRQ_ACTION_TYPE_LINK:
+	  IRQ_PRINT("\t\t{link = %u}\n", action->link_irq);
           break;
         default:
           IRQ_PRINT("\t\t{INVALID ACTION TYPE}\n");

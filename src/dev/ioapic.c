@@ -37,7 +37,7 @@
 #endif
 
 #define IOAPIC_DEBUG(fmt, args...) DEBUG_PRINT("IOAPIC: " fmt, ##args)
-#define IOAPIC_PRINT(fmt, args...) printk("IOAPIC: " fmt, ##args)
+#define IOAPIC_PRINT(fmt, args...) INFO_PRINT("IOAPIC: " fmt, ##args)
 
 static nk_hwirq_t ioapic_irq_vector_map[256];
 
@@ -84,6 +84,18 @@ ioapic_dev_mask_irq(void *state, nk_irq_t irq)
   return 0;
 }
 
+struct nk_irq_dev * ioapic_get_dev_by_id(uint8_t id) 
+{  
+  int num_ioapics = nk_get_nautilus_info()->sys.num_ioapics;
+  struct ioapic ** ioapics = nk_get_nautilus_info()->sys.ioapics;
+  for(int i = 0; i < num_ioapics; i++) {
+    if(ioapics[i] != NULL && ioapics[i]->id == id) {
+      return ioapics[i]->dev;
+    }
+  }
+  return NULL;
+}
+
 static uint8_t
 ioapic_get_max_entry (struct ioapic * ioapic)
 {
@@ -120,7 +132,7 @@ ioapic_dev_irq_status(void *state, nk_irq_t hwirq) {
   int status = 0;
 
   status |= ioapic_irq_enabled((struct ioapic*)state, (uint8_t)hwirq) ?
-    IRQ_DEV_STATUS_ENABLED : 0;
+    IRQ_STATUS_ENABLED : 0;
 
   // No info on PENDING or ACTIVE right now
 
@@ -145,7 +157,8 @@ ioapic_assign_irq (struct ioapic * ioapic,
                    uint8_t vector,
                    uint8_t polarity, 
                    uint8_t trigger_mode,
-                   uint8_t mask_it)
+                   uint8_t mask_it,
+		   uint8_t create_link)
 {
     ASSERT(irq < ioapic->num_entries);
 
@@ -153,16 +166,20 @@ ioapic_assign_irq (struct ioapic * ioapic,
     nk_irq_t nk_irq;
     if(ioapic_dev_revmap((void*)ioapic, irq, &nk_irq)) 
     {
+      ERROR_PRINT("ioapic_assign_irq: revmap of irq=%u failed!\n", irq);
       return -1;
     }
 
     // Link the Vector to the IOAPIC IRQ
-    if(nk_irq_add_link_dev(
-          x86_vector_to_irq(vector), 
-          nk_irq,
-          (struct nk_dev*)ioapic->dev)) 
-    {
-      return -1;
+    if(create_link) {
+      if(nk_irq_add_link_dev(
+            x86_vector_to_irq(vector), 
+            nk_irq,
+            (struct nk_dev*)ioapic->dev)) 
+      {
+        ERROR_PRINT("ioapic_assign_irq: IRQ link from irq=%u to irq=%u failed!\n", x86_vector_to_irq(vector), nk_irq);
+        return -1;
+      }
     }
     ioapic_write_irq_entry(ioapic, irq, 
                            vector                             |
@@ -170,6 +187,7 @@ ioapic_assign_irq (struct ioapic * ioapic,
                            (DELMODE_FIXED << DEL_MODE_SHIFT)  |
                            (polarity << INTPOL_SHIFT)         | 
                            (trigger_mode << TRIG_MODE_SHIFT));
+    return 0;
 }
 
 
@@ -237,7 +255,7 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
         ioapic->num_entries,
         0, // base hwirq
         0, // flags
-        (struct nk_dev*)ioapic_dev);
+        ioapic_dev);
 
     if(ioapic->irq_descs == NULL) {
       ERROR_PRINT("Failed to allocate IRQ descriptors for IOAPIC!\n");
@@ -262,7 +280,8 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
                 0xf7,
                 0,
                 0,
-                1 /* mask it */)) {
+                1, /* mask it */
+		0 /* don't create a link yet */)) {
           ERROR_PRINT("Failed to assign IOAPIC IRQ to vector %u!\n", 0xf7);
           return -1;
         }
@@ -276,6 +295,8 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
         uint8_t pol;
         uint8_t trig;
         uint8_t newirq;
+
+	IOAPIC_DEBUG("Handling IO INT: ptr=%p\n", ioint);
 
         if (ioint->dst_ioapic_id != ioapic->id) {
             continue;
@@ -325,7 +346,8 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
                     vector,
                     pol,
                     trig,
-                    1 /* mask it */)) {
+                    1, /* mask it */
+		    1 /* create the link */)) {
               ERROR_PRINT("Failed to assign IOAPIC IRQ!\n");
               return -1;
             }
@@ -333,14 +355,11 @@ __ioapic_init (struct ioapic * ioapic, struct nk_irq_dev *ioapic_dev, uint8_t io
             struct iored_entry * iored_entry = &(ioapic->entries[ioint->dst_ioapic_intin]);
             iored_entry->boot_info  = ioint;
             iored_entry->actual_irq = newirq;
-
-	    IOAPIC_PRINT("Mapping IRQ %u to %s\n", newirq, ioapic_dev->dev.name);
-            nk_map_irq_to_irqdev(newirq, ioapic_dev);
         }
     }
 
 
-    IOAPIC_DEBUG("Masking all IORED entries\n");
+    IOAPIC_PRINT("Masking all IORED entries\n");
     /* being paranoid */
     for (i = 0; i < ioapic->num_entries; i++) {
         ioapic_mask_irq(ioapic, i);

@@ -332,22 +332,19 @@ init (unsigned long mbd,
 
     vga_early_init();
 
-    // At this point we have VGA output only
-    
+    // At this point we have VGA output only    
+    if(x86_irq_vector_init(&naut->sys)) {
+      //Nothing we can really do
+      panic("Couldn't initialize x86 vector IRQ descriptors!\n");
+    }
+
     fpu_init(naut, FPU_BSP_INIT);
 
     // Now we are safe to use optimized code that relies
     // on SSE
 
     printk_init();
-
-    if(x86_irq_vector_init()) {
-      //Nothing we can really do
-      panic("Couldn't initialize x86 vector IRQ descriptors!\n");
-    }
-
     setup_idt();
-
     
 #ifdef NAUT_CONFIG_PC_8250_UART
 #ifdef NAUT_CONFIG_PC_8250_UART_EARLY_OUTPUT
@@ -439,8 +436,8 @@ init (unsigned long mbd,
     nk_wait_queue_init();
 
     // These register devices so need to happen after we have waitqueues
-    i8254_init(naut);
     ioapic_init(&(naut->sys));
+    i8254_init(naut);
 
     printk("4\n");
     nk_future_init();
@@ -557,6 +554,7 @@ init (unsigned long mbd,
 
     /* interrupts are now on */
 
+    nk_dump_irq_info();
     nk_vc_init();
 
     
@@ -643,8 +641,6 @@ init (unsigned long mbd,
     nk_syscall_init();
     init_syscall_table();
 #endif
-
-    nk_dump_irq_info();
  
     // nk_launch_shell("root-shell",0,script,0);
     nk_launch_shell("root-shell",0,0,0);

@@ -82,6 +82,8 @@ int nk_handle_irq_actions(struct nk_irq_desc *desc, struct nk_regs *regs);
 struct nk_irq_desc {
 
   struct nk_irq_dev *irq_dev;
+  int devless_status;
+
   nk_hwirq_t hwirq;
 
   // This is a linked list but we need the first
@@ -112,6 +114,9 @@ struct nk_irq_desc * nk_alloc_irq_descs(int n, nk_hwirq_t hwirq, int flags, stru
 // Initializes statically allocated IRQ descriptors
 int nk_setup_irq_desc(struct nk_irq_desc *desc, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
 int nk_setup_irq_descs(int n, struct nk_irq_desc *descs, nk_hwirq_t hwirq, int flags, struct nk_irq_dev *dev);
+
+int nk_setup_irq_desc_devless(struct nk_irq_desc *desc, nk_hwirq_t hwirq, int flags, int fixed_status);
+int nk_setup_irq_descs_devless(int n, struct nk_irq_desc *descs, nk_hwirq_t hwirq, int flags, int fixed_status);
 
 // Associates an IRQ descriptor with an IRQ number
 int nk_assign_irq_desc(nk_irq_t irq, struct nk_irq_desc *desc);

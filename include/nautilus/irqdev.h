@@ -62,17 +62,17 @@ int nk_irq_dev_ack(struct nk_irq_dev *d, nk_irq_t *irq);
 #define IRQ_DEV_EOI_ERROR      1
 #define IRQ_DEV_EOI_UNIMPL     2
                           
-int nk_irq_dev_eoi(struct nk_irq_dev *d, nk_irq_t irq);
+int nk_irq_dev_eoi(struct nk_irq_dev *d, nk_hwirq_t irq);
 
 // 0 -> Success, 1 -> Failure
-int nk_irq_dev_enable_irq(struct nk_irq_dev *d, nk_irq_t irq);
+int nk_irq_dev_enable_irq(struct nk_irq_dev *d, nk_hwirq_t irq);
 // 0 -> Success, 1 -> Failure
-int nk_irq_dev_disable_irq(struct nk_irq_dev *d, nk_irq_t irq);
+int nk_irq_dev_disable_irq(struct nk_irq_dev *d, nk_hwirq_t irq);
 
-#define IRQ_DEV_STATUS_ERROR   (1<<1) // Error reading the status
-#define IRQ_DEV_STATUS_ENABLED (1<<2) // Interrupt is enabled (could be signalled but isn't)
-#define IRQ_DEV_STATUS_PENDING (1<<3) // Interrupt is pending (signalled but not ack'ed)
-#define IRQ_DEV_STATUS_ACTIVE  (1<<4) // Interrupt is active (between ack and eoi)
+#define IRQ_STATUS_ERROR   (1<<1) // Error reading the status
+#define IRQ_STATUS_ENABLED (1<<2) // Interrupt is enabled (could be signalled but isn't)
+#define IRQ_STATUS_PENDING (1<<3) // Interrupt is pending (signalled but not ack'ed)
+#define IRQ_STATUS_ACTIVE  (1<<4) // Interrupt is active (between ack and eoi)
 int nk_irq_dev_irq_status(struct nk_irq_dev *d, nk_irq_t irq);
 
 /*

@@ -171,12 +171,23 @@ i8254_init (struct naut_info * naut)
 
     struct nk_dev *dev = nk_dev_register("i8254",NK_DEV_TIMER,0,&ops,0);
     
-    if (nk_irq_add_handler_dev(PIT_TIMER_IRQ, pit_irq_handler, NULL, dev) < 0) {
+    struct nk_irq_dev * ioapic = ioapic_get_dev_by_id(0);
+    if(ioapic == NULL) {
+      ERROR_PRINT("Could not get IOAPIC device to get correct PIT_TIMER_IRQ!\n");
+      return -1;
+    }
+    nk_irq_t timer_irq;
+    if(nk_irq_dev_revmap(ioapic, PIT_TIMER_IRQ, &timer_irq)) {
+      ERROR_PRINT("IOAPIC device revmap(device=%p,PIT_TIMER_IRQ=%u) Failed!\n",ioapic,PIT_TIMER_IRQ);
+      return -1;
+    }
+
+    if (nk_irq_add_handler_dev(timer_irq, pit_irq_handler, NULL, dev) < 0) {
         ERROR_PRINT("Could not register timer interrupt handler\n");
         return -1;
     }    
 
-    nk_unmask_irq(PIT_TIMER_IRQ);
+    nk_unmask_irq(timer_irq);
 
     return 0;
 }

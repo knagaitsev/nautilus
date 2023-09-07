@@ -133,6 +133,7 @@ int ioapic_init(struct sys_info * sys);
 void ioapic_mask_irq (struct ioapic * ioapic, uint8_t irq);
 void ioapic_unmask_irq (struct ioapic * ioapic, uint8_t irq);
 
+struct nk_irq_dev * ioapic_get_dev_by_id(uint8_t id);
 
 static inline void
 ioapic_write_reg (struct ioapic * ioapic, 

@@ -66,13 +66,13 @@ static int hlic_dev_irq_status(void *state, nk_irq_t irq)
   int status = 0;
 
   status |= 0/*TODO*/ ?
-    IRQ_DEV_STATUS_ENABLED : 0;
+    IRQ_STATUS_ENABLED : 0;
 
   status |= 0/*TODO*/ ?
-    IRQ_DEV_STATUS_PENDING : 0;
+    IRQ_STATUS_PENDING : 0;
 
   status |= 0/*TODO*/ ?
-    IRQ_DEV_STATUS_ACTIVE : 0;
+    IRQ_STATUS_ACTIVE : 0;
 
   return status;
 }

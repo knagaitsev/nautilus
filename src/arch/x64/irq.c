@@ -26,6 +26,11 @@
 #include <arch/x64/idt.h>
 #include <arch/x64/irq.h>
 
+#ifndef NAUT_CONFIG_DEBUG_INTERRUPT_FRAMEWORK
+#undef DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...)
+#endif
+
 #define PIC_MAX_IRQ_NUM    15     // this is really PIC-specific
 
 #define PIC_MASTER_CMD_PORT  0x20
@@ -144,6 +149,16 @@ nk_add_int_entry (int_trig_t trig_mode,
     new->dst_ioapic_intin = dst_ioapic_intin;
     new->dst_ioapic_id    = dst_ioapic_id;
 
+    DEBUG_PRINT("nk_add_int_entry(trig=%u,pol=%u,type=%u,src_bus_id=%u,src_bus_irq=%u,dst_ioapic_intin=%u,dst_ioapic_id=%u) ptr=%p\n",
+		    trig_mode,
+		    polarity,
+		    type,
+		    src_bus_id,
+		    src_bus_irq,
+		    dst_ioapic_intin,
+		    dst_ioapic_id,
+		    new);
+
     list_add(&(new->elm), &(naut->sys.int_info.int_list));
 }
 
@@ -163,18 +178,19 @@ x86_irq_vector_init (struct sys_info * sys)
     struct nk_irq_desc *other_desc = x86_irq_vector_descs + 32;
 
     int res;
-    res = nk_setup_irq_descs(32, excp_desc,
+    res = nk_setup_irq_descs_devless(32, excp_desc,
         0, // hwirq
 	0, // flags
-        NULL // IRQ device
+        IRQ_STATUS_ENABLED
         );
     if(res) {
       return -1;
     }
-    res = nk_setup_irq_descs(256-32, other_desc,
+    res = nk_setup_irq_descs_devless(256-32, other_desc,
         32, 
         NK_IRQ_DESC_FLAG_MSI | NK_IRQ_DESC_FLAG_MSI_X,
-        NULL);
+        IRQ_STATUS_ENABLED
+	);
     if(res) {
       return -1;
     }
@@ -186,7 +202,6 @@ x86_irq_vector_init (struct sys_info * sys)
 
     INIT_LIST_HEAD(&(info->int_list));
     INIT_LIST_HEAD(&(info->bus_list));
-
     return 0;
 }
 

@@ -24,16 +24,12 @@
 #ifdef NAUT_CONFIG_PC_8250_UART_EARLY_OUTPUT
 
 #if NAUT_CONFIG_PC_8250_UART_EARLY_COM_PORT == 1
-#define EARLY_COM_IRQ COM1_3_IRQ
 #define EARLY_COM_ADDR COM1_ADDR
 #elif NAUT_CONFIG_PC_8250_UART_EARLY_COM_PORT == 2
-#define EARLY_COM_IRQ COM2_4_IRQ
 #define EARLY_COM_ADDR COM2_ADDR
 #elif NAUT_CONFIG_PC_8250_UART_EARLY_COM_PORT == 3 
-#define EARLY_COM_IRQ COM1_3_IRQ
 #define EARLY_COM_ADDR COM3_ADDR
 #elif NAUT_CONFIG_PC_8250_UART_EARLY_COM_PORT == 4
-#define EARLY_COM_IRQ COM2_4_IRQ
 #define EARLY_COM_ADDR COM4_ADDR
 #else
 #error "Invalid Value of NAUT_CONFIG_PC_8250_UART_EARLY_COM_PORT!"
@@ -57,7 +53,6 @@ int pc_8250_pre_vc_init(void)
 
   // No need to nk_io_map port io
   pre_vc_pc_8250.reg_base = EARLY_COM_ADDR;
-  pre_vc_pc_8250.irq = EARLY_COM_IRQ;
 
   pre_vc_pc_8250.reg_shift = 0;
 
@@ -106,26 +101,46 @@ int pc_8250_init(void)
     memset(com_ports[i-1], 0, sizeof(struct uart_8250_port));
   }
 
+  nk_irq_t com1_3 = NK_NULL_IRQ;
+  nk_irq_t com2_4 = NK_NULL_IRQ;
+
+  struct nk_irq_dev *ioapic = ioapic_get_dev_by_id(0);
+  if(ioapic == NULL) {
+    ERROR("Could not get IOAPIC device to get PC 8250 IRQ's!\n");
+    return -1;
+  }
+
+  if(nk_irq_dev_revmap(ioapic, COM1_3_IRQ, &com1_3)) {
+    ERROR("Failed to revamp COM1_3_IRQ!\n");
+    return -1;
+  }
+
+  if(nk_irq_dev_revmap(ioapic, COM2_4_IRQ, &com2_4)) {
+    ERROR("Failed to revamp COM2_4_IRQ!\n");
+    return -1;
+  }
+
+
   if(pre_vc_port != 1) {
-    com_ports[0]->irq = COM1_3_IRQ;
+    com_ports[0]->irq = com1_3;
     com_ports[0]->reg_base = COM1_ADDR;
     com_ports[0]->ops = pc_8250_ops;
     uart_8250_struct_init(com_ports[0]);
   }
   if(pre_vc_port != 2) {
-    com_ports[1]->irq = COM2_4_IRQ;
+    com_ports[1]->irq = com2_4;
     com_ports[1]->reg_base = COM2_ADDR;
     com_ports[1]->ops = pc_8250_ops;
     uart_8250_struct_init(com_ports[1]);
   }
   if(pre_vc_port != 3) {
-    com_ports[2]->irq = COM1_3_IRQ;
+    com_ports[2]->irq = com1_3;
     com_ports[2]->reg_base = COM3_ADDR;
     com_ports[2]->ops = pc_8250_ops;
     uart_8250_struct_init(com_ports[2]);
   }
   if(pre_vc_port != 4) {
-    com_ports[3]->irq = COM2_4_IRQ;
+    com_ports[3]->irq = com2_4;
     com_ports[3]->reg_base = COM4_ADDR;
     com_ports[3]->ops = pc_8250_ops;
     uart_8250_struct_init(com_ports[3]);

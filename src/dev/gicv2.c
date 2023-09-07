@@ -250,13 +250,13 @@ static int gicv2_dev_irq_status(void *state, nk_hwirq_t irq) {
   int status = 0;
 
   status |= GICD_BITMAP_READ(gic, GICD_ISENABLER_0_OFFSET, irq) ?
-    IRQ_DEV_STATUS_ENABLED : 0;
+    IRQ_STATUS_ENABLED : 0;
 
   status |= GICD_BITMAP_READ(gic, GICD_ISPENDR_0_OFFSET, irq) ?
-    IRQ_DEV_STATUS_PENDING : 0;
+    IRQ_STATUS_PENDING : 0;
 
   status |= GICD_BITMAP_READ(gic, GICD_ISACTIVER_0_OFFSET, irq) ?
-    IRQ_DEV_STATUS_ACTIVE : 0;
+    IRQ_STATUS_ACTIVE : 0;
 
   return status;
 }
