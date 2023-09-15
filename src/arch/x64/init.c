@@ -332,18 +332,32 @@ init (unsigned long mbd,
 
     vga_early_init();
 
+<<<<<<< HEAD
     // At this point we have VGA output only    
     if(x86_irq_vector_init(&naut->sys)) {
       //Nothing we can really do
       panic("Couldn't initialize x86 vector IRQ descriptors!\n");
     }
 
+=======
+    // At this point we have VGA output only 
+    if(x86_irq_vector_init()) {
+      //Nothing we can really do
+      panic("Couldn't initialize x86 vector IRQ descriptors!\n");
+    }
+   
+>>>>>>> a557f4ce (RISC-V Fixed)
     fpu_init(naut, FPU_BSP_INIT);
 
     // Now we are safe to use optimized code that relies
     // on SSE
+<<<<<<< HEAD
 
     printk_init();
+=======
+    printk_init();
+
+>>>>>>> a557f4ce (RISC-V Fixed)
     setup_idt();
     
 #ifdef NAUT_CONFIG_PC_8250_UART

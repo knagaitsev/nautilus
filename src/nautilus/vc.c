@@ -205,6 +205,7 @@ struct nk_virtual_console *nk_create_vc (char *name,
 					 struct nk_vc_ops *ops,
 					 void *priv_data)
 {
+  DEBUG("creating vc: \"%s\"\n", name);
   STATE_LOCK_CONF;
   int i;
   char buf[NK_WAIT_QUEUE_NAME_LEN];
@@ -216,23 +217,32 @@ struct nk_virtual_console *nk_create_vc (char *name,
     return NULL;
   }
   memset(new_vc, 0, sizeof(struct nk_virtual_console));
+
   new_vc->type = new_vc_type;
+
+  DEBUG("setting new vc name...\n");
   strncpy(new_vc->name,name,32); new_vc->name[31]=0;
   new_vc->ops = ops;
   new_vc->cur_attr = attr;
   new_vc->fill_attr = attr;
+  
+  DEBUG("intiailizing locks...\n");
   spinlock_init(&new_vc->queue_lock);
   spinlock_init(&new_vc->buf_lock);
   new_vc->head = 0;
   new_vc->tail = 0;
   new_vc->num_threads = 0;
   snprintf(buf,NK_WAIT_QUEUE_NAME_LEN,"vc-%s-wait",name);
+  DEBUG("creating waitqueue...\n");
   new_vc->waiting_threads = nk_wait_queue_create(buf);
+
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_DISPLAY_NAME
+  DEBUG("creating vc timer...\n");
   snprintf(buf,NK_TIMER_NAME_LEN,"vc-%s-timer",name);
   new_vc->timer = nk_timer_create(buf);
 #endif
 
+  DEBUG("clearing new vc...\n");
   // clear to new attr
   for (i = 0; i < VC_HEIGHT*VC_WIDTH; i++) {
     new_vc->BUF[i] = vga_make_entry(' ', new_vc->cur_attr);
@@ -240,13 +250,23 @@ struct nk_virtual_console *nk_create_vc (char *name,
 
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_DISPLAY_NAME
   // start timer
-  nk_timer_set(new_vc->timer,VC_TIMER_NS,NK_TIMER_CALLBACK,vc_timer_callback,new_vc,0);
-  nk_timer_start(new_vc->timer);
+  DEBUG("setting vc timer...\n");
+  if(nk_timer_set(new_vc->timer,VC_TIMER_NS,NK_TIMER_CALLBACK,vc_timer_callback,new_vc,0)) {
+    ERROR("Failed to set timer for vc: \"%s\"\n", name);
+    return NULL;
+  }
+  if(nk_timer_start(new_vc->timer)) {
+    ERROR("Failed to start timer for vc: \"%s\"\n", name);
+    return NULL;
+  } 
 #endif
 
+  DEBUG("adding vc to list...\n");
   STATE_LOCK();
   list_add_tail(&new_vc->vc_node, &vc_list);
   STATE_UNLOCK();
+
+  DEBUG("created vc: \"%s\"\n", name);
 
   return new_vc;
 }
@@ -1642,7 +1662,7 @@ static void vc_copy_to_chardev_console(struct chardev_console *c)
     }
     if(y < VC_HEIGHT-1 && y < c->cur_vc->cur_y)
     {
-      uint8_t bp = '\n';
+      uint8_t bp = '\r';
       char_dev_write_all(c->dev,1,&bp,NK_DEV_REQ_BLOCKING);
     }
   }
@@ -1939,6 +1959,7 @@ int nk_vc_init()
     return -1;
   }
 
+  DEBUG("starting vc-list\n");
   if (start_list()) {
     ERROR("Cannot create vc list thread\n");
     return -1;

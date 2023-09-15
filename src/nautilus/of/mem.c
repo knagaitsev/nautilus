@@ -43,12 +43,16 @@ extern char * mem_region_types[6];
 extern ulong_t kernel_start[];
 extern ulong_t kernel_end[];
 
-void
+int
 fdt_reserve_boot_regions (unsigned long fdt)
 {
-
+#ifdef NAUT_CONFIG_ARCH_RISCV
+  BMM_PRINT("Reserving up to and including the kernel (%p, size %lu)\n", 0, (uint64_t)kernel_end);
+  mm_boot_reserve_mem(0, (uint64_t)kernel_end); 
+#else
   BMM_PRINT("Reserving kernel region (%p, size %lu)\n", (uint64_t)kernel_start, ((uint64_t)kernel_end - (uint64_t)kernel_start));
   mm_boot_reserve_mem((uint64_t)kernel_start, ((uint64_t)kernel_end - (uint64_t)kernel_start));
+#endif
 
   BMM_PRINT("Reserving FDT region (%p, size %lu)\n", fdt, fdt_totalsize((void*)fdt));
   mm_boot_reserve_mem(fdt, fdt_totalsize(fdt));
@@ -59,12 +63,13 @@ fdt_reserve_boot_regions (unsigned long fdt)
     int getreg_result = fdt_getreg((void*)fdt, offset, &reg);
 
     if (getreg_result == 0) {
-        BMM_PRINT("Reserving region (%p, size %lu)\n", reg.address, reg.size);
+        BMM_PRINT("Reserving mmode_resv region (%p, size %lu)\n", reg.address, reg.size);
         mm_boot_reserve_mem(reg.address, reg.size);
     }
   }
 
   BMM_PRINT("Finished Reserving FDT memory regions\n");
+  return 0;
 }
 
 static inline int insert_free_region_into_memory_map(mem_map_entry_t *memory_map, mmap_info_t *mm_info, uint64_t start, uint64_t end)
@@ -99,16 +104,15 @@ static inline int insert_free_region_into_memory_map(mem_map_entry_t *memory_map
     return 0;
 }
 
-void
+int
 fdt_detect_mem_map (mmap_info_t * mm_info,
                      mem_map_entry_t * memory_map,
                      ulong_t fdt)
 {
   int offset = fdt_node_offset_by_prop_value((void*)fdt, -1, "device_type", "memory", 7);
 
-  BMM_DEBUG("FDT memory node offset = 0x%x\n", offset);
   while(offset != -FDT_ERR_NOTFOUND) {
-
+    BMM_DEBUG("FDT memory node offset = 0x%x\n", offset);
     fdt_reg_t reg = { .address = 0, .size = 0 };
     int getreg_result = fdt_getreg((void*)fdt, offset, &reg);
 
@@ -126,6 +130,6 @@ fdt_detect_mem_map (mmap_info_t * mm_info,
 
 err_continue:
     offset = fdt_node_offset_by_prop_value((void*)fdt, offset, "device_type", "memory", 7);
-    BMM_DEBUG("FDT memory node offset = 0x%x\n", offset);
   }
+  return 0;
 }

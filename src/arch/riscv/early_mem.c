@@ -38,15 +38,17 @@ extern char * mem_region_types[6];
 #define BMM_DEBUG(fmt, args...) DEBUG_PRINT("BOOTMEM: " fmt, ##args)
 #define BMM_PRINT(fmt, args...) printk("BOOTMEM: " fmt, ##args)
 #define BMM_WARN(fmt, args...)  WARN_PRINT("BOOTMEM: " fmt, ##args)
+#define BMM_ERROR(fmt, args...)  ERROR_PRINT("BOOTMEM: " fmt, ##args)
 
 extern ulong_t kernel_end;
 off_t dtb_ram_start = 0;
 size_t dtb_ram_size = 0;
 
-
 void
 arch_reserve_boot_regions (unsigned long fdt)
 {
+  fdt_reserve_boot_regions(fdt);
+/*
     int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "mmode_resv", 10);
 
     fdt_reg_t reg = { .address = 0, .size = 0 };
@@ -56,6 +58,7 @@ arch_reserve_boot_regions (unsigned long fdt)
         INFO_PRINT("Reseving region (%p, size %lu)\n", reg.address, reg.size);
         mm_boot_reserve_mem(reg.address, reg.size);
     }
+  */
 }
 
 void
@@ -63,6 +66,11 @@ arch_detect_mem_map (mmap_info_t * mm_info,
                      mem_map_entry_t * memory_map,
                      ulong_t fdt)
 {
+  if(fdt_detect_mem_map(mm_info, memory_map, fdt)) {
+    BMM_ERROR("fdt_detect_mem_map failed!\n");
+    panic("fdt_detect_mem_map failed!\n");
+  }
+  /*
     int offset = fdt_subnode_offset_namelen((void *)fdt, 0, "memory", 6);
 
     fdt_reg_t reg = { .address = 0, .size = 0 };
@@ -106,4 +114,6 @@ arch_detect_mem_map (mmap_info_t * mm_info,
     mm_info->total_mem += end-start;
 
     ++mm_info->num_regions;
+*/
 }
+

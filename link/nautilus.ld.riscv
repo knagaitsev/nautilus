@@ -50,7 +50,7 @@ SECTIONS
 
   .shell_cmds ALIGN(0x1000) : {
     __start_shell_cmds = .;
-    KEEP(*SORT(.shell_cmds.*));
+    KEEP(*(SORT_BY_NAME(.shell_cmd.*)));
     __stop_shell_cmds = .;
   }
 

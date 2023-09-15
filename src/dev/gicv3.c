@@ -252,7 +252,7 @@ static int gicr_v3_dev_get_characteristics(void *state, struct nk_irq_dev_charac
 /*
  * initialize_cpu
  */
-static int gicv3_dev_initialize_cpu_common(struct gicd_v3 *gicd) {
+int gicv3_percpu_init(void) {
 
   uint64_t icc_sre;
   LOAD_SYS_REG(ICC_SRE_EL1, icc_sre);
@@ -275,17 +275,6 @@ static int gicv3_dev_initialize_cpu_common(struct gicd_v3 *gicd) {
   GIC_DEBUG("GICv3 initialized for CPU %u\n", my_cpu_id());
 
   return 0;
-}
-static int gicd_v3_dev_initialize_cpu(void *state) 
-{
-  struct gicd_v3 *gicd = (struct gicd_v3 *)state;
-  GIC_WARN("Initializing CPU %u using the GICD: Redistributors were not fully assigned to CPU's!\n", my_cpu_id());
-  return gicv3_dev_initialize_cpu_common(gicd);
-}
-static int gicr_v3_dev_initialize_cpu(void *state) 
-{
-  struct gicr_v3 *gicr = (struct gicr_v3 *)state;
-  return gicv3_dev_initialize_cpu_common(gicr->gicd); 
 }
 
 /*
@@ -436,9 +425,10 @@ static int gicr_v3_dev_revmap(void *state, nk_hwirq_t hwirq, nk_irq_t *irq)
   return gicd_v3_dev_revmap((void*)gicr->gicd, hwirq, irq);
 }
 
-static int gicv3_translate_of_irq(struct gicd_v3 *gicd, nk_irq_t *irq, uint32_t *raw) 
+static int gicv3_translate_of_irq(struct gicd_v3 *gicd, uint32_t *raw, nk_hwirq_t *out) 
 {
   if(gicd->interrupt_cells < 3) {
+    GIC_DEBUG("Could not translate GICv3 IRQ with #interrupt-cells = %u!\n", gicd->interrupt_cells);
     return -1;
   }
 
@@ -446,52 +436,34 @@ static int gicv3_translate_of_irq(struct gicd_v3 *gicd, nk_irq_t *irq, uint32_t 
   uint32_t offset = be32toh(raw[1]);
   uint32_t flags = be32toh(raw[2]);
 
-  if(is_ppi) {
-    *irq = (nk_irq_t)(16+offset);
-  } else { // is_spi
-    *irq = (nk_irq_t)(32+offset);
-  }
+  GIC_DEBUG("gicv3_translate_of_irq: is_ppi=%u, offset=%u, flags=0x%x\n", is_ppi, offset, flags);
 
+  if(is_ppi) {
+    *out = (nk_irq_t)(16+offset);
+  } else { // is_spi
+    *out = (nk_irq_t)(32+offset);
+  }
   return 0;
 }
 
-static int gicd_v3_dev_translate_irqs(void *state, nk_dev_info_type_t type, void *raw, int raw_length, nk_irq_t *buf, int *cnt) 
+static int gicd_v3_dev_translate(void *state, nk_dev_info_type_t type, void *raw, nk_hwirq_t *out) 
 {
   struct gicd_v3 *gicd = (struct gicd_v3*)state;
 
   switch(type) {
     case NK_DEV_INFO_OF:
-      GIC_DEBUG("Translating Device Tree IRQ\n");
-      if(gicd->interrupt_cells < 3) {
-        GIC_ERROR("GICv3 has invalid interrupt-cells property! value=%u\n", gicd->interrupt_cells);
-        return -1;
-      }
-      int num_cells = raw_length / 4;
-      if(num_cells % gicd->interrupt_cells != 0) {
-        GIC_ERROR("Device Tree IRQ has incorrect number of cells! GICv3 interrupt-cells = %u, num_cells = %u\n", gicd->interrupt_cells, num_cells);
-        return -1;
-      }
-      int num_irqs = num_cells / gicd->interrupt_cells;
-      *cnt = *cnt < num_irqs ? *cnt : num_irqs; // minimum
-
-      for(int i = 0; i<*cnt; i++) {
-        if(gicv3_translate_of_irq(gicd, buf+i, raw+(i * gicd->interrupt_cells * 4))) {
-          return -1;
-        }
-      }
-      break;
+      return gicv3_translate_of_irq(gicd, raw, out);
     default:
       GIC_ERROR("Translating IRQ's from ACPI is not currently supported!\n");
       return -1;
   }
-
-  return 0;
 }
-static int gicr_v3_dev_translate_irqs(void *state, nk_dev_info_type_t type, void *raw, int raw_length, nk_irq_t *buf, int *cnt) 
+
+static int gicr_v3_dev_translate(void *state, nk_dev_info_type_t type, void *raw, nk_hwirq_t *out) 
 {
   GIC_WARN("Using GICR device to translate interrupts (shouldn't be happening but recoverable)\n");
   struct gicr_v3 *gicr = (struct gicr_v3*)state;
-  return gicd_v3_dev_translate_irqs((void*)gicr->gicd, type, raw, raw_length, buf, cnt);
+  return gicd_v3_dev_translate((void*)gicr->gicd, type, raw, out);
 }
 
 /*
@@ -500,27 +472,27 @@ static int gicr_v3_dev_translate_irqs(void *state, nk_dev_info_type_t type, void
 
 static struct nk_irq_dev_int gicd_v3_dev_int = {
   .get_characteristics = gicd_v3_dev_get_characteristics,
-  .initialize_cpu = gicd_v3_dev_initialize_cpu,
   .ack_irq = gicd_v3_dev_ack_irq,
   .eoi_irq = gicd_v3_dev_eoi_irq,
   .enable_irq = gicd_v3_dev_enable_irq,
   .disable_irq = gicd_v3_dev_disable_irq,
   .irq_status = gicd_v3_dev_irq_status,
   .revmap = gicd_v3_dev_revmap,
-  .translate_irqs = gicd_v3_dev_translate_irqs
+  .translate = gicd_v3_dev_translate
 };
 
 static struct nk_irq_dev_int gicr_v3_dev_int = {
   .get_characteristics = gicr_v3_dev_get_characteristics,
-  .initialize_cpu = gicr_v3_dev_initialize_cpu,
   .ack_irq = gicr_v3_dev_ack_irq,
   .eoi_irq = gicr_v3_dev_eoi_irq,
   .enable_irq = gicr_v3_dev_enable_irq,
   .disable_irq = gicr_v3_dev_disable_irq,
   .irq_status = gicr_v3_dev_irq_status,
   .revmap = gicr_v3_dev_revmap,
-  .translate_irqs = gicr_v3_dev_translate_irqs
+  .translate = gicr_v3_dev_translate
 };
+
+struct nk_irq_dev **gicr_dev_cpu_map = NULL;
 
 static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i)
 {
@@ -558,8 +530,25 @@ static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i
   mpid.aff2 = (typer.affinity>>16) & 0xFF;
   mpid.aff3 = (typer.affinity>>24) & 0xFF;
 
-  if(nk_assign_cpu_irq_dev(gicr_dev, mpidr_el1_to_cpu_id(&mpid))) {
-    GIC_ERROR("Failed to assign GICR to CPU!\n");
+  if(gicr_dev_cpu_map == NULL) {
+    gicr_dev_cpu_map = malloc(sizeof(struct nk_irq_dev *) * nk_num_cpu());
+    if(gicr_dev_cpu_map == NULL) {
+      GIC_ERROR("Failed to allocate GICR device CPU map!\n");
+      goto gicr_err_exit;
+    }
+    memset(gicr_dev_cpu_map, 0, sizeof(struct nk_irq_dev *) * nk_num_cpu());
+  }
+
+  cpu_id_t cpuid = mpidr_el1_to_cpu_id(&mpid);
+  if(cpuid > nk_num_cpu()) {
+    GIC_ERROR("GICR is trying to assign itself to a non-existant CPUID! (cpuid=%u) (num_cpus=%u)\n", cpuid, nk_num_cpu());
+    goto gicr_err_exit;
+  }
+
+  if(gicr_dev_cpu_map[cpuid] == NULL) {
+    gicr_dev_cpu_map[cpuid] = gicr_dev;
+  } else {
+    GIC_ERROR("More than 1 GICR device is trying to assign itself to CPU (%u)!\n", cpuid);
     goto gicr_err_exit;
   }
 
@@ -680,13 +669,11 @@ static int gicv3_init_dev_info(struct nk_dev_info *info)
     goto err_exit;
   }
   
-  // This should be fully overriden by the GICR devices
-  // However we're going to be paranoid and assign these so warnings are printed correctly
-  if(nk_assign_all_cpus_irq_dev(gicd_dev)) {
-    GIC_ERROR("Failed to assign the GIC to all CPU's in the system!\n");
+  if(arm64_set_root_irq_dev(gicd_dev)) {
+    GIC_ERROR("Failed to assign the GICv3 as root IRQ device!\n");
     goto err_exit;
   } else {
-    GIC_DEBUG("Assigned the GIC to all CPU's in the system\n");
+    GIC_DEBUG("Assigned the GICv3 as root IRQ device\n");
   }
 
   // Determine the number of redistributors
@@ -854,6 +841,12 @@ static int gicv3_init_dev_info(struct nk_dev_info *info)
   }
   curr_base += PPI_NUM;
   GIC_DEBUG("Set Up PPI Vectors\n");
+
+  // Assign the GICR CPU Map to SGI's and PPI's
+  if(nk_set_all_irq_devs_percpu(SGI_NUM + PPI_NUM, gicd->irq_base + SGI_HWIRQ, gicr_dev_cpu_map)) {
+    GIC_ERROR("Failed to assign the percpu GICR devices to SGI and PPI interrupts!\n");
+    goto err_exit;
+  }
 
   // Set up the correct number of SPI
   if(gicd->num_spi) 

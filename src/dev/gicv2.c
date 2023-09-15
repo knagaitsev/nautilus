@@ -12,6 +12,7 @@
 #include<nautilus/iomap.h>
 
 #include<arch/arm64/sys_reg.h>
+#include<arch/arm64/excp.h>
 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
   #define INVALID_INT_NUM(gic, num) (num >= (gic).max_spi)
@@ -78,15 +79,22 @@ typedef union gicc_int_info_reg {
   };
 } gicc_int_info_reg_t;
 
+static struct gicv2 *global_gicv2_ptr = NULL;
+
 static int gicv2_dev_get_characteristics(void *state, struct nk_irq_dev_characteristics *c)
 {
   memset(c, 0, sizeof(c));
   return 0;
 }
 
-static int gicv2_dev_initialize_cpu(void *state) {
+int gicv2_percpu_init(void) {
 
-  struct gicv2 *gic = (struct gicv2*)state;
+  struct gicv2 *gic = global_gicv2_ptr;
+
+  if(gic == NULL) {
+    GIC_ERROR("Called gicv2_percpu_init with NULL GIC!\n");
+    return -1;
+  }
 
   // Enable insecure interrupts
   gicc_ctl_reg_t ctl;
@@ -129,61 +137,44 @@ static int gicv2_dev_revmap(void *state, nk_hwirq_t hwirq, nk_irq_t *irq)
   return -1;
 }
 
-static int gicv2_dev_translate_irqs(void *state, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *buffer, int *buf_count) {
-
+static int gicv2_dev_translate(void *state, nk_dev_info_type_t type, void *raw_irq, nk_hwirq_t *out_hwirq) 
+{
   if(type != NK_DEV_INFO_OF) {
     GIC_ERROR("Currently only support Device Tree interrupt format, but another type of device info was provided! dev_info_type = %u\n", type);
     return -1;
   }
 
-  int num_read = 0;
-  int num_cells = (raw_irqs_len >> 2);
-  if(num_cells % 3 != 0) {
-    // GICv2 encodes interrupts numbers using 3 cells per interrupt
-    GIC_DEBUG("Failed to translate FDT interrupts: 'interrupts' cell count was not a multiple of 3!\n");
-    return -2;
+  uint32_t *cells = (uint32_t*)raw_irq;
+  uint32_t irq_type = be32toh(cells[0]);
+  uint32_t num = be32toh(cells[1]);
+  uint32_t flags = be32toh(cells[2]); // We're going to ignore this field for now
+                                      // (We could use it to add some info to the nk_irq_desc for this hwirq)
+  switch(irq_type) {
+    case 0:
+      // It's an SPI
+      if(num > 987) {
+        GIC_DEBUG("Failed to translate FDT interrupt: SPI interrupt had range >987 (%u)\n",num);
+        return -1;
+      } else {
+        num += 32;
+      }
+      break;
+    case 1:
+      // It's a PPI
+      if(num > 15) {
+        GIC_DEBUG("Failed to translate FDT interrrupt: PPI interrupt had range >15 (%u)\n",num);
+        return -1;
+      } else {
+        num += 16;
+      }
+      break;
+    default:
+      // Something is horribly wrong :(
+      GIC_DEBUG("Failed to translate FDT interrupt: neither SPI nor PPI was specified!\n");
+      return -1;
   }
 
-  int num_interrupts = num_cells / 3;
-  if(num_interrupts > *buf_count) {
-    // We're not going to be able to read all of them
-    num_interrupts = *buf_count;
-  }
-
-  for(int i = 0; i < num_interrupts; i++) {
-    uint32_t *cells = (uint32_t*)raw_irqs;
-    uint32_t type = be32toh(cells[0 + (i*3)]);
-    uint32_t num = be32toh(cells[1 + (i*3)]);
-    uint32_t flags = be32toh(cells[2 + (i*3)]); // We're going to ignore this field for now
-    switch(type) {
-      case 0:
-        // It's an SPI
-        if(num > 987) {
-          GIC_DEBUG("Failed to translate FDT interrupts: SPI interrupt had range >987 (%u)\n",num);
-          return -3;
-        } else {
-          num += 32;
-        }
-        break;
-      case 1:
-        // It's a PPI
-        if(num > 15) {
-          GIC_DEBUG("Failed to translate FDT interrrupts: PPI interrupt had range >15 (%u)\n",num);
-          return -4;
-        } else {
-          num += 16;
-        }
-        break;
-      default:
-        // Something is horribly wrong :(
-        GIC_DEBUG("Failed to translate FDT interrupts: neither SPI nor PPI was specified!\n");
-        return -5;
-    }
-    buffer[i] = (nk_irq_t)num;
-  }
-
-  GIC_DEBUG("Sucessfully translated %u FDT interrupts\n", num_interrupts);
-  *buf_count = num_interrupts;
+  *out_hwirq = (nk_hwirq_t)num;
   return 0;
 }
 
@@ -263,14 +254,13 @@ static int gicv2_dev_irq_status(void *state, nk_hwirq_t irq) {
 
 static struct nk_irq_dev_int gicv2_dev_int = {
   .get_characteristics = gicv2_dev_get_characteristics,
-  .initialize_cpu = gicv2_dev_initialize_cpu, 
   .ack_irq = gicv2_dev_ack_irq,
   .eoi_irq = gicv2_dev_eoi_irq,
   .enable_irq = gicv2_dev_enable_irq,
   .disable_irq = gicv2_dev_disable_irq,
   .irq_status = gicv2_dev_irq_status,
   .revmap = gicv2_dev_revmap,
-  .translate_irqs = gicv2_dev_translate_irqs
+  .translate = gicv2_dev_translate
 };
 
 #ifdef NAUT_CONFIG_GIC_VERSION_2M
@@ -301,6 +291,8 @@ static int gicv2_init_dev_info(struct nk_dev_info *info) {
   }
 
   memset(gic, 0, sizeof(struct gicv2));
+
+  global_gicv2_ptr = gic;
 
   void * bases[2];
   int sizes[2];
@@ -411,8 +403,8 @@ static int gicv2_init_dev_info(struct nk_dev_info *info) {
   gic->special_irq_base = gic->irq_base + SPI_HWIRQ + num_spi;
   GIC_DEBUG("Added Special INTID's\n");
 
-  if(nk_assign_all_cpus_irq_dev(dev)) {
-    GIC_ERROR("Failed to assign the GIC to all CPU's in the system!\n");
+  if(arm64_set_root_irq_dev(dev)) {
+    GIC_ERROR("Failed to make GICv2 the root IRQ device!\n");
     goto err_exit;
   }
 

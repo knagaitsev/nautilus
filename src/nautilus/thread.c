@@ -608,6 +608,7 @@ int nk_thread_run(nk_thread_id_t t)
     nk_fp_save(newthread->fpu_state);
 #endif
 
+  THREAD_DEBUG("Making thread runnable\n");
   if (nk_sched_make_runnable(newthread, newthread->current_cpu,1)) {
       THREAD_ERROR("Scheduler failed to run thread (%p, tid=%u) on cpu %u\n",
 		  newthread, newthread->tid, newthread->current_cpu);

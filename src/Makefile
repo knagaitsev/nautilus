@@ -14,7 +14,8 @@ obj-$(NAUT_CONFIG_ARCH_RISCV) += \
 	nautilus/ \
 	arch/ \
 	compat/ \
-	dev/
+	dev/ \
+	test/
 
 obj-$(NAUT_CONFIG_ARCH_ARM64) += \
 	nautilus/ \

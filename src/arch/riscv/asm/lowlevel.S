@@ -156,9 +156,16 @@ GLOBAL(kernel_vec)
     sd t6, 240(sp)
 
     # call the C trap handler in idt.c
-		move a0, sp /* arg0 <- trapframe */
+    move a0, sp /* arg0 <- trapframe */
     call kernel_trap
 
+    li t0, 0
+    beq t0, a0, after_switch
+
+    # We need to do a thread switch
+    call nk_thread_switch
+
+after_switch:
     # restore registers.
     ld ra, 0(sp)
     # ld sp, 8(sp)

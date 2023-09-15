@@ -82,10 +82,11 @@ int nk_handle_irq_actions(struct nk_irq_desc *desc, struct nk_regs *regs);
 struct nk_irq_desc {
 
   struct nk_irq_dev *irq_dev;
-  int devless_status;
-
+  struct nk_irq_dev **per_cpu_irq_devs;
   nk_hwirq_t hwirq;
 
+  int devless_status;
+  
   // This is a linked list but we need the first
   // entry to be within the descriptor so we
   // can statically allocate atleast 1 action per
@@ -121,6 +122,12 @@ int nk_setup_irq_descs_devless(int n, struct nk_irq_desc *descs, nk_hwirq_t hwir
 // Associates an IRQ descriptor with an IRQ number
 int nk_assign_irq_desc(nk_irq_t irq, struct nk_irq_desc *desc);
 int nk_assign_irq_descs(int n, nk_irq_t irq, struct nk_irq_desc *desc);
+
+// Makes the IRQ PERCPU and sets the irq_dev for a particular CPUID
+int nk_set_irq_dev_percpu(cpu_id_t cpuid, nk_irq_t irq, struct nk_irq_dev *dev);
+int nk_set_irq_devs_percpu(int n, cpu_id_t cpuid, nk_irq_t irq, struct nk_irq_dev *dev);
+int nk_set_all_irq_dev_percpu(nk_irq_t irq, struct nk_irq_dev **devs);
+int nk_set_all_irq_devs_percpu(int n, nk_irq_t irq, struct nk_irq_dev **devs);
 
 struct nk_irq_desc * nk_irq_to_desc(nk_irq_t irq);
 
@@ -164,9 +171,12 @@ int nk_irq_init(void);
 
 int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev);
 struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t);
+struct nk_irq_dev * nk_irq_desc_to_irqdev(struct nk_irq_desc *);
 int nk_irq_is_assigned_to_irqdev(nk_irq_t);
 
 int nk_mask_irq(nk_irq_t);
 int nk_unmask_irq(nk_irq_t);
+
+int nk_handle_interrupt_generic(struct nk_irq_action *null, struct nk_regs *regs, struct nk_irq_dev *dev);
 
 #endif

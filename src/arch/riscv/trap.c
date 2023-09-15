@@ -9,10 +9,16 @@ void trap_init(void) { write_csr(stvec,(uint64_t)kernel_vec); }
 
 static void print_regs(struct nk_regs *r) {
   int i = 0;
-  printk("Current Thread=0x%x (%p) \"%s\"\n",
+
+  if(r_tp() == NULL) {
+    printk("Occurred before percpu system is active!\n");
+  }
+  else {
+    printk("Current Thread=0x%x (%p) \"%s\"\n",
       get_cur_thread() ? get_cur_thread()->tid : -1,
       get_cur_thread() ? (void*)get_cur_thread() :  NULL,
       !get_cur_thread() ? "NONE" : get_cur_thread()->is_idle ? "*idle*" : get_cur_thread()->name);
+  }
 
   printk("[-------------- Register Contents --------------]\n");
   printk("RA:  %016lx SP:  %016lx\n", r->ra, r->sp);
@@ -30,18 +36,31 @@ static void print_regs(struct nk_regs *r) {
   printk("[-----------------------------------------------]\n");
 }
 
-static void kernel_unhandled_trap(struct nk_regs *regs, const char *type) {
+static void kernel_unhandled_trap(struct nk_regs *regs, const char *type) 
+{
+  uint64_t badaddr = read_csr(sbadaddr);
+
   printk("===========================================================================================\n");
   printk("+++ Unhandled Trap: %s +++\n", type);
   printk("SEPC:   %016lx CAUSE:   %016lx TVAL: %016lx\n", regs->sepc, regs->cause, regs->tval);
-  printk("STATUS: %016lx SCRATCH: %016lx\n", regs->status, regs->scratch);
+  printk("STATUS: %016lx SCRATCH: %016lx BADADDR: %016lx\n", regs->status, regs->scratch, badaddr);
   print_regs(regs);
   printk("===========================================================================================\n");
   panic("Halting hart!\n");
 }
 
+static struct nk_irq_dev *riscv_root_irq_dev = NULL;
+int riscv_set_root_irq_dev(struct nk_irq_dev *dev) {
+  if(riscv_root_irq_dev == NULL) {
+    riscv_root_irq_dev = dev;
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
 /* Supervisor Trap Function */
-void kernel_trap(struct nk_regs *regs) {
+void * kernel_trap(struct nk_regs *regs) {
   regs->sepc = read_csr(sepc);
   regs->status = read_csr(sstatus);
   regs->tval = read_csr(stval);
@@ -53,31 +72,17 @@ void kernel_trap(struct nk_regs *regs) {
   // the type of trap is the rest of the bits.
   int nr = regs->cause & ~(1llu << 63);
 
-  if (interrupt) {
-    //printk("int!, nr = %d, sie=%p, pending=%p\n", nr, read_csr(sie), plic_pending());
-    if (nr == 5) {
-      // timer interrupt
-      // on nautilus, we don't actaully want to set a new timer yet, we just
-      // want to call into the scheduler, which schedules the next timer.
-      arch_timer_handler(0,0,0);
-    } else if (nr == 9) {
-      // supervisor external interrupt
-      // first, we claim the irq from the PLIC
-      struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
+  if (interrupt) 
+  {
+    //printk("int!, nr = %d, sie=%p, pending=%p\n", nr, read_csr(sie), read_csr(sip)); 
 
-      nk_irq_t irq = 0;
-      nk_irq_dev_ack(irq_dev, &irq);
-      
-      if(irq != 0) {
-        struct nk_irq_desc *desc = nk_irq_to_desc(irq);
-        nk_handle_irq_actions(desc, regs);
-
-      // the PLIC allows each device to raise at most one
-      // interrupt at a time; tell the PLIC the device is
-      // now allowed to interrupt again.
-        nk_irq_dev_eoi(irq_dev, irq);
-      }
+    // supervisor external interrupt
+    // first, we claim the irq from the PLIC
+    struct nk_irq_dev *irq_dev = riscv_root_irq_dev;
+    if(nk_handle_interrupt_generic(NULL, regs, irq_dev)) {
+      // Nothing we can do
     }
+
   } else {
     // it's a fault/trap (like illegal instruction)
     switch (nr) {
@@ -129,4 +134,11 @@ void kernel_trap(struct nk_regs *regs) {
   // restore trap registers for use by kernelvec.S's sepc instruction.
   write_csr(sepc, regs->sepc);
   write_csr(sstatus, regs->status);
+
+  void *thread = NULL;
+  if(per_cpu_get(in_timer_interrupt)) {
+    thread = nk_sched_need_resched();
+  }
+
+  return thread;
 }

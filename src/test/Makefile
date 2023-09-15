@@ -18,6 +18,13 @@ obj-$(NAUT_CONFIG_ARCH_ARM64) = \
 	futures.o \
 	bsp.o
 
+obj-$(NAUT_CONFIG_ARCH_RISCV) = \
+	threads.o \
+	groups.o \
+	tasks.o \
+	futures.o \
+	bsp.o
+
 obj-$(NAUT_CONFIG_ASPACE_CARAT) += skiplist_test.o \
                                    map_test.o
 

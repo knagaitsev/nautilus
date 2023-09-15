@@ -101,7 +101,8 @@ struct nk_dev_info_int {
   int(*read_string_array)(void *state, const char *prop_name, char **buf, int *buf_cnt);
 
   int(*read_register_blocks)(void *state, void **bases, int *sizes, int *count);
-  int(*read_irqs)(void *state, nk_irq_t *irqs_buf, int *irqs_buf_count);
+  nk_irq_t(*read_irq)(void *state, int index);
+  int(*num_irq)(void *state);
 
   struct nk_dev_info *(*get_parent)(void *state);
   struct nk_dev_info *(*get_child_named)(void *state, const char *child_name);
@@ -226,25 +227,22 @@ inline static int nk_dev_info_read_string(const struct nk_dev_info *info, const 
   return ret;
 }
 
-inline static int nk_dev_info_read_irqs(const struct nk_dev_info *info, nk_irq_t *irq_buf, int *irq_count) 
+inline static nk_irq_t nk_dev_info_read_irq(const struct nk_dev_info *info, int index) 
 {
-  if(info && info->interface && info->interface->read_irqs) {
-    return info->interface->read_irqs(info->state, irq_buf, irq_count);
+  if(info && info->interface && info->interface->read_irq) {
+    return info->interface->read_irq(info->state, index);
+  } else {
+    return NK_NULL_IRQ;
+  }
+}
+
+inline static int nk_dev_info_num_irq(const struct nk_dev_info *info) 
+{
+  if(info && info->interface && info->interface->num_irq) {
+    return info->interface->num_irq(info->state);
   } else {
     return -1;
   }
-}
-inline static int nk_dev_info_read_irqs_exact(const struct nk_dev_info *info, nk_irq_t *irq_buf, int irq_count) 
-{
-  int mod_count = irq_count;
-  int ret = nk_dev_info_read_irqs(info->state, irq_buf, &mod_count);
-  if(mod_count != irq_count) {
-    ret = -1;
-  }
-  return ret;
-}
-inline static int nk_dev_info_read_irq(const struct nk_dev_info *info, nk_irq_t *irq) {
-  return nk_dev_info_read_irqs_exact(info, irq, 1);
 }
 
 inline static int nk_dev_info_read_register_blocks(const struct nk_dev_info *info, void** bases, int *sizes, int *block_count) 

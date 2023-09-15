@@ -48,19 +48,6 @@ struct nk_irq_dev * nk_irq_dev_find(char *name)
   }
 }
 
-int nk_irq_dev_initialize_cpu(struct nk_irq_dev *dev) {
- 
-  struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
-  struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
-
-  if(di->initialize_cpu) {
-    return di->initialize_cpu(d->state);
-  } else {
-    // This device doesn't need to initialize CPU's 
-    return 0;
-  }
-}
-
 int nk_irq_dev_get_characteristics(struct nk_irq_dev *dev, struct nk_irq_dev_characteristics *c) {
 
   struct nk_dev *d = (struct nk_dev*)(&(dev->dev));
@@ -110,12 +97,12 @@ int nk_irq_dev_eoi(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
 #endif
 }
 
-int nk_irq_dev_enable_irq(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
- 
+int nk_irq_dev_enable_irq(struct nk_irq_dev *dev, nk_hwirq_t hwirq) 
+{ 
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
-  DEBUG_PRINT("nk_irq_dev_enable_irq(%s, %u)\n", d->name, hwirq);
+  DEBUG_PRINT("nk_irq_dev_enable_irq(dev=%s, hwirq=%u)\n", d->name, hwirq);
 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
   if(di->enable_irq) {
@@ -165,21 +152,21 @@ int nk_irq_dev_irq_status(struct nk_irq_dev *dev, nk_hwirq_t hwirq) {
 #endif 
 }
 
-int nk_irq_dev_translate_irqs(struct nk_irq_dev *dev, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *irq_buf, int *irq_buf_count) 
+int nk_irq_dev_translate(struct nk_irq_dev *dev, nk_dev_info_type_t type, void *raw_irq, nk_hwirq_t *out_hwirq) 
 { 
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
-  if(di->translate_irqs) {
-    return di->translate_irqs(d->state, type, raw_irqs, raw_irqs_len, irq_buf, irq_buf_count);
+  if(di->translate) {
+    return di->translate(d->state, type, raw_irq, out_hwirq); 
   } else {
     // This device doesn't have translation support!
-    ERROR("NULL translate_irq in interface of device %s\n", d->name);
+    ERROR("NULL translate in interface of device %s\n", d->name);
     return -1;
   }
 #else
-  return di->translate_irqs(d->state, type, raw_irqs, raw_irqs_len, irq_buf, irq_buf_count);
+  return di->translate_irq(d->state, raw_irq, out_hwirq);
 #endif
 }
 
@@ -201,28 +188,4 @@ int nk_irq_dev_revmap(struct nk_irq_dev *dev, nk_hwirq_t hwirq, nk_irq_t *out_ir
 #endif 
 }
 
-int nk_assign_cpu_irq_dev(struct nk_irq_dev* dev, cpu_id_t cpuid) {
-  
-  struct naut_info *naut = nk_get_nautilus_info();
-
-  if(cpuid >= naut->sys.num_cpus) {
-    return -1;
-  }
-
-  naut->sys.cpus[cpuid]->irq_dev = dev;
-
-  return 0;
-}
-
-int nk_assign_all_cpus_irq_dev(struct nk_irq_dev* dev) {
-  int ret = 0;
-
-  struct naut_info *naut = nk_get_nautilus_info();
-
-  for(int i = 0; i < naut->sys.num_cpus; i++) {
-    ret |= nk_assign_cpu_irq_dev(dev, i);
-  }
-  
-  return ret;
-}
 

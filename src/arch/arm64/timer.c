@@ -84,8 +84,6 @@ int arch_read_timer(void) {
 
 int arch_timer_handler(struct nk_irq_action*, struct nk_regs*, void *state) { 
 
-    TIMER_DEBUG("Interrupt\n");
-
     uint64_t time_to_next_ns;
 
     get_cpu()->in_timer_interrupt = 1;
@@ -119,13 +117,26 @@ int arm_timer_init_one(struct nk_dev_info *info) {
 
   nk_irq_t irqs[4];
 
-  if(nk_dev_info_read_irqs_exact(info, irqs, 4)) {
-    TIMER_ERROR("Could not get interrupts from device info!\n");
+  int num_irq = nk_dev_info_num_irq(info);
+  if(num_irq < 4) {
+    TIMER_ERROR("Invalid number of interrupts found in ARM timer device tree: (%u) < 4!\n", num_irq);
     goto err_exit;
+  }
+  else if(num_irq > 4) {
+    TIMER_WARN("Unexpected number of interrupts found in ARM timer device tree: (%u) > 4! Continuing anyways...\n", num_irq);
+  }
+
+  for(int i = 0; i < 4; i++) {
+    nk_irq_t irq = nk_dev_info_read_irq(info, i);
+    if(irq == NK_NULL_IRQ) {
+      TIMER_ERROR("Could not get interrupt %u from device info!\n");
+      goto err_exit; 
+    }
+    irqs[i] = irq;
   }
 
   TIMER_DEBUG("Found interrupts: Secure(%u), Insecure(%u), Virtual(%u), Hyper(%u)\n",
-      irqs[0],irqs[1],irq[2],irq[3]);
+      irqs[0],irqs[1],irqs[2],irqs[3]);
 
   struct nk_dev *dev = nk_dev_register("arch-timer", NK_DEV_TIMER, 0, &arch_timer_int, NULL);
 

@@ -257,7 +257,9 @@ static int dw_8250_dev_init_one(struct nk_dev_info *info)
     dw->port.reg_shift = 0;
   }
 
-  if(nk_dev_info_read_irq(info, &dw->port.irq)) {
+  dw->port.irq = nk_dev_info_read_irq(info, 0);
+
+  if(dw->port.irq == NK_NULL_IRQ) {
     ERROR("Failed to read DW UART irq!\n");
     goto err_exit;
   }

@@ -59,7 +59,7 @@ void arch_set_timer(uint32_t ticks) {
 
 int  arch_read_timer(void) { /* TODO */ return 0; }
 
-int  arch_timer_handler(struct nk_irq_action * action, struct nk_regs *regs, void *state)
+int arch_timer_handler(struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
     uint64_t time_to_next_ns;
 
@@ -72,17 +72,18 @@ int  arch_timer_handler(struct nk_irq_action * action, struct nk_regs *regs, voi
     time_to_next_ns = nk_timer_handler();
 
     if (time_to_next_ns == 0) {
-    arch_set_timer(-1);
+      arch_set_timer(-1);
     } else {
-    arch_set_timer(arch_realtime_to_ticks(time_to_next_ns));
+      arch_set_timer(arch_realtime_to_ticks(time_to_next_ns));
     }
-
-    nk_yield();
 
     return 0;
 }
 
-uint64_t arch_read_timestamp() { return read_csr(time); }
+uint64_t arch_read_timestamp() { 
+  uint64_t time = read_csr(time); 
+  return time;
+}
 
 int arch_numa_init(struct sys_info *sys) {
   return fdt_numa_init(sys);

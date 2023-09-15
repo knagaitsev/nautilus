@@ -31,4 +31,3 @@
   })
 
 #define MAX_IRQ_NUM 1024
-#define MAX_IVEC_NUM 1024

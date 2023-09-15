@@ -114,12 +114,6 @@ static inline void per_cpu_sys_ctrl_reg_init(void) {
   STORE_SYS_REG(SCTLR_EL1, sctlr.raw);
 }
 
-static inline int per_cpu_irq_init(void) 
-{
-  struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev); 
-  return nk_irq_dev_initialize_cpu(irq_dev);
-}
-
 static inline int init_core_barrier(struct sys_info *sys) {
   sys->core_barrier = (nk_barrier_t *)malloc(sizeof(nk_barrier_t));
   if (!sys->core_barrier) {
@@ -166,12 +160,18 @@ void secondary_init(void) {
   // We should have atomics and kmem now
   INIT_PRINT("Starting second phase of secondary_init\n");
 
-  // Locally Initialize the GIC on the init processor 
-  // (will need to call this on every processor which can receive interrupts)
-  if(per_cpu_irq_init()) {
-    INIT_ERROR("Failed to initialize the IRQ chip locally for CPU %u!\n", my_cpu_id());
-    return;
+#if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
+  if(gicv2_percpu_init()) {
+    panic("Failed to initialize GICv2 on CPU %u!\n", my_cpu_id());  
   }
+#elif defined(NAUT_CONFIG_GIC_VERSION_3)
+  if(gicv3_percpu_init()) {
+    panic("Failed to initialize GICv3 on CPU %u!\n", my_cpu_id());  
+  }
+#else
+#error "Invalid GIC Version!"
+#endif
+
   INIT_PRINT("Initialized the IRQ chip!\n", my_cpu_id());
 
   nk_rand_init(nautilus_info.sys.cpus[my_cpu_id()]);
@@ -471,10 +471,18 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 #error "Invalid GIC Version!"
 #endif
 
-  if(per_cpu_irq_init()) {
-    INIT_ERROR("Failed to initialize the IRQ chip locally for CPU %u!\n", my_cpu_id());
-    return;
+#if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
+  if(gicv2_percpu_init()) {
+    panic("Failed to initialize GICv2 on the BSP!\n");  
   }
+#elif defined(NAUT_CONFIG_GIC_VERSION_3)
+  if(gicv3_percpu_init()) {
+    panic("Failed to initialize GICv3 on the BSP!\n");
+  }
+#else
+#error "Invalid GIC Version!"
+#endif
+
   INIT_DEBUG("Initialized the Interrupt Controller\n");
 
   // Now we should be able to install irq handlers

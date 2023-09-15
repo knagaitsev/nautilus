@@ -48,6 +48,12 @@ config SIFIVE_PLIC
     help
       Provide a driver for the RISC-V Platform Level Interrupt Controller (PLIC)
 
+config DEBUG_SIFIVE_PLIC
+    bool "Debug SiFive Platform Level Interrupt Controller"
+    depends on DEBUG_PRINTS && SIFIVE_PLIC
+    help
+      Debug the RISC-V Platform Level Interrupt Controller (PLIC)
+
 config ARM_GIC
     bool "ARM Generic Interrupt Controller Driver"
     depends on ARCH_ARM64

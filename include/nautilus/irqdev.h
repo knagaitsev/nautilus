@@ -13,8 +13,6 @@ struct nk_irq_dev_int {
 
   int (*get_characteristics)(void *state, struct nk_irq_dev_characteristics *c);
 
-  int (*initialize_cpu)(void *state);
-
   int (*ack_irq)(void *state, nk_hwirq_t *irq);
   int (*eoi_irq)(void *state, nk_hwirq_t irq);
 
@@ -25,7 +23,7 @@ struct nk_irq_dev_int {
 
   int (*revmap)(void *state, nk_hwirq_t hwirq, nk_irq_t *irq);
 
-  int(*translate_irqs)(void *state, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *buf, int *buf_count);
+  int(*translate)(void *state, nk_dev_info_type_t type, void *raw_irq, nk_hwirq_t *out_hwirq);
 };
 
 struct nk_irq_dev {
@@ -45,7 +43,6 @@ int nk_irq_dev_unregister(struct nk_irq_dev *);
 
 struct nk_irq_dev * nk_irq_dev_find(char *name);
 
-int nk_irq_dev_initialize_cpu(struct nk_irq_dev *d);
 int nk_irq_dev_get_characteristics(struct nk_irq_dev *d, struct nk_irq_dev_characteristics *c);
 
 // Return Codes for nk_irq_dev_ack
@@ -79,8 +76,7 @@ int nk_irq_dev_irq_status(struct nk_irq_dev *d, nk_irq_t irq);
  * Maps from IRQ device local interrupt numbers to global nk_irq_t
  */
 int nk_irq_dev_revmap(struct nk_irq_dev *d, nk_hwirq_t hwirq, nk_irq_t *out_irq);
-
-int nk_irq_dev_translate_irqs(struct nk_irq_dev *d, nk_dev_info_type_t type, void *raw_irqs, int raw_irqs_len, nk_irq_t *irq_buf, int *irq_buf_count);
+int nk_irq_dev_translate(struct nk_irq_dev *d, nk_dev_info_type_t type, void *raw_irq, nk_hwirq_t *out_hwirq);
 
 int nk_assign_cpu_irq_dev(struct nk_irq_dev *dev, cpu_id_t cpuid);
 int nk_assign_all_cpus_irq_dev(struct nk_irq_dev *dev);

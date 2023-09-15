@@ -1,6 +1,8 @@
 #ifndef __ARM64_EXCP_H__
 #define __ARM64_EXCP_H__
 
+#include <nautilus/irqdev.h>
+
 // These are not all possible valid values of ESR's class field
 #define ESR_CLS_UNKNOWN 0x0
 #define ESR_CLS_TRAPPED_WF_INSTR 0x1
@@ -50,5 +52,6 @@ void excp_assign_excp_handler(uint32_t syndrome, excp_handler_t handler, void *s
 void *excp_remove_excp_handler(uint32_t syndrome);
 
 int arm64_get_current_el(void);
+int arm64_set_root_irq_dev(struct nk_irq_dev *dev);
 
 #endif

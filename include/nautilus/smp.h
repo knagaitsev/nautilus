@@ -94,8 +94,6 @@ struct cpu {
     uint64_t interrupt_count;                  /* +16 PAD: DO NOT MOVE */
     uint64_t exception_count;                  /* +24 PAD: DO NOT MOVE */
 
-    struct nk_irq_dev *irq_dev;
-
     // this field is only used if aspace are enabled
     struct nk_aspace    *cur_aspace;            /* +32 PAD: DO NOT MOVE */
 
@@ -182,7 +180,6 @@ static inline void dump_cpu(struct cpu *cpu) {
   PF(preempt_disable_level, "%u");
   PF(interrupt_count, "%u");
   PF(exception_count, "%u");
-  PF(irq_dev, "%p");
   PF(cur_aspace, "%p");
 #ifdef NAUT_CONFIG_FIBER_ENABLE
 #if NAUT_CONFIG_FIBE_ENABLE

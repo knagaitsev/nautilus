@@ -9,4 +9,5 @@ obj-y += asm/ \
 	 monitor.o \
 	 paging.o \
 	 shutdown.o \
-	 irq.o
+	 irq.o \
+         hlic.o

@@ -35,7 +35,9 @@ configure_cpu (unsigned long fdt, int offset) {
         panic("CPU count exceeded max (check your .config)\n");
     }
 
-    if(!(new_cpu = mm_boot_alloc(sizeof(struct cpu)))) {
+    new_cpu = mm_boot_alloc(sizeof(struct cpu));
+
+    if(new_cpu == NULL) {
         panic("Couldn't allocate CPU struct\n");
     } 
 

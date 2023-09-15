@@ -897,9 +897,11 @@ ifdef NAUT_CONFIG_GIC_VERSION_3
 	QEMU_MACHINE_FLAGS := $(QEMU_MACHINE_FLAGS),gic-version=3,its=on
 endif
 
+OPENSBI = /home/kjhayes/opensbi/build/platform/generic/firmware/fw_jump.bin
+
 qemu: uImage
 ifdef NAUT_CONFIG_ARCH_RISCV
-	qemu-system-riscv64 -bios none -smp 1 -m 2G -M virt -kernel nautilus.bin -serial stdio $(QEMU_DEVICES) $(QEMU_GDB_FLAGS)
+	qemu-system-riscv64 -bios $(OPENSBI) -smp 1 -m 2G -M virt -kernel nautilus.bin -serial stdio $(QEMU_DEVICES) $(QEMU_GDB_FLAGS)
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
 	qemu-system-aarch64 \

@@ -69,6 +69,10 @@
 #include <dev/sifive_plic.h>
 #endif
 
+#ifdef NAUT_CONFIG_OF_8250_UART
+#include <dev/8250/of_8250.h>
+#endif
+
 #include <arch/riscv/sbi.h>
 #include <arch/riscv/trap.h>
 
@@ -83,12 +87,6 @@ struct nk_sched_config sched_cfg = {
     .aperiodic_quantum = QUANTUM_IN_NS,
     .aperiodic_default_priority = QUANTUM_IN_NS,
 };
-
-static inline int per_cpu_irq_init(void) 
-{
-  struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev); 
-  return nk_irq_dev_initialize_cpu(irq_dev);
-}
 
 static int sysinfo_init(struct sys_info *sys) {
   sys->core_barrier = (nk_barrier_t *)malloc(sizeof(nk_barrier_t));
@@ -126,12 +124,16 @@ extern uint64_t secondary_core_stack;
 extern uint64_t _bssStart[];
 extern uint64_t _bssEnd[];
 
+// KJH - The stack switch which happens halfway through "init" makes this needed (I think)
+static volatile const char *chardev_name = NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME;
+
 extern struct naut_info *smp_ap_stack_switch(uint64_t, uint64_t,
                          struct naut_info *);
 
 bool_t second_done = false;
 
-void secondary_entry(int hartid) {
+void secondary_entry(int hartid) 
+{
   printk("RISCV: hart %d started!\n", hartid);
 
   struct naut_info *naut = &nautilus_info;
@@ -143,8 +145,12 @@ void secondary_entry(int hartid) {
   // Write supervisor trap vector location
   trap_init();
 
+#ifdef NAUT_CONFIG_SIFIVE_PLIC
   /* Initialize the platform level interrupt controller for this HART */
-  per_cpu_irq_init();
+  if(plic_percpu_init()) {
+    panic("Failed to initialize the PLIC locally for the CPU %u!\n", my_cpu_id()); 
+  }
+#endif
 
   nk_sched_init_ap(&sched_cfg);
 
@@ -298,25 +304,42 @@ void init(unsigned long hartid, unsigned long fdt) {
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
   nk_thread_name(get_cur_thread(), "init");
 
+  printk("Swapped stacks\n");
+
   /* mm_boot_kmem_cleanup(); */
+
+  if(hlic_init()) {
+    panic("failed to inialize the HLIC!\n");
+  }
 
 #ifdef NAUT_CONFIG_SIFIVE_PLIC
   if(plic_init()) {
     panic("failed to initialized the PLIC!\n");
   }
-#endif
-
-  if(per_cpu_irq_init()) {
-    panic("Failed to initialize the IRQ chip locally for CPU %u!\n", my_cpu_id());
+  if(plic_percpu_init()) {
+    panic("Failed to initialize the PLIC locally for the BSP!\n"); 
   }
-
-  nk_dump_ivec_info();
+#endif
 
   arch_enable_ints();
 
   /* interrupts are now on */
 
+#ifdef NAUT_CONFIG_OF_8250_UART
+  of_8250_init();
+#endif
+
+  nk_dump_irq_info();
+
+  start_secondary(&(naut->sys));
+
   nk_vc_init();
+
+  printk("past vc\n");
+
+#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
+  nk_vc_start_chardev_console(chardev_name);
+#endif 
 
   nk_fs_init();
 
@@ -336,12 +359,10 @@ void init(unsigned long hartid, unsigned long fdt) {
   // sifive_test();
   /* my_monitor_entry(); */
 
-  start_secondary(&(naut->sys));
-
   nk_sched_start();
 
-  // nk_launch_shell("root-shell",my_cpu_id(),0,0);
-  execute_threading(NULL);
+  nk_launch_shell("root-shell",0,0,0);
+  //execute_threading(NULL);
 
   printk("Nautilus boot thread yielding (indefinitely)\n");
 

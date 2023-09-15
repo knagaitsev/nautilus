@@ -6,13 +6,13 @@
 
 ENTRY(init_smp_boot)
 
-    ld sp, secondary_core_stack
-
     # disable supervisor address translation and protection (paging), since we'd identity map anyways
     csrw    satp, 0
+
     # flush tlb and whatnot
     sfence.vma zero, zero
 
+    ld sp, secondary_core_stack
     # enable supervisor interrupts
     li      t0, SIE_SEIE | SIE_STIE | SIE_SSIE
     csrs    sie, t0

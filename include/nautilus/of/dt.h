@@ -3,7 +3,9 @@
 
 #include<nautilus/dev.h>
 
-#define DT_NODE_FLAG_INT_PARENT_PHANDLE (1<<0)
+#define DT_NODE_FLAG_INT_PARENT_PHANDLE  (1<<0)
+#define DT_NODE_FLAG_CACHED_IRQ_DATA     (1<<1)
+#define DT_NODE_FLAG_CACHED_IRQ_EXT_DATA (1<<2)
 
 struct dt_node;
 struct dt_node {
@@ -11,6 +13,13 @@ struct dt_node {
   int flags;
 
   uint32_t phandle;
+
+  // Cached IRQ (EXT) data
+  int num_irq;
+  int irq_cells;
+  int num_irq_extended;
+  uint32_t *extended_parent_phandles;
+  int *extended_offsets;
 
   struct dt_node *parent;
   struct dt_node *siblings;

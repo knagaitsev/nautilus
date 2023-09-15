@@ -245,6 +245,11 @@ nk_get_nautilus_info (void)
     return &nautilus_info;
 }
 
+static inline uint32_t
+nk_num_cpu(void) 
+{
+  return nautilus_info.sys.num_cpus;  
+}
 
 // Slap this on the front of a function that should be 'interrupt' style
 #ifdef NAUT_CONFIG_ARCH_X86

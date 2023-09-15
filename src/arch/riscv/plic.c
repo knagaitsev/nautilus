@@ -10,13 +10,10 @@ typedef struct plic_context {
   off_t context_offset;
 } plic_context_t;
 
-static addr_t plic_addr = 0;
-
 static plic_context_t *contexts = NULL;
 // static plic_context_t contexts[100];
 
-#define PLIC plic_addr
-#define MREG(x) *((uint32_t *)(PLIC + (x)))
+#define MREG(plic_ptr, x) *((uint32_t *)((plic_ptr)->mmio_base + (x)))
 #define READ_REG(x) *((uint32_t *)((x)))
 
 #define PLIC_PRIORITY_BASE 0x000000U
@@ -38,7 +35,7 @@ static plic_context_t *contexts = NULL;
 #define PLIC_THRESHOLD(h) (contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
 #define PLIC_CLAIM(h) (contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
 
-void plic_init(unsigned long fdt) {
+void plic_init_early(unsigned long fdt) {
     int offset = fdt_node_offset_by_compatible(fdt, -1, "sifive,plic-1.0.0");
     if (offset < 0) {
         // something is bad, no plic found

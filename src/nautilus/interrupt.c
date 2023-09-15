@@ -169,6 +169,7 @@ int nk_assign_irq_desc(nk_irq_t irq, struct nk_irq_desc *desc)
 
 int nk_assign_irq_descs(int num, nk_irq_t base_irq, struct nk_irq_desc *descs) 
 {
+  IRQ_DEBUG("Assigning IRQ's [%u - %u] descriptors\n", base_irq, base_irq + (num-1));
   for(int i = 0; i < num; i++) {
     descs[i].irq = base_irq + i;
     if(__irq_insert_desc(base_irq + i, &descs[i])) {
@@ -177,6 +178,66 @@ int nk_assign_irq_descs(int num, nk_irq_t base_irq, struct nk_irq_desc *descs)
   }
   IRQ_DEBUG("Assigned irq range [%u - %u] to descs=%p\n", base_irq, base_irq + (num-1), descs);
   return 0;
+}
+
+int nk_set_irq_dev_percpu(cpu_id_t cpuid, nk_irq_t irq, struct nk_irq_dev *dev) 
+{
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+  if(desc == NULL) {
+    return -1;
+  }
+  if(!(desc->flags & NK_IRQ_DESC_FLAG_PERCPU)) {
+    return -1;
+  }
+
+  if(desc->per_cpu_irq_devs == NULL) {
+    desc->per_cpu_irq_devs = malloc(sizeof(struct nk_irq_dev*) * nk_num_cpu());
+    if(desc->per_cpu_irq_devs == NULL) {
+      return -1;
+    }
+  }
+
+  desc->per_cpu_irq_devs[cpuid] = dev;
+  return -1;
+}
+
+int nk_set_irq_devs_percpu(int n, cpu_id_t cpuid, nk_irq_t irq, struct nk_irq_dev *dev) 
+{
+  int fail_count = 0;
+  for(int i = 0; i < n; i++) {
+    if(nk_set_irq_dev_percpu(cpuid, irq+i, dev)) {
+      fail_count += 1;
+    }
+  }
+  return fail_count;
+}
+
+int nk_set_all_irq_dev_percpu(nk_irq_t irq, struct nk_irq_dev **devs) 
+{
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+  if(desc == NULL) {
+    return -1;
+  }
+  if(!(desc->flags & NK_IRQ_DESC_FLAG_PERCPU)) {
+    return -1; 
+  }
+  if(desc->per_cpu_irq_devs == NULL) {
+    desc->per_cpu_irq_devs = devs;
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+int nk_set_all_irq_devs_percpu(int n, nk_irq_t irq, struct nk_irq_dev **devs) 
+{
+  int fail_count = 0;
+  for(int i = 0; i < n; i++) {
+    if(nk_set_all_irq_dev_percpu(irq+i, devs)) {
+      fail_count += 1;
+    }
+  }
+  return fail_count;
 }
 
 struct nk_irq_action * nk_irq_desc_add_action(struct nk_irq_desc *desc) 
@@ -386,15 +447,27 @@ int nk_map_irq_to_irqdev(nk_irq_t irq, struct nk_irq_dev *dev)
   return 0;
 }
 
-struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) 
+struct nk_irq_dev * nk_irq_desc_to_irqdev(struct nk_irq_desc *desc) 
 {
-  struct nk_irq_desc *desc = nk_irq_to_desc((nk_irq_t)irq);
+  struct nk_irq_dev *dev = desc->irq_dev;
+
   if(desc->flags & NK_IRQ_DESC_FLAG_PERCPU) {
-    return per_cpu_get(irq_dev);
+    if(desc->per_cpu_irq_devs != NULL) {
+      dev = desc->per_cpu_irq_devs[my_cpu_id()];
+    } else {
+      // default to the main irq_dev
+    }
   }
-  else {
-    return desc->irq_dev;
+
+  return dev;
+}
+
+struct nk_irq_dev * nk_irq_to_irqdev(nk_irq_t irq) {
+  struct nk_irq_desc *desc = nk_irq_to_desc((nk_irq_t)irq);
+  if(desc == NULL) {
+    return NULL;
   }
+  return nk_irq_desc_to_irqdev(desc);
 }
 
 int nk_irq_is_assigned_to_irqdev(nk_irq_t irq) 
@@ -407,14 +480,15 @@ int nk_mask_irq(nk_irq_t irq) {
   if(desc == NULL) {
     return 1;
   }
-  if(desc->irq_dev == NULL) {
+  struct nk_irq_dev *irq_dev = nk_irq_desc_to_irqdev(desc);
+  if(irq_dev == NULL) {
     if(desc->devless_status & IRQ_STATUS_ENABLED) {
       return -1;
     } else {
       return 0;
     }
   }
-  return nk_irq_dev_disable_irq(desc->irq_dev, desc->hwirq);
+  return nk_irq_dev_disable_irq(irq_dev, desc->hwirq);
 }
 
 int nk_unmask_irq(nk_irq_t irq) {
@@ -422,14 +496,32 @@ int nk_unmask_irq(nk_irq_t irq) {
   if(desc == NULL) {
     return 1;
   }
-  if(desc->irq_dev == NULL) {
+  struct nk_irq_dev *irq_dev = nk_irq_desc_to_irqdev(desc);
+  if(irq_dev == NULL) {
     if(desc->devless_status & IRQ_STATUS_ENABLED) {
       return 0;
     } else {
       return -1;
     }
   }
-  return nk_irq_dev_enable_irq(desc->irq_dev, desc->hwirq);
+  return nk_irq_dev_enable_irq(irq_dev, desc->hwirq);
+}
+
+int nk_handle_interrupt_generic(struct nk_irq_action *action, struct nk_regs *regs, struct nk_irq_dev *irq_dev) 
+{
+  nk_hwirq_t hwirq;
+  nk_irq_dev_ack(irq_dev, &hwirq);
+
+  nk_irq_t irq = NK_NULL_IRQ;
+  if(nk_irq_dev_revmap(irq_dev, hwirq, &irq)) {
+    return -1;
+  }
+
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+  nk_handle_irq_actions(desc, regs);
+
+  nk_irq_dev_eoi(irq_dev, hwirq);
+  return 0;
 }
 
 void nk_dump_irq_info(void) 
@@ -456,7 +548,7 @@ void nk_dump_irq_info(void)
 		    desc->irq,
                     desc->triggered_count,
 		    desc->num_actions,
-		    desc->irq_dev != NULL ? desc->irq_dev->dev.name : desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "PERCPU" : "NULL",
+		    desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "PERCPU" : (desc->irq_dev != NULL ? desc->irq_dev->dev.name : "NULL"),
                     desc->hwirq,
                     status & IRQ_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
                     status & IRQ_STATUS_PENDING ? "[PENDING] " : "",

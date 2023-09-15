@@ -117,8 +117,6 @@ static int fdt_handle_cpu_node (unsigned long fdt, int offset, int cpu_addr_cell
     new_cpu->system     = sys;
     new_cpu->cpu_khz    = 0;
 
-    new_cpu->irq_dev = NULL;
-
     SMP_PRINT("CPU %u\n", new_cpu->id);
     SMP_PRINT("\tEnabled?=%01d\n", new_cpu->enabled);
     SMP_PRINT("\tBSP?=%01d\n", new_cpu->is_bsp);

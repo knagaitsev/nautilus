@@ -779,7 +779,7 @@ void nk_sched_dump_threads(int cpu)
     GLOBAL_UNLOCK();
 }
 
-#elif NAUT_CONFIG_ARCH_ARM64
+#elif defined(NAUT_CONFIG_ARCH_ARM64) || defined(NAUT_CONFIG_ARCH_RISCV)
 
 void nk_sched_dump_threads(int cpu) {
 
@@ -795,13 +795,14 @@ void nk_sched_dump_threads(int cpu) {
 
 void nk_sched_dump_cores(int cpu) {}
 void nk_sched_dump_time(int cpu) {}
-
+/*
 #else
 
 // RISCV HACK
 void nk_sched_dump_threads(int cpu) {}
 void nk_sched_dump_cores(int cpu) {}
 void nk_sched_dump_time(int cpu) {}
+*/
 
 #endif /* NAUT_CONFIG_ARCH_X86 */
 
@@ -1499,13 +1500,15 @@ static int    _sched_make_runnable(struct nk_thread *thread, int cpu, int admit,
     rt_scheduler *s;
 
     if (unlikely(cpu <= CPU_ANY || 
-        cpu >= sys->num_cpus)) {
+        cpu >= sys->num_cpus)) 
+    {
         s = per_cpu_get(sched_state);
     } else {
         s = sys->cpus[cpu]->sched_state;
     }
 
     if (!s) {
+        ERROR("Could not get sched_state for current CPU!\n");
 	return -1;
     }
 
@@ -1514,12 +1517,15 @@ static int    _sched_make_runnable(struct nk_thread *thread, int cpu, int admit,
     }
 
     if (admit) {
+        DEBUG("admitting thread\n");
 	if (rt_thread_admit(s,t,cur_time())) { 
 	    DEBUG("Failed to admit thread\n");
 	    goto out_bad;
 	} else {
 	    DEBUG("Admitted thread %p (tid=%d)\n",thread,thread->tid);
 	}
+    } else {
+      DEBUG("Not admitting thread\n");
     }
 
     // Admission will have reset the thread state and stats
@@ -3452,8 +3458,11 @@ static inline void rt_thread_update_aperiodic(rt_thread *t, rt_scheduler *schedu
 // in nanoseconds
 static uint64_t cur_time()
 {
+    DEBUG("cur_time\n");
     uint64_t c = arch_read_timestamp();
+    DEBUG("cur_time c=%u\n", c);
     uint64_t t = arch_cycles_to_realtime(c);
+    DEBUG("cur_time t=%u\n", t);
     return t;
 }
 
@@ -3587,11 +3596,17 @@ static inline void get_sporadic_util(rt_scheduler *sched, uint64_t now, uint64_t
 //
 static int rt_thread_admit(rt_scheduler *scheduler, rt_thread *thread, uint64_t now)
 {
+    DEBUG("rt_thread_admit(scheduler=%p, thread=%p, now=%u)\n",scheduler,thread,now);  
 
     uint64_t util_limit = scheduler->cfg.util_limit;
     uint64_t aper_res = scheduler->cfg.aperiodic_reservation;
     uint64_t spor_res = scheduler->cfg.sporadic_reservation;
     uint64_t per_res = util_limit - aper_res - spor_res;
+
+    if(thread == NULL) {
+      ERROR("Cannot admit NULL thread!\n");
+      return -1;
+    }
 
     DEBUG("Admission: %s tpr=%u util_limit=%llu aper_res=%llu spor_res=%llu per_res=%llu\n",
 	  thread->constraints.type==APERIODIC ? "Aperiodic" :

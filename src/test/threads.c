@@ -137,7 +137,9 @@ test_fork_join(int nump, int numt)
     int i,j;
 
     PRINT("Starting on threads fork/join stress test (%d passes, %d threads)\n",nump,numt);
-
+#ifdef NAUT_CONFIG_ARCH_RISCV
+    return -1;
+#else
     nk_thread_id_t t;
     
     for (i=0;i<nump;i++) {
@@ -173,6 +175,7 @@ test_fork_join(int nump, int numt)
 	PRINT("Joined %d forked threads in pass %d\n", j, i);
 	nk_sched_reap(1); // clean up unconditionally
     }
+#endif
     PRINT("Done with thread fork/join stress test (SUCCESS)\n");
     return 0;
 }
@@ -251,7 +254,10 @@ _test_recursive_fork_join(uint64_t depth, uint64_t pass)
     }
 
     PRINT("Hello from forked tid %lu at pass %lu depth %lu\n", get_cur_thread()->tid, pass, depth);
-
+#ifdef NAUT_CONFIG_ARCH_RISCV
+    hack = -1;
+    return;
+#else
     nk_thread_id_t l,r;
     
     if (depth==DEPTH) { 
@@ -287,6 +293,7 @@ _test_recursive_fork_join(uint64_t depth, uint64_t pass)
 	PRINT("Thread %lu joined with left and right threads at pass %lu depth %lu\n",get_cur_thread()->tid,pass,depth);
 	return ;
     }
+#endif
 }
 
 static int test_recursive_fork_join()

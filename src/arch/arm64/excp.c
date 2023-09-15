@@ -81,24 +81,26 @@ void route_exception(struct nk_regs *regs, struct excp_info *info, uint8_t el_fr
   unhandled_excp_handler(regs, info, el_from_same, sync, NULL);
 }
 
+struct nk_irq_dev *arm64_root_irq_dev = NULL;
+
+int arm64_set_root_irq_dev(struct nk_irq_dev *dev) {
+  if(arm64_root_irq_dev == NULL) {
+    arm64_root_irq_dev = dev;
+    return 0;
+  }
+  else {
+    return -1;
+  }
+}
+
 void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same) 
 {
-  struct nk_irq_dev *irq_dev = per_cpu_get(irq_dev);
-  
-  nk_hwirq_t hwirq;
-  nk_irq_dev_ack(irq_dev, &hwirq);
+  struct nk_irq_dev *irq_dev = arm64_root_irq_dev;
 
-  nk_irq_t irq = NK_NULL_IRQ;
-  if(nk_irq_dev_revmap(irq_dev, hwirq, &irq)) {
-    goto spurrious_irq;
+  if(nk_handle_interrupt_generic(NULL, regs, irq_dev)) {
+    // Nothing we can really do    
   }
 
-  struct nk_ivec_desc *desc = nk_irq_to_desc(irq);
-  nk_handle_irq_actions(desc, regs);
-
-  nk_irq_dev_eoi(irq_dev, hwirq);
-
-spurrious_irq:
   void *thread = NULL;
   if(per_cpu_get(in_timer_interrupt)) {
     thread = nk_sched_need_resched();

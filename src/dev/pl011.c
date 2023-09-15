@@ -403,7 +403,9 @@ int pl011_uart_init_one(struct nk_dev_info *info)
     goto err_exit;
   }
 
-  if(nk_dev_info_read_irq(info, &uart->irq)) {
+  uart->irq = nk_dev_info_read_irq(info, 0);
+
+  if(uart->irq == NK_NULL_IRQ) {
     ERROR("init_one: Failed to read IRQ!\n");
     goto err_exit;
   }
