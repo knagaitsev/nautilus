@@ -531,17 +531,17 @@ static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i
   mpid.aff3 = (typer.affinity>>24) & 0xFF;
 
   if(gicr_dev_cpu_map == NULL) {
-    gicr_dev_cpu_map = malloc(sizeof(struct nk_irq_dev *) * nk_num_cpu());
+    gicr_dev_cpu_map = malloc(sizeof(struct nk_irq_dev *) * nk_get_num_cpus());
     if(gicr_dev_cpu_map == NULL) {
       GIC_ERROR("Failed to allocate GICR device CPU map!\n");
       goto gicr_err_exit;
     }
-    memset(gicr_dev_cpu_map, 0, sizeof(struct nk_irq_dev *) * nk_num_cpu());
+    memset(gicr_dev_cpu_map, 0, sizeof(struct nk_irq_dev *) * nk_get_num_cpus());
   }
 
   cpu_id_t cpuid = mpidr_el1_to_cpu_id(&mpid);
-  if(cpuid > nk_num_cpu()) {
-    GIC_ERROR("GICR is trying to assign itself to a non-existant CPUID! (cpuid=%u) (num_cpus=%u)\n", cpuid, nk_num_cpu());
+  if(cpuid > nk_get_num_cpus()) {
+    GIC_ERROR("GICR is trying to assign itself to a non-existant CPUID! (cpuid=%u) (num_cpus=%u)\n", cpuid, nk_get_num_cpus());
     goto gicr_err_exit;
   }
 

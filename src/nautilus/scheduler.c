@@ -3458,11 +3458,8 @@ static inline void rt_thread_update_aperiodic(rt_thread *t, rt_scheduler *schedu
 // in nanoseconds
 static uint64_t cur_time()
 {
-    DEBUG("cur_time\n");
     uint64_t c = arch_read_timestamp();
-    DEBUG("cur_time c=%u\n", c);
     uint64_t t = arch_cycles_to_realtime(c);
-    DEBUG("cur_time t=%u\n", t);
     return t;
 }
 

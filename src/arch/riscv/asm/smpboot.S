@@ -13,12 +13,14 @@ ENTRY(init_smp_boot)
     sfence.vma zero, zero
 
     ld sp, secondary_core_stack
+
     # enable supervisor interrupts
     li      t0, SIE_SEIE | SIE_STIE | SIE_SSIE
     csrs    sie, t0
 
     la      t0, second_entry_ptr
     REG_L   t0, 0(t0)
+
     jr      t0
 
 .balign 8

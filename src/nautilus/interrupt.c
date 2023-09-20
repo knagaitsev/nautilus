@@ -191,7 +191,7 @@ int nk_set_irq_dev_percpu(cpu_id_t cpuid, nk_irq_t irq, struct nk_irq_dev *dev)
   }
 
   if(desc->per_cpu_irq_devs == NULL) {
-    desc->per_cpu_irq_devs = malloc(sizeof(struct nk_irq_dev*) * nk_num_cpu());
+    desc->per_cpu_irq_devs = malloc(sizeof(struct nk_irq_dev*) * nk_get_num_cpus());
     if(desc->per_cpu_irq_devs == NULL) {
       return -1;
     }

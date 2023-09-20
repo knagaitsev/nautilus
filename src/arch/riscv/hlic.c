@@ -23,7 +23,11 @@ struct hlic
 {
   nk_irq_t irq_base;
   struct nk_irq_desc *irq_descs;
+
+  nk_irq_t clint_timer_irq;
 };
+
+static struct hlic *global_hlic_ptr;
 
 static int hlic_dev_get_characteristics(void *state, struct nk_irq_dev_characteristics *c)
 {
@@ -168,6 +172,20 @@ static struct nk_dev_int timer_ops = {
   .close = 0
 };
 
+int hlic_percpu_init(void) {
+  if(global_hlic_ptr == NULL) {
+    HLIC_ERROR("Called hlic_percpu_init with NULL hlic!\n");
+    return -1;
+  }
+
+  if(CLINT(global_hlic_ptr)) {
+    nk_unmask_irq(global_hlic_ptr->clint_timer_irq);
+    HLIC_DEBUG("unmasked timer IRQ on CPU %u\n", my_cpu_id());
+  }
+
+  return 0;
+}
+
 int hlic_init(void) 
 { 
   int did_alloc = 0;
@@ -226,8 +244,8 @@ int hlic_init(void)
 
   // Set up the timer interrupt
   if(CLINT(hlic)) {
-    nk_irq_t timer_irq = NK_NULL_IRQ;
-    if(hlic_dev_revmap(hlic, 5, &timer_irq)) {
+    hlic->clint_timer_irq = NK_NULL_IRQ;
+    if(hlic_dev_revmap(hlic, 5, &hlic->clint_timer_irq)) {
       HLIC_ERROR("Could not revmap the riscv timer IRQ!\n");
       goto err_exit;
     }
@@ -239,11 +257,13 @@ int hlic_init(void)
       HLIC_ERROR("Failed to register timer dev!\n");
       goto err_exit;
     }
-    if(nk_irq_add_handler_dev(timer_irq, arch_timer_handler, NULL, (struct nk_dev*)timer_dev)) {
+    if(nk_irq_add_handler_dev(hlic->clint_timer_irq, arch_timer_handler, NULL, (struct nk_dev*)timer_dev)) {
       HLIC_ERROR("Failed to set arch timer handler!\n");
       goto err_exit;
     }
   }
+
+  global_hlic_ptr = hlic;
 
   HLIC_DEBUG("initialized %s\n",
       CLINT(hlic) ? "(in CLINT mode)" : "(in CLIC mode)");

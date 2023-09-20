@@ -12,6 +12,7 @@
 
 #define PLIC_INFO(fmt, args...)     INFO_PRINT("[PLIC] " fmt, ##args)
 #define PLIC_DEBUG(fmt, args...)    DEBUG_PRINT("[PLIC] " fmt, ##args)
+#define PLIC_WARN(fmt, args...)    WARN_PRINT("[PLIC] " fmt, ##args)
 #define PLIC_ERROR(fmt, args...)    ERROR_PRINT("[PLIC] " fmt, ##args)
 
 #define MREG(plic_ptr, x) *((uint32_t *)((plic_ptr)->mmio_base + (uint64_t)(x)))
@@ -31,13 +32,15 @@
 #define PLIC_CONTEXT_CLAIM 0x4U
 
 #define PLIC_PRIORITY(plic_ptr, n) (PLIC_PRIORITY_OFFSET + (n) * sizeof(uint32_t))
-#define PLIC_ENABLE(plic_ptr, n, h) ((uint64_t)(plic_ptr)->contexts[h].enable_offset + ((n) / 32) * sizeof(uint32_t))
+#define PLIC_ENABLE(ctx_ptr, irq) ((ctx_ptr)->enable_offset + ((irq) / 32) * sizeof(uint32_t))
 #define PLIC_THRESHOLD(plic_ptr, h) ((uint64_t)(plic_ptr)->contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
 #define PLIC_CLAIM(plic_ptr, h) ((uint64_t)(plic_ptr)->contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
 
 #define PLIC_BASE_HWIRQ 1
 
 #define MAX_NUM_PLICS 1
+
+#define PLIC_SMODE_HLIC_HWIRQ 9
 
 struct sifive_plic *global_plic_array[MAX_NUM_PLICS];
 
@@ -60,6 +63,15 @@ struct sifive_plic
   nk_irq_t irq_base;
   struct nk_irq_desc *irq_descs;
 };
+
+static int plic_context_is_supervisor(struct sifive_plic_context *ctx) 
+{
+  if(ctx->irq == PLIC_SMODE_HLIC_HWIRQ) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
 
 static int plic_dev_get_characteristics(void *state, struct nk_irq_dev_characteristics *c)
 {
@@ -117,7 +129,7 @@ static int plic_dev_eoi_irq(void *state, nk_hwirq_t hwirq)
 }
 
 // KJH - Why is priority unused?
-static void plic_toggle(struct sifive_plic *plic, int hart, int hwirq, int priority, bool_t enable) 
+static void plic_toggle(struct sifive_plic *plic, int hwirq, bool_t enable) 
 {
     if (hwirq == 0) return;
 
@@ -128,30 +140,40 @@ static void plic_toggle(struct sifive_plic *plic, int hart, int hwirq, int prior
     MREG(plic, 4 * hwirq) = 7;
 
     uint32_t mask = (1 << (hwirq % 32));
-    uint32_t val = MREG(plic, PLIC_ENABLE(plic, hwirq, hart));
 
-    // printk("Hart: %d, hwirq: %d, v1: %d\n", hart, hwirq, val);
-    if (enable)
-        val |= mask;
-    else
-        val &= ~mask;
+    for(int i = 0; i < plic->num_contexts; i++) 
+    {
+      struct sifive_plic_context *ctx = &plic->contexts[i];
 
-    //printk("Hart: %d, hwirq: %d, irq: %x, *irq: %x\n", hart, hwirq, &MREG(PLIC_ENABLE(plic, hwirq, hart)), val);
+      if(!plic_context_is_supervisor(ctx)) {
+        continue;
+      }
 
-    MREG(plic, PLIC_ENABLE(plic, hwirq, hart)) = val;
+      uint32_t val = MREG(plic, PLIC_ENABLE(ctx, hwirq));
+
+      // printk("Hart: %d, hwirq: %d, v1: %d\n", hart, hwirq, val);
+      if (enable)
+          val |= mask;
+      else
+          val &= ~mask;
+
+      //printk("Hart: %d, hwirq: %d, irq: %x, *irq: %x\n", hart, hwirq, &MREG(PLIC_ENABLE(plic, hwirq, hart)), val);
+
+      MREG(plic, PLIC_ENABLE(ctx, hwirq)) = val;
+    }
 }
 
 static int plic_dev_enable_irq(void *state, nk_hwirq_t hwirq) 
 {
   struct sifive_plic *plic = (struct sifive_plic*)state;
-  plic_toggle(plic, my_cpu_id(), hwirq, 0, 1);
+  plic_toggle(plic, hwirq, 1);
   return 0;
 }
 
 static int plic_dev_disable_irq(void *state, nk_hwirq_t hwirq) 
 {
   struct sifive_plic *plic = (struct sifive_plic*)state; 
-  plic_toggle(plic, my_cpu_id(), hwirq, 0, 0);
+  plic_toggle(plic, hwirq, 0);
   return 0;
 }
 
@@ -161,12 +183,25 @@ static int plic_dev_irq_status(void *state, nk_hwirq_t hwirq)
 
   int status = 0;
 
-  uint32_t enable_val = MREG(plic, PLIC_ENABLE(plic, hwirq, my_cpu_id()));
+  struct sifive_plic_context *ctx = NULL;
+  for(int i = 0; i < plic->num_contexts; i++) {
+    if(plic_context_is_supervisor(&plic->contexts[i])) {
+      ctx = &plic->contexts[i];
+      break;
+    }
+  }
 
-  status |= enable_val & (1<<(hwirq % 32)) ?
+  if(ctx == NULL) {
+    // BAD
+    return IRQ_STATUS_ERROR;
+  }
+
+  uint32_t enable_val = MREG(plic, PLIC_ENABLE(ctx, hwirq));
+
+  status |= enable_val & (1ULL<<(hwirq % 32)) ?
     IRQ_STATUS_ENABLED : 0;
 
-  status |= MREG(plic, PLIC_PENDING_OFFSET) ?
+  status |= MREG(plic, PLIC_PENDING_OFFSET) & (1ULL<<(hwirq % 64)) ?
     IRQ_STATUS_PENDING : 0;
 
   // KJH - No idea how to get this right now (Possible we can't)
@@ -264,7 +299,7 @@ static int plic_init_dev_info(struct nk_dev_info *info)
 
   PLIC_DEBUG("plic->irq_base = %u\n", plic->irq_base);
 
-  plic->irq_descs = nk_alloc_irq_descs(plic->num_irqs, PLIC_BASE_HWIRQ, NK_IRQ_DESC_FLAG_PERCPU, dev);
+  plic->irq_descs = nk_alloc_irq_descs(plic->num_irqs, PLIC_BASE_HWIRQ, 0, dev);
   if(plic->irq_descs == NULL) {
     PLIC_ERROR("Failed to allocate IRQ descriptors!\n");
     goto err_exit;
@@ -286,20 +321,43 @@ static int plic_init_dev_info(struct nk_dev_info *info)
     goto err_exit;
   }
   did_context_alloc = 1;
+
+  int smode_handler_set = 0;
   
   for(int i = 0; i < plic->num_contexts; i++) {
     plic->contexts[i].irq = nk_dev_info_read_irq(info, i);
+
     if(plic->contexts[i].irq == NK_NULL_IRQ) {
-      PLIC_DEBUG("Context (%u) does not exist\n");
+      PLIC_DEBUG("Context (%u) does not exist\n", i);
       continue;
+    }
+
+    if(!smode_handler_set) {
+      struct nk_irq_desc *desc = nk_irq_to_desc(plic->contexts[i].irq);
+      if(desc != NULL) {
+        if(desc->hwirq == PLIC_SMODE_HLIC_HWIRQ) {
+  
+          // Register the supervisor interrupt handler
+          if(nk_irq_add_handler_dev(plic->contexts[i].irq, plic_interrupt_handler, (void*)plic, (struct nk_dev*)dev)) {
+            PLIC_ERROR("Failed to assign IRQ handler to context (%u)!\n");
+            goto err_exit;
+          }
+          nk_unmask_irq(plic->contexts[i].irq);
+
+          smode_handler_set = 1; 
+        }
+      } else {
+        // Weird
+        PLIC_WARN("PLIC read IRQ without interrupt descriptor (irq=%u)!\n", plic->contexts[i].irq);
+      }
     }
     plic->contexts[i].enable_offset = (void*)(uint64_t)(PLIC_ENABLE_OFFSET + (i * PLIC_ENABLE_STRIDE)); 
     plic->contexts[i].context_offset = (void*)(uint64_t)(PLIC_CONTEXT_OFFSET + (i * PLIC_CONTEXT_STRIDE));
-    if(nk_irq_add_handler_dev(plic->contexts[i].irq, plic_interrupt_handler, (void*)plic, (struct nk_dev*)dev)) {
-      PLIC_ERROR("Failed to assign IRQ handler to context (%u)!\n");
-      goto err_exit;
-    }
-    nk_unmask_irq(plic->contexts[i].irq);
+  }
+
+  if(!smode_handler_set) {
+    PLIC_ERROR("Could not find HLIC hwirq %u!\n", PLIC_SMODE_HLIC_HWIRQ);
+    goto err_exit;
   }
 
   PLIC_DEBUG("initialized globally!\n");

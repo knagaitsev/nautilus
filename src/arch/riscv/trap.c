@@ -14,6 +14,7 @@ static void print_regs(struct nk_regs *r) {
     printk("Occurred before percpu system is active!\n");
   }
   else {
+    printk("HART = %u\n", my_cpu_id());
     printk("Current Thread=0x%x (%p) \"%s\"\n",
       get_cur_thread() ? get_cur_thread()->tid : -1,
       get_cur_thread() ? (void*)get_cur_thread() :  NULL,

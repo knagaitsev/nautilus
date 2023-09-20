@@ -1953,6 +1953,9 @@ int nk_vc_init()
     return -1;
   }
 
+  // REMOVE ME
+  default_vc = log_vc;
+
   list_vc = nk_create_vc("vc-list", COOKED, 0xf9, 0, 0);
   if(!list_vc) {
     ERROR("Cannot create vc list console...\n");

@@ -134,6 +134,8 @@ bool_t second_done = false;
 
 void secondary_entry(int hartid) 
 {
+  w_tp(0);
+
   printk("RISCV: hart %d started!\n", hartid);
 
   struct naut_info *naut = &nautilus_info;
@@ -145,26 +147,37 @@ void secondary_entry(int hartid)
   // Write supervisor trap vector location
   trap_init();
 
+  if(hlic_percpu_init()) {
+    panic("Failed to initialize the HLIC locally for CPU %u!\n", my_cpu_id());
+  }
+
 #ifdef NAUT_CONFIG_SIFIVE_PLIC
   /* Initialize the platform level interrupt controller for this HART */
   if(plic_percpu_init()) {
-    panic("Failed to initialize the PLIC locally for the CPU %u!\n", my_cpu_id()); 
+    panic("Failed to initialize the PLIC locally for CPU %u!\n", my_cpu_id()); 
   }
 #endif
+
+  nk_rand_init(naut->sys.cpus[hartid]);
 
   nk_sched_init_ap(&sched_cfg);
 
   /* set the timer with sbi :) */
   // sbi_set_timer(rv::get_time() + TICK_INTERVAL);
+  sbi_set_timer(read_csr(time) + TICK_INTERVAL);
 
   second_done = true;
 
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+  printk("hart %u swapped stacks\n", hartid);
 
   nk_sched_start();
 
+  printk("started scheduling on hart %u\n", hartid);
+
   arch_enable_ints();
 
+  printk("hart %u idling...\n", hartid);
   idle(NULL, NULL);
 }
 
@@ -309,7 +322,10 @@ void init(unsigned long hartid, unsigned long fdt) {
   /* mm_boot_kmem_cleanup(); */
 
   if(hlic_init()) {
-    panic("failed to inialize the HLIC!\n");
+    panic("failed to initialize the HLIC!\n");
+  }
+  if(hlic_percpu_init()) {
+    panic("failed to initialize the HLIC on BSP!\n");
   }
 
 #ifdef NAUT_CONFIG_SIFIVE_PLIC
@@ -333,9 +349,9 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   start_secondary(&(naut->sys));
 
-  nk_vc_init();
+  nk_sched_start();
 
-  printk("past vc\n");
+  nk_vc_init();
 
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
   nk_vc_start_chardev_console(chardev_name);
@@ -350,7 +366,7 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   // nk_pmc_init();
 
-  nk_cmdline_init(naut);
+  //nk_cmdline_init(naut);
   // nk_test_init(naut);
 
   // kick off the timer subsystem by setting a timer sometime in the future
@@ -358,8 +374,6 @@ void init(unsigned long hartid, unsigned long fdt) {
 
   // sifive_test();
   /* my_monitor_entry(); */
-
-  nk_sched_start();
 
   nk_launch_shell("root-shell",0,0,0);
   //execute_threading(NULL);

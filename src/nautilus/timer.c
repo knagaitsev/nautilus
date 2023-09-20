@@ -440,11 +440,11 @@ uint64_t nk_timer_handler (void)
     DEBUG("update: earliest is %llu\n",earliest);
 
     now = nk_sched_get_realtime();
-#ifdef NAUT_CONFIG_ARCH_RISCV
-    return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
-#else
+//#ifdef NAUT_CONFIG_ARCH_RISCV
+//    return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
+//#else
     return earliest > now ? earliest-now : 0;
-#endif
+//#endif
 }
 
 
