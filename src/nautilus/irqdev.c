@@ -166,7 +166,7 @@ int nk_irq_dev_translate(struct nk_irq_dev *dev, nk_dev_info_type_t type, void *
     return -1;
   }
 #else
-  return di->translate_irq(d->state, raw_irq, out_hwirq);
+  return di->translate(d->state, type, raw_irq, out_hwirq);
 #endif
 }
 

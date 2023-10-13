@@ -92,17 +92,14 @@ int arch_numa_init(struct sys_info *sys) {
 void arch_print_regs(struct nk_regs * r) {
 
     printk("RA:  %016lx SP:  %016lx\n", r->ra, r->sp);
-    printk("GP:  %016lx TP:  %016lx\n", r->gp, r->tp);
+    //printk("GP:  %016lx TP:  %016lx\n", r->gp, r->tp);
+    printk("A00: %016lx A01: %016lx A02: %016lx\n", r->a0, r->a1, r->a2);
+    printk("A03: %016lx A04: %016lx A05: %016lx\n", r->a3, r->a4, r->a5);
+    printk("A06: %016lx A07: %016lx\n", r->a6, r->a7);
     printk("T00: %016lx T01: %016lx T02: %016lx\n", r->t0, r->t1, r->t2);
-    printk("S00: %016lx S01: %016lx A00: %016lx\n", r->s0, r->s1, r->a0);
-    printk("A01: %016lx A02: %016lx A03: %016lx\n", r->a1, r->a2, r->a3);
-    printk("A04: %016lx A05: %016lx A06: %016lx\n", r->a4, r->a5, r->a6);
-    printk("A07: %016lx S02: %016lx S03: %016lx\n", r->a7, r->s2, r->s3);
-    printk("S04: %016lx S05: %016lx S06: %016lx\n", r->s4, r->s5, r->s6);
-    printk("S07: %016lx S08: %016lx S09: %016lx\n", r->s7, r->s8, r->s9);
-    printk("S10: %016lx S11: %016lx T03: %016lx\n", r->s10, r->s11, r->t3);
-    printk("T04: %016lx T05: %016lx T06: %016lx\n", r->t4, r->t5, r->t6);
-
+    printk("T03: %016lx T04: %016lx T05: %016lx\n", r->t4, r->t5, r->t6);
+    printk("T06: %016lx T07: %016lx\n", r->t6, r->t7);
+    printk("ZERO: %016lx\n", r->__zero);
 }
 
 void * arch_read_sp(void) {

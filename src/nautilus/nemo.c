@@ -26,6 +26,7 @@
 #include <nautilus/percpu.h>
 #include <nautilus/mm.h>
 #include <nautilus/naut_assert.h>
+#include <nautilus/interrupt.h>
 
 #ifdef NAUT_CONFIG_ARCH_X86
 #include <arch/x64/irq.h>

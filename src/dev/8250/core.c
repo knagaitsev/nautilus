@@ -91,16 +91,16 @@ int generic_8250_set_baud_rate(struct uart_port *port, unsigned int baud_rate)
   uart_8250_write_reg(p,UART_8250_LCR,lcr|UART_8250_LCR_DLAB);
 
   // TODO: Support Baudrates other than 115200
-#ifdef NAUT_CONFIG_DW_8250_UART_EARLY_OUTPUT
+//#ifdef NAUT_CONFIG_DW_8250_UART_EARLY_OUTPUT
   // KJH - HACK the rockpro clock system is complicated so getting the baudrate right is very difficult
   // luckily, U-Boot can use the UART for output too, and so we can just leave the baud rate alone
-#else
-  if(baud_rate != 115200) {
-    return -1;
-  }
-  uart_8250_write_reg(p, UART_8250_DLL, 1);
-  uart_8250_write_reg(p, UART_8250_DLH, 0);
-#endif
+//#else
+//  if(baud_rate != 115200) {
+//    return -1;
+//  }
+//  uart_8250_write_reg(p, UART_8250_DLL, 1);
+//  uart_8250_write_reg(p, UART_8250_DLH, 0);
+//#endif
 
   // Restore LCR
   uart_8250_write_reg(p,UART_8250_LCR,lcr);

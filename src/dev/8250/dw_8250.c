@@ -35,6 +35,8 @@ static int dw_8250_handle_irq(struct uart_8250_port *uart, unsigned int iir)
 {
   unsigned int iir_reason = iir & 0xF;
 
+  generic_8250_direct_putchar(uart, '$');
+
   if(iir_reason == UART_8250_IIR_RECV_TIMEOUT) {
     if(uart_8250_recv_empty(uart)) {
       // Timeout with empty recv buffer,

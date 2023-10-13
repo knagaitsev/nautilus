@@ -1,4 +1,4 @@
-#include <asm/lowlevel.h>
+#include <arch/riscv/asm/lowlevel.h>
 
 /*
     rax = nk_lowlevel_memset(rdi=dest, rsi=src, rdx=count)

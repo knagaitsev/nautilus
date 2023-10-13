@@ -3,7 +3,7 @@
 # Nick Wanninger
 # 29 December, 2020
 
-#include <asm/lowlevel.h>
+#include <arch/riscv/asm/lowlevel.h>
 
 /* Status register flags */
 #define SR_SIE		(0x00000002UL) /* Supervisor Interrupt Enable */
@@ -120,43 +120,30 @@ secondary_core_stack:
 GLOBAL(kernel_vec)
 
     # make room to save registers.
-    addi sp, sp, -288 # 38 registers
+    #addi sp, sp, -288 # 38 registers
 
     # save the registers.
-    sd ra, 0(sp)
-    sd sp, 8(sp)
-    sd gp, 16(sp)
-    sd tp, 24(sp)
-    sd t0, 32(sp)
-    sd t1, 40(sp)
-    sd t2, 48(sp)
-    sd s0, 56(sp)
-    sd s1, 64(sp)
-    sd a0, 72(sp)
-    sd a1, 80(sp)
-    sd a2, 88(sp)
-    sd a3, 96(sp)
-    sd a4, 104(sp)
-    sd a5, 112(sp)
-    sd a6, 120(sp)
-    sd a7, 128(sp)
-    sd s2, 136(sp)
-    sd s3, 144(sp)
-    sd s4, 152(sp)
-    sd s5, 160(sp)
-    sd s6, 168(sp)
-    sd s7, 176(sp)
-    sd s8, 184(sp)
-    sd s9, 192(sp)
-    sd s10, 200(sp)
-    sd s11, 208(sp)
-    sd t3, 216(sp)
-    sd t4, 224(sp)
-    sd t5, 232(sp)
-    sd t6, 240(sp)
+    SAVE_CALLER_GPRS()
 
     # call the C trap handler in idt.c
-    move a0, sp /* arg0 <- trapframe */
+    move a0, sp /* arg0 <- nk_regs */
+
+    # Save trap registers (so they can be restored if we swap threads)
+    addi sp, sp, -(6 * 8)
+    csrr t0, sepc
+    REG_S t0, ROFF(0, sp)
+    csrr t0, sstatus
+    REG_S t0, ROFF(1, sp)
+    csrr t0, stval
+    REG_S t0, ROFF(2, sp)
+    csrr t0, scause
+    REG_S t0, ROFF(3, sp)
+    csrr t0, sscratch
+    REG_S t0, ROFF(4, sp)
+    csrr t0, sbadaddr
+    REG_S t0, ROFF(5, sp)
+    move a1, sp /* arg1 <- tregs */
+
     call kernel_trap
 
     li t0, 0
@@ -166,40 +153,22 @@ GLOBAL(kernel_vec)
     call nk_thread_switch
 
 after_switch:
-    # restore registers.
-    ld ra, 0(sp)
-    # ld sp, 8(sp)
-    ld gp, 16(sp)
-    # not this, in case we moved CPUs: ld tp, 24(sp)
-    ld t0, 32(sp)
-    ld t1, 40(sp)
-    ld t2, 48(sp)
-    ld s0, 56(sp)
-    ld s1, 64(sp)
-    ld a0, 72(sp)
-    ld a1, 80(sp)
-    ld a2, 88(sp)
-    ld a3, 96(sp)
-    ld a4, 104(sp)
-    ld a5, 112(sp)
-    ld a6, 120(sp)
-    ld a7, 128(sp)
-    ld s2, 136(sp)
-    ld s3, 144(sp)
-    ld s4, 152(sp)
-    ld s5, 160(sp)
-    ld s6, 168(sp)
-    ld s7, 176(sp)
-    ld s8, 184(sp)
-    ld s9, 192(sp)
-    ld s10, 200(sp)
-    ld s11, 208(sp)
-    ld t3, 216(sp)
-    ld t4, 224(sp)
-    ld t5, 232(sp)
-    ld t6, 240(sp)
+    REG_L t0, ROFF(0, sp)
+    csrw sepc, t0
+    REG_L t0, ROFF(1, sp)
+    csrw sstatus, t0
+    REG_L t0, ROFF(2, sp)
+    csrw stval, t0
+    REG_L t0, ROFF(3, sp)
+    csrw scause, t0
+    REG_L t0, ROFF(4, sp)
+    csrw sscratch, t0
+    REG_L t0, ROFF(5, sp)
+    csrw sbadaddr, t0
+    addi sp, sp, (6 * 8)
 
-    addi sp, sp, 288
+    # restore registers.
+    RESTORE_CALLER_GPRS()
 
     # return to whatever we were doing in the kernel.
     sret

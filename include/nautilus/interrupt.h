@@ -93,7 +93,6 @@ struct nk_irq_desc {
   // vector.
   struct nk_irq_action action;
   uint32_t num_actions;
-  uint32_t num_unmasked_actions;
 
   spinlock_t lock;
 

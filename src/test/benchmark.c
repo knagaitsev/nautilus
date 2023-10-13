@@ -51,6 +51,7 @@
 #include <nautilus/nemo.h>
 #include <nautilus/pmc.h>
 #include <nautilus/shell.h>
+#include <nautilus/interrupt.h>
 
 #endif
 

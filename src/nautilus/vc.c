@@ -1701,7 +1701,7 @@ static void chardev_console(void *in, void **out)
 
     struct chardev_console *c = (struct chardev_console *)in;
 
-    DEBUG("Trying to find chardev: %s\n", c->name);
+    printk("Trying to find chardev: %s\n", c->name);
     c->dev = nk_char_dev_find(c->name);
 
     if (!c->dev) {
@@ -1953,7 +1953,6 @@ int nk_vc_init()
     return -1;
   }
 
-  // REMOVE ME
   default_vc = log_vc;
 
   list_vc = nk_create_vc("vc-list", COOKED, 0xf9, 0, 0);

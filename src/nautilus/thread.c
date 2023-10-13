@@ -252,14 +252,22 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
   }
 
 #ifdef NAUT_CONFIG_ARCH_RISCV
-#define GPR_SAVE_SIZE      31*8
-#define GPR_RDI_OFFSET     176
+#define CALLER_GPR_SAVE_SIZE (18*8)
+#define INTR_RET_ADDR_SAVE_SIZE (2*8)
+#define CALLEE_GPR_SAVE_SIZE (12*8)
+#define GPR_SAVE_SIZE (CALLER_GPR_SAVE_SIZE+INTR_RET_ADDR_SAVE_SIZE+CALLEE_GPR_SAVE_SIZE)
+#define GPR_A0_OFFSET (CALLER_GPR_SAVE_SIZE-(8*8))
+#define GPR_RA_OFFSET (CALLER_GPR_SAVE_SIZE-(8*0))
+#define INTR_RET_OFFSET ((CALLER_GPR_SAVE_SIZE+INTR_RET_ADDR_SAVE_SIZE)-(8*0))
+
     if (fun) {
         thread_push(t, (uint64_t)&thread_cleanup);
         thread_push(t, (uint64_t)fun);
-        thread_push(t, (uint64_t)0);
-        *(uint64_t*)(t->rsp-GPR_RDI_OFFSET) = (uint64_t)arg;
-        *(uint64_t*)(t->rsp-GPR_SAVE_SIZE)  = (uint64_t)nk_thread_entry;
+        *(uint64_t*)(t->rsp-GPR_A0_OFFSET) = (uint64_t)arg;
+        *(uint64_t*)(t->rsp-GPR_RA_OFFSET)  = (uint64_t)nk_thread_entry;
+        *(uint64_t*)(t->rsp-INTR_RET_OFFSET) = (uint64_t)0;
+        // KJH - TODO save riscv interrupt state (yielding with interrupts off
+        // will cause issues right now as far as I can tell)
     }
 
 #elif NAUT_CONFIG_ARCH_X86
@@ -315,7 +323,7 @@ thread_setup_init_stack (nk_thread_t * t, nk_thread_fun_t fun, void * arg)
         *(uint64_t*)(t->rsp-GPR_X0_OFFSET) = (uint64_t)arg;
         *(uint64_t*)(t->rsp-GPR_LR_OFFSET)  = (uint64_t)nk_thread_entry;
         *(uint64_t*)(t->rsp-INTERRUPT_RETURN_OFFSET) = (uint64_t)0;
-        *(uint64_t*)(t->rsp-DAIF_OFFSET) = (uint64_t)0b1011;
+        *(uint64_t*)(t->rsp-DAIF_OFFSET) = (uint64_t)0b1111;
     }
 #endif
 

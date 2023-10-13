@@ -122,7 +122,7 @@ static char *dt_node_get_name(void *state)
   struct dt_node *node = (struct dt_node *)state;
 
   int lenp;
-  const char *name = fdt_get_name(node->dtb, node->dtb_offset, &lenp);
+  char *name = fdt_get_name(node->dtb, node->dtb_offset, &lenp);
 
   if(name == NULL || lenp < 0) {
     return NULL;
@@ -145,7 +145,7 @@ static int dt_node_read_int_array(void *state, const char *prop_name, int elem_s
 {
   struct dt_node *node = (struct dt_node *)state;
 
-  const struct fdt_property *prop = fdt_get_property(node->dtb, node->dtb_offset, prop_name, NULL);
+  struct fdt_property *prop = fdt_get_property(node->dtb, node->dtb_offset, prop_name, NULL);
 
   if(prop == NULL) {
     return -1;
@@ -186,7 +186,7 @@ static int dt_node_read_string_array(void *state, const char *prop_name, char **
   for(int i = 0; i < *buf_count; i++) 
   {
     int lenp;
-    const char *str = fdt_stringlist_get(node->dtb, node->dtb_offset, prop_name, i, &lenp);
+    char *str = fdt_stringlist_get(node->dtb, node->dtb_offset, prop_name, i, &lenp);
 
     if(lenp < 0) {
       return lenp;   

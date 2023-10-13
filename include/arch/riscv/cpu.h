@@ -23,16 +23,17 @@
 #ifdef __CPU_H__
 
 struct nk_regs {
-  uint64_t ra; /* x1: Return address */
-  uint64_t sp; /* x2: Stack pointer */
-  uint64_t gp; /* x3: Global pointer */
-  uint64_t tp; /* x4: Thread Pointer */
-  uint64_t t0; /* x5: Temp 0 */
-  uint64_t t1; /* x6: Temp 1 */
-  uint64_t t2; /* x7: Temp 2 */
-  uint64_t s0; /* x8: Saved register / Frame Pointer */
-  uint64_t s1; /* x9: Saved register */
-  uint64_t a0; /* Arguments, you get it :) */
+
+  uint64_t ra;
+  uint64_t t0;
+  uint64_t t1;
+  uint64_t t2;
+  uint64_t t3;
+  uint64_t t4;
+  uint64_t t5;
+  uint64_t t6;
+  uint64_t t7;
+  uint64_t a0;
   uint64_t a1;
   uint64_t a2;
   uint64_t a3;
@@ -40,28 +41,9 @@ struct nk_regs {
   uint64_t a5;
   uint64_t a6;
   uint64_t a7;
-  uint64_t s2; /* More Saved registers... */
-  uint64_t s3;
-  uint64_t s4;
-  uint64_t s5;
-  uint64_t s6;
-  uint64_t s7;
-  uint64_t s8;
-  uint64_t s9;
-  uint64_t s10;
-  uint64_t s11;
-  uint64_t t3; /* More temporaries */
-  uint64_t t4;
-  uint64_t t5;
-  uint64_t t6;
+  uint64_t sp;
+  uint64_t __zero;
 
-  /* Exception PC */
-  uint64_t sepc;    /* 31 */
-  uint64_t status;  /* 32 */
-  uint64_t tval;    /* 33 */
-  uint64_t cause;   /* 34 */
-  uint64_t scratch; /* 35 */
-  /* Missing floating point registers in the kernel trap frame */
 };
 
 #define pause()       asm volatile("nop");

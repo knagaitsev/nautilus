@@ -1,4 +1,4 @@
-#include <asm/lowlevel.h>
+#include <arch/riscv/asm/lowlevel.h>
 
 #define SIE_SEIE (1L << 9)  // external
 #define SIE_STIE (1L << 5)  // timer

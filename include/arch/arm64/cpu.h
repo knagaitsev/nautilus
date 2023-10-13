@@ -22,7 +22,8 @@
  */
 #ifdef __CPU_H__
 
-struct nk_regs {
+struct nk_regs 
+{
   uint64_t x0;
   uint64_t x1;
   uint64_t x2;
@@ -45,9 +46,9 @@ struct nk_regs {
   uint64_t frame_ptr;
   uint64_t link_ptr;
   uint64_t sp;
-
+  
   // Extended registers, only exist on the stack of 
-  // a preempted thread on on unhandled exception
+  // a thread which isn't being run or an unhandled exception
   uint64_t x19;
   uint64_t x20;
   uint64_t x21;

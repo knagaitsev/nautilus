@@ -43,6 +43,7 @@ extern void apic_do_eoi();
 
 extern nk_irq_t x86_irq_vector_base;
 
+int x86_irq_vector_init (struct sys_info * sys);
 inline static nk_irq_t x86_vector_to_irq(nk_hwirq_t vector)
 {
   if(x86_irq_vector_base == NK_NULL_IRQ) {

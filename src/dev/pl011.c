@@ -7,6 +7,7 @@
 #include<nautilus/of/fdt.h>
 #include<nautilus/backtrace.h>
 #include<nautilus/iomap.h>
+#include<nautilus/interrupt.h>
 
 #include<nautilus/of/dt.h>
 
