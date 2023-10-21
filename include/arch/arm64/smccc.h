@@ -15,21 +15,40 @@
 #define SMCCC_CALL_TYPE_SH_SERV 5
 #define SMCCC_CALL_TYPE_VSH_SERV 6
 
-#define SMCCC_INSTRUCTION_USED smc
-#define SMCCC_DECL_64
-// smc64_call_n_n()
-#include "./smccc/permute.h"
-#undef SMCCC_DECL_64
-// smc32_call_n_n()
-#include "./smccc/permute.h"
+void smc64_call(
+    uint16_t id,
+    uint8_t type,
+    uint64_t *args,
+    uint64_t arg_count;
+    uint64_t *rets, 
+    uint64_t ret_count;
+    );
 
-#undef SMCCC_INSTRUCTION_USED
-#define SMCCC_INSTRUCTION_USED hvc
-#define SMCCC_DECL_64
-// hvc64_call_n_n()
-#include "./smccc/permute.h"
-#undef SMCCC_DECL_64
-// hvc32_call_n_n()
-#include "./smccc/permute.h"
+void hvc64_call(
+    uint16_t id,
+    uint8_t type,
+    uint64_t *args,
+    uint64_t arg_count;
+    uint64_t *rets, 
+    uint64_t ret_count;
+    );
+
+void smc32_call(
+    uint16_t id,
+    uint8_t type,
+    uint32_t *args,
+    uint64_t arg_count;
+    uint32_t *rets, 
+    uint64_t ret_count;
+    );
+
+void hvc32_call(
+    uint16_t id,
+    uint8_t type,
+    uint32_t *args,
+    uint64_t arg_count;
+    uint32_t *rets, 
+    uint64_t ret_count;
+    );
 
 #endif

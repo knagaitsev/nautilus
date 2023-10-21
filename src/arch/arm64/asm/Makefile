@@ -7,3 +7,4 @@ obj-y += \
 	iv_table.o \
 	excp_entry.o \
 	mmu.o \
+	smccc.o

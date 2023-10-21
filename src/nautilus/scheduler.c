@@ -4666,7 +4666,7 @@ static int start_reaper()
 {
   nk_thread_id_t tid;
 
-  if (nk_thread_start(reaper, 0, 0, 1, REAPER_THREAD_STACK_SIZE, &tid, 0)) {
+  if (nk_thread_start(reaper, 0, 0, 1, REAPER_THREAD_STACK_SIZE, &tid, my_cpu_id())) {
       ERROR("Failed to start reaper thread\n");
       return -1;
   }

@@ -350,12 +350,14 @@ void init(unsigned long hartid, unsigned long fdt) {
   start_secondary(&(naut->sys));
 
   nk_sched_start();
-
+/*
   nk_vc_init();
 
 #ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
   nk_vc_start_chardev_console(chardev_name);
 #endif 
+*/
+
 
   nk_fs_init();
 
@@ -375,8 +377,10 @@ void init(unsigned long hartid, unsigned long fdt) {
   // sifive_test();
   /* my_monitor_entry(); */
 
-  nk_launch_shell("root-shell",0,0,0);
+//  nk_launch_shell("root-shell",0,0,0);
   //execute_threading(NULL);
+
+  execute_threading(NULL);
 
   printk("Nautilus boot thread yielding (indefinitely)\n");
 
@@ -437,7 +441,6 @@ static void print_ones(void)
 {
     while (!done) {
         printk("1");
-        nk_yield();
     }
 }
 
@@ -445,7 +448,6 @@ static void print_twos(void)
 {
     while (!done) {
         printk("2");
-        nk_yield();
     }
 }
 

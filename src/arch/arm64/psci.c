@@ -31,9 +31,11 @@ int psci_version(uint16_t *major, uint16_t *minor) {
   CHECK_PSCI_VALID(-1);
   uint32_t ver;
   if(use_hvc) { 
-    ver = hvc32_call_0_0(0x84000000, SMCCC_CALL_TYPE_SS_SERV);
+    uint32_t ver;
+    hvc32_call(0x0, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, &ver, 1);
   } else {
-    ver = smc32_call_0_0(0x84000000, SMCCC_CALL_TYPE_SS_SERV);
+    uint32_t ver;
+    smc32_call(0x0, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, &ver, 1);
   }
   *major = (ver>>16) & 0xFFFF;
   *minor = ver & 0xFFFF;
@@ -43,10 +45,14 @@ int psci_version(uint16_t *major, uint16_t *minor) {
 int psci_cpu_on(uint64_t target_mpid, void *entry_point, uint64_t context_id) { 
   CHECK_PSCI_VALID(-1);
   uint64_t res;
+  uint64_t args[3];
+  args[0] = target_mpid;
+  args[1] = (uint64_t)entry_point;
+  args[2] = context_id;
   if(use_hvc) {
-    res = hvc64_call_0_3(0xC4000003, SMCCC_CALL_TYPE_SS_SERV, target_mpid, (uint64_t)entry_point, context_id);
+    hvc64_call(0x3, SMCCC_CALL_TYPE_SS_SERV, args, 3, &res, 1);
   } else {
-    res = smc64_call_0_3(0xC4000003, SMCCC_CALL_TYPE_SS_SERV, target_mpid, (uint64_t)entry_point, context_id);
+    smc64_call(0x3, SMCCC_CALL_TYPE_SS_SERV, args, 3, &res, 1);
   }
 
   switch(res) {
@@ -82,22 +88,22 @@ int psci_cpu_off(void) {
   CHECK_PSCI_VALID(-1);
   uint32_t res;
   if(use_hvc) {
-    res = hvc32_call_0_0(0x84000002, SMCCC_CALL_TYPE_SS_SERV);
+    hvc32_call(0x2, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, &res, 1);
   } else {
-    res = smc32_call_0_0(0x84000002, SMCCC_CALL_TYPE_SS_SERV);
+    smc32_call(0x2, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, &res, 1);
   }
   return res;
 }
 int psci_system_off(void) {
-  smc32_call_0_0(0x84000008, SMCCC_CALL_TYPE_SS_SERV);
+  smc32_call(0x8, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, NULL, 0);
   return -1;
 }
 int psci_system_reset(void) {
   CHECK_PSCI_VALID(-1);
   if(use_hvc) {
-    hvc32_call_0_0(0x84000009, SMCCC_CALL_TYPE_SS_SERV);
+    hvc32_call(0x9, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, NULL, 0);
   } else {
-    smc32_call_0_0(0x84000009, SMCCC_CALL_TYPE_SS_SERV);
+    smc32_call(0x9, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, NULL, 0);
   }
   return -1;
 }
