@@ -26,7 +26,6 @@ obj-$(NAUT_CONFIG_GENERIC_8250_UART) += 8250/
 
 obj-$(NAUT_CONFIG_PL011_UART) += pl011.o
 obj-$(NAUT_CONFIG_SIFIVE_SERIAL) += sifive_serial.o
->>>>>>> integration
 
 obj-$(NAUT_CONFIG_HPET) += hpet.o
 
