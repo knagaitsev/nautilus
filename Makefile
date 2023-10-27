@@ -4,7 +4,6 @@ SUBLEVEL = 1
 EXTRAVERSION = Nautilus
 NAME=Nautilus
 
-
 ISO_NAME:=nautilus.iso
 BIN_NAME:=nautilus.bin
 SYM_NAME:=nautilus.syms
@@ -145,15 +144,13 @@ _all: all
 
 
 srctree		:= $(if $(KBUILD_SRC),$(KBUILD_SRC),$(CURDIR))
-TOPDIR		:= $(srctree)
-# FIXME - TOPDIR is obsolete, use srctree/objtree
 objtree		:= $(CURDIR)
 src		:= $(srctree)
 obj		:= $(objtree)
 
 VPATH		:= $(srctree)$(if $(KBUILD_EXTMOD),:$(KBUILD_EXTMOD))
 
-export srctree objtree VPATH TOPDIR
+export srctree objtree VPATH 
 
 
 # SUBARCH tells the usermode build what the underlying arch is.  That is set
@@ -184,10 +181,9 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 ARCH		?= $(SUBARCH)
 
-
-
-
-CROSS_COMPILE	?= 
+#CROSS_COMPILE ?=
+CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
+#CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/riscv64/bin/
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 
 # Architecture as present in compile.h
@@ -342,6 +338,11 @@ ifdef NAUT_CONFIG_ARCH_RISCV
 SUBARCH = riscv
 endif
 
+
+ifdef NAUT_CONFIG_ARCH_ARM64
+SUBARCH = arm64
+endif
+
 ARCH		?= $(SUBARCH)
 
 COMPILER_PREFIX := $(patsubst "%",%,$(NAUT_CONFIG_COMPILER_PREFIX))
@@ -366,17 +367,33 @@ endif
 # Note we use the system linker in all cases
 #
 ifdef NAUT_CONFIG_USE_CLANG
-  AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
-  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
-  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)clang$(COMPILER_SUFFIX)
-  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)clang++$(COMPILER_SUFFIX)
+  # KJH - Afaik these should work via --target options to cross compile, not prefixes
+  AS		= llvm-as$(COMPILER_SUFFIX)
+  LD		= ld.lld
+  CC		= clang$(COMPILER_SUFFIX)
+  CXX           = clang++$(COMPILER_SUFFIX)
+  OBJCOPY       = llvm-objcopy
+  OBJDUMP       = llvm-objdump
+
+  #AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
+  #LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
+  #CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)clang$(COMPILER_SUFFIX)
+  #CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)clang++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_WLLVM
-  AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
-  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
-  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang$(COMPILER_SUFFIX)
-  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)gclang++$(COMPILER_SUFFIX)
+  # KJH - Afaik these should work via --target options to cross compile, not prefixes
+  AS		= llvm-as$(COMPILER_SUFFIX)
+  LD		= ld.lld
+  CC		= wllvm$(COMPILER_SUFFIX)
+  CXX           = wllvm++$(COMPILER_SUFFIX)
+  OBJCOPY       = llvm-objcopy
+  OBJDUMP       = llvm-objdump
+
+  #AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
+  #LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
+  #CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm$(COMPILER_SUFFIX)
+  #CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
@@ -403,13 +420,21 @@ ifndef NAUT_CONFIG_USE_GCC
 endif
 
   COMMON_FLAGS += -mcmodel=medany \
-  			          -march=rv64gc \
-				          -mabi=lp64d
+  		  -march=rv64gc \
+		  -mabi=lp64d
 endif
 
 
 ifdef NAUT_CONFIG_ARCH_X86
   COMMON_FLAGS += -mcmodel=large -mno-red-zone
+endif
+
+
+ifdef NAUT_CONFIG_ARCH_ARM64
+  COMMON_FLAGS += -mcmodel=large
+ifndef NAUT_CONFIG_USE_GCC
+  COMMON_FLAGS += --target=aarch64-linux-gnu
+endif
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
@@ -793,31 +818,41 @@ libs-y		:= $(patsubst %/, %/built-in.o, $(libs-y))
 nautilus := $(core-y) $(libs-y) 
 
 ifdef NAUT_CONFIG_XEON_PHI
-LD_SCRIPT:=link/nautilus.ld.xeon_phi
-else 
-ifdef NAUT_CONFIG_HVM_HRT
-LD_SCRIPT:=link/nautilus.ld.hrt
-else
-ifdef NAUT_CONFIG_PALACIOS
-LD_SCRIPT:=link/nautilus.ld.palacios
-else
-ifdef NAUT_CONFIG_GEM5
-LD_SCRIPT:=link/nautilus.ld.gem5
-else
-ifdef NAUT_CONFIG_ARCH_RISCV
-LD_SCRIPT:=link/nautilus.ld.riscv
-else
-LD_SCRIPT:=link/nautilus.ld
-endif
-endif
-endif
-endif
+LD_SCRIPT_SRC:=link/nautilus.ld.xeon_phi
 endif
 
+ifdef NAUT_CONFIG_HVM_HRT
+LD_SCRIPT_SRC:=link/nautilus.ld.hrt
+endif
+
+ifdef NAUT_CONFIG_PALACIOS
+LD_SCRIPT_SRC:=link/nautilus.ld.palacios
+endif
+
+
+ifdef NAUT_CONFIG_GEM5
+LD_SCRIPT_SRC:=link/nautilus.ld.gem5
+endif
+
+ifdef NAUT_CONFIG_ARCH_X86
+LD_SCRIPT_SRC:=link/nautilus.ld.x64
+endif
+
+ifdef NAUT_CONFIG_ARCH_RISCV
+LD_SCRIPT_SRC:=link/nautilus.ld.riscv
+endif
+
+
+ifdef NAUT_CONFIG_ARCH_ARM64
+LD_SCRIPT_SRC:=link/nautilus.ld.arm64
+endif
+
+LD_SCRIPT := link/processed.ld
+
 quiet_cmd_transform_linkscript__ ?= CC      $@
-	  cmd_transform_linkscript__ ?= $(CC) -E -P \
-	  -DHIHALF_OFFSET=$(NAUT_CONFIG_HRT_HIHALF_OFFSET) \
-	  -x c-header -o link/nautilus.ld.hrt link/hrt.lds
+          cmd_transform_linkscript__ ?= $(CC) -E -P \
+	  -include include/autoconf.h \
+	  -x c-header -o $(LD_SCRIPT) $(LD_SCRIPT_SRC) 
 
 # Rule to link nautilus - also used during CONFIG_CONFIGKALLSYMS
 # May be overridden by /Makefile.$(ARCH)
@@ -844,6 +879,7 @@ quiet_cmd_nautilus_version = GEN     .version
 # Use + in front of the nautilus rule to silent warning with make -j2
 # First command is ':' to allow us to use + in front of the rule
 ifdef NAUT_CONFIG_HVM_HRT
+# KJH - I'm testing out preprocessing every linkerscript and not just HRT so this ifdef may be pointless now
 define rule_nautilus__
 	:
 	$(call cmd,transform_linkscript__)
@@ -853,6 +889,7 @@ endef
 else
 define rule_nautilus__
 	:
+	$(call cmd,transform_linkscript__)
 	$(call cmd,nautilus__)
 	$(Q)echo 'cmd_$@ := $(cmd_nautilus__)' > $(@D)/.$(@F).cmd
 endef
@@ -874,19 +911,91 @@ ifdef INVALID_BENCHMARK
 	$(error Invalid Benchmark choice. Valid options are: FT, EP, BT, MG, LU))
 endif
 
+UBOOT_BIN = ../u-boot.bin
 
 uImage: $(BIN_NAME)
 	$(OBJCOPY) -O binary $(BIN_NAME) Image
-	mkimage -A riscv -O linux -T kernel -C none \
-		-a 0x80100000 -e 0x80100000 -n "Nautilus" \
-		-d Image uImage
-	rm Image
-
-qemu: nautilus.bin
 ifdef NAUT_CONFIG_ARCH_RISCV
-	qemu-system-riscv64 -bios default -m 2G -M sifive_u -kernel nautilus.bin -serial mon:stdio -display none -gdb tcp::1234
+	mkimage -A riscv -O linux -T kernel -C none \
+		-a $(NAUT_CONFIG_KERNEL_LINK_ADDR) -e $(NAUT_CONFIG_KERNEL_LINK_ADDR) -n "Nautilus" \
+		-d Image uImage
+endif
+ifdef NAUT_CONFIG_ARCH_ARM64
+	mkimage -A arm64 -O linux -T kernel -C none \
+		-a $(NAUT_CONFIG_KERNEL_LINK_ADDR) -e $(NAUT_CONFIG_KERNEL_LINK_ADDR) -n "Nautilus" \
+		-d Image uImage
 endif
 
+ifdef NAUT_CONFIG_ARCH_ARM64
+QEMU_FLASH = ./setups/arm64/flash.img
+endif
+
+.PHONY: qemu-flash
+qemu-flash: $(QEMU_FLASH)
+$(QEMU_FLASH):
+	qemu-img create -f raw $(QEMU_FLASH) 64M
+
+QEMU_GDB_FLAGS := #-gdb tcp::5060 -S
+QEMU_DEVICES := -display none
+QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
+QEMU_DEVICES += #-device virtio-gpu-pci #-netdev socket,id=net0,listen=localhost:4756 -device e1000e,netdev=net0,mac=00:11:22:33:44:55
+
+QEMU_MACHINE_FLAGS = virt,virtualization=on#,secure=on
+ifdef NAUT_CONFIG_GIC_VERSION_2
+	QEMU_MACHINE_FLAGS := $(QEMU_MACHINE_FLAGS),gic-version=2
+endif
+ifdef NAUT_CONFIG_GIC_VERSION_3
+	QEMU_MACHINE_FLAGS := $(QEMU_MACHINE_FLAGS),gic-version=3,its=on
+endif
+
+OPENSBI = /home/kjhayes/opensbi/build/platform/generic/firmware/fw_jump.bin
+
+qemu: uImage
+ifdef NAUT_CONFIG_ARCH_RISCV
+	qemu-system-riscv64 -bios $(OPENSBI) -smp 2 -m 2G -M virt -kernel nautilus.bin -serial stdio $(QEMU_DEVICES) $(QEMU_GDB_FLAGS)
+endif
+ifdef NAUT_CONFIG_ARCH_ARM64
+	qemu-system-aarch64 \
+		-smp cpus=4 \
+		--cpu cortex-a72 \
+		-serial stdio \
+		--machine $(QEMU_MACHINE_FLAGS) \
+		-bios $(UBOOT_BIN) \
+		-kernel uImage \
+		$(QEMU_GDB_FLAGS) \
+		$(QEMU_DEVICES) \
+		-numa node,cpus=0-1,memdev=m0 \
+		-numa node,cpus=2-3,memdev=m1 \
+		-object memory-backend-ram,id=m0,size=2G \
+		-object memory-backend-ram,id=m1,size=2G \
+		-m 4G
+endif
+
+qemu-raw: $(BIN_NAME)
+ifdef NAUT_CONFIG_ARCH_ARM64
+	qemu-system-aarch64 \
+		-smp cpus=4 \
+		--cpu cortex-a53 \
+		-serial stdio \
+		--machine $(QEMU_MACHINE_FLAGS) \
+		-kernel $(BIN_NAME) \
+		$(QEMU_GDB_FLAGS) \
+		$(QEMU_DEVICES) \
+		-m 512M
+endif
+
+qemu-up: uImage
+ifdef NAUT_CONFIG_ARCH_ARM64
+	qemu-system-aarch64 \
+		--cpu cortex-a72 \
+		-serial stdio \
+		--machine $(QEMU_MACHINE_FLAGS) \
+		-bios $(UBOOT_BIN) \
+		-kernel uImage \
+		$(QEMU_GDB_FLAGS) \
+		$(QEMU_DEVICES) \
+		-m 2G
+endif
 
 # New function to run a Python script which generates Lua test code,
 # addition of a separate flag (LUA_BUILD_FLAG) which is set to indicate
@@ -920,7 +1029,7 @@ endif
 	$(call cmd,isoimage)
 
 nautilus.asm: $(BIN_NAME)
-	$(OBJDUMP) --disassemble $< > $@
+	$(OBJDUMP) --disassemble -S $< > $@
 
 ifdef NAUT_CONFIG_USE_WLLVM
 

@@ -23,10 +23,10 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/cpu.h>
 #include <nautilus/math.h>
-#include <nautilus/irq.h>
+#include <nautilus/interrupt.h>
 #include <nautilus/dev.h>
 #include <dev/i8254.h>
-
+#include <arch/x64/irq.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PIT
 #undef DEBUG_PRINT
@@ -108,7 +108,7 @@ i8254_calib_tsc (void)
 
 
 static int 
-pit_irq_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
+pit_irq_handler (struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
     DEBUG_PRINT("Received PIT Timer interrupt\n");
     IRQ_HANDLER_END();
@@ -169,14 +169,25 @@ i8254_init (struct naut_info * naut)
     DEBUG_PRINT("Gating PIT channel 0\n");
     i8254_disable();
 
-    if (register_irq_handler(PIT_TIMER_IRQ, pit_irq_handler, NULL) < 0) {
+    struct nk_dev *dev = nk_dev_register("i8254",NK_DEV_TIMER,0,&ops,0);
+    
+    struct nk_irq_dev * ioapic = ioapic_get_dev_by_id(0);
+    if(ioapic == NULL) {
+      ERROR_PRINT("Could not get IOAPIC device to get correct PIT_TIMER_IRQ!\n");
+      return -1;
+    }
+    nk_irq_t timer_irq;
+    if(nk_irq_dev_revmap(ioapic, PIT_TIMER_IRQ, &timer_irq)) {
+      ERROR_PRINT("IOAPIC device revmap(device=%p,PIT_TIMER_IRQ=%u) Failed!\n",ioapic,PIT_TIMER_IRQ);
+      return -1;
+    }
+
+    if (nk_irq_add_handler_dev(timer_irq, pit_irq_handler, NULL, dev) < 0) {
         ERROR_PRINT("Could not register timer interrupt handler\n");
         return -1;
-    }
-    
-    nk_dev_register("i8254",NK_DEV_TIMER,0,&ops,0);
+    }    
 
-    nk_unmask_irq(PIT_TIMER_IRQ);
+    nk_unmask_irq(timer_irq);
 
     return 0;
 }

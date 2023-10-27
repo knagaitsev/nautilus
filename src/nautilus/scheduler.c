@@ -56,17 +56,19 @@
 #include <nautilus/task.h>
 #include <nautilus/timer.h>
 #include <nautilus/scheduler.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/random.h>
 #include <nautilus/backtrace.h>
 #include <nautilus/shell.h>
 #include <nautilus/topo.h>
-#include <dev/gpio.h>
+#include <nautilus/libccompat.h>
+#include <nautilus/atomic.h>
+#include <dev/port_gpio.h>
 
 #ifdef NAUT_CONFIG_ARCH_X86
 #include <dev/apic.h>
+#include <arch/x64/irq.h>
 #endif
 
 // enforce lower limits on period and slice / sporadic size
@@ -777,12 +779,30 @@ void nk_sched_dump_threads(int cpu)
     GLOBAL_UNLOCK();
 }
 
+#elif defined(NAUT_CONFIG_ARCH_ARM64) || defined(NAUT_CONFIG_ARCH_RISCV)
+
+void nk_sched_dump_threads(int cpu) {
+
+    GLOBAL_LOCK_CONF;
+    struct sys_info *sys = per_cpu_get(system);
+
+    GLOBAL_LOCK();
+
+    rt_list_map(global_sched_state.thread_list,print_thread,(void*)(long)cpu);
+
+    GLOBAL_UNLOCK();
+}
+
+void nk_sched_dump_cores(int cpu) {}
+void nk_sched_dump_time(int cpu) {}
+/*
 #else
 
 // RISCV HACK
 void nk_sched_dump_threads(int cpu) {}
 void nk_sched_dump_cores(int cpu) {}
 void nk_sched_dump_time(int cpu) {}
+*/
 
 #endif /* NAUT_CONFIG_ARCH_X86 */
 
@@ -961,7 +981,7 @@ int nk_sched_stop_world()
     preempt_disable();
     // wait until we are the sole world stopper
     // perhaps participating in other world stops along the way
-    PAUSE_WHILE(!__sync_bool_compare_and_swap(&stopping,0,stopper));
+    PAUSE_WHILE(!atomic_bool_cmpswap(stopping,0,stopper));
     
     // Now we want to make sure nothing can interrupt us
     // and we might as well reset the scheduler now as well
@@ -993,7 +1013,7 @@ int nk_sched_start_world()
     }
 
     // indicate that we are restarting the world
-    __sync_fetch_and_and(&stopping,0);
+    atomic_and(stopping,0);
 
     // wait for them to notice 
     nk_counting_barrier(&stop_barrier);
@@ -1061,12 +1081,12 @@ void nk_sched_reap(int uncond)
 	return;
     }
 
-    if (!__sync_bool_compare_and_swap(&global_sched_state.reaping,0,1)) {
+    if (!atomic_bool_cmpswap(global_sched_state.reaping,0,1)) {
 	// reaping pass is already in progress elsewhere
 	// we will wait for it to  inish.  In this way, our caller
 	// will also see the benefit of that pass
 	DEBUG("%sconditional reap waiting on previous reap to complete\n", uncond ? "un" : "");
-	while (__sync_fetch_and_or(&global_sched_state.reaping,0)) {
+	while (atomic_or(global_sched_state.reaping,0)) {
 	    // wait for the reapping pass to finish
 	}
 	DEBUG("%sconditional reap - previous reap now complete, ignoring this reap\n", uncond ? "un" : "");
@@ -1105,7 +1125,7 @@ void nk_sched_reap(int uncond)
     DEBUG("%sconditional reap ends (%lu threads)\n", uncond ? "un" : "", global_sched_state.num_threads);
     
     // done with reaping - another core can now go
-    __sync_fetch_and_and(&global_sched_state.reaping,0);
+    atomic_and(global_sched_state.reaping,0);
 }
 
 //
@@ -1132,7 +1152,7 @@ struct nk_thread *nk_sched_reanimate(nk_stack_size_t min_stack_size,
 
     // We are currently overloaded with reaping, so we will wait until
     // we are the sole "reaper"
-    while (!__sync_bool_compare_and_swap(&global_sched_state.reaping,0,1)) {
+    while (!atomic_bool_cmpswap(global_sched_state.reaping,0,1)) {
     }
     DEBUG("Reanimation search begins (%lu threads)\n", global_sched_state.num_threads);
 
@@ -1172,7 +1192,7 @@ struct nk_thread *nk_sched_reanimate(nk_stack_size_t min_stack_size,
     GLOBAL_UNLOCK();
 
     // done with "reaping" - another core can now go
-    __sync_fetch_and_and(&global_sched_state.reaping,0);
+    atomic_and(global_sched_state.reaping,0);
     
     if (rt) {
 	DEBUG("Reanimation successful - returning thread %p (sched state %p name \"%s\")\n", rt->thread, rt, rt->thread->name);
@@ -1480,13 +1500,15 @@ static int    _sched_make_runnable(struct nk_thread *thread, int cpu, int admit,
     rt_scheduler *s;
 
     if (unlikely(cpu <= CPU_ANY || 
-        cpu >= sys->num_cpus)) {
+        cpu >= sys->num_cpus)) 
+    {
         s = per_cpu_get(sched_state);
     } else {
         s = sys->cpus[cpu]->sched_state;
     }
 
     if (!s) {
+        ERROR("Could not get sched_state for current CPU!\n");
 	return -1;
     }
 
@@ -1495,12 +1517,15 @@ static int    _sched_make_runnable(struct nk_thread *thread, int cpu, int admit,
     }
 
     if (admit) {
+        DEBUG("admitting thread\n");
 	if (rt_thread_admit(s,t,cur_time())) { 
 	    DEBUG("Failed to admit thread\n");
 	    goto out_bad;
 	} else {
 	    DEBUG("Admitted thread %p (tid=%d)\n",thread,thread->tid);
 	}
+    } else {
+      DEBUG("Not admitting thread\n");
     }
 
     // Admission will have reset the thread state and stats
@@ -2036,8 +2061,8 @@ static void set_timer(rt_scheduler *scheduler, rt_thread *thread, uint64_t now)
 	ERROR("Ticks is unlikely, probably overflow\n");
     }
 
-    //    DEBUG("Setting timer to at most %llu ns (%llu ticks)\n",scheduler->tsc.set_time - now + scheduler->slack,
-    //	  arch_realtime_to_ticks(arch, scheduler->tsc.set_time - now + scheduler->slack));
+    //DEBUG("Setting timer to at most %llu ns (%llu ticks)\n",scheduler->tsc.set_time - now + scheduler->slack,
+    // 	  arch_realtime_to_ticks(arch, scheduler->tsc.set_time - now + scheduler->slack));
 
     arch_update_timer(ticks, IF_EARLIER);
 			      
@@ -2179,7 +2204,6 @@ static int pump_sized_tasks(rt_scheduler *scheduler, rt_thread *next)
 // In both cases updates the timer to reflect the thread
 // that should be running
 //
-#define INTERRUPT __attribute__((target("no-sse")))
 INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched)
 {
     LOCAL_LOCK_CONF;
@@ -2232,7 +2256,7 @@ INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched
 		DEBUG("Reinjecting timer: in_timer=%d, in_kick=%d\n", 
 		      c->in_timer_interrupt, c->in_kick_interrupt);
 		//BACKTRACE(DEBUG,3);
-        arch_update_timer(
+                arch_update_timer(
                       arch_realtime_to_ticks(NAUT_CONFIG_INTERRUPT_REINJECTION_DELAY_NS), 
                       IF_EARLIER);
 		c->sched_state->reinject_count++;
@@ -2286,7 +2310,7 @@ INTERRUPT struct nk_thread *_sched_need_resched(int have_lock, int force_resched
     // We might be switching away from a thread that is 
     // attempting a special case, for example going to sleep
 
-    DEBUG("need_resched (cur=%d, sleep=%d, exit=%d, changing=%d)\n", c->tid, going_to_sleep,going_to_exit, changing);
+    DEBUG("need_resched (cur=%d, sleep=%d, exit=%d, changing=%d)\n", c->tid, going_to_sleep, going_to_exit, changing);
 
     rt_c->resched_count++;
 
@@ -3044,7 +3068,8 @@ static int select_victim(int new_cpu)
     do {
 	a = (int)(get_random() % sys->num_cpus);
 	b = (int)(get_random() % sys->num_cpus);
-    } while (a==new_cpu || b==new_cpu);
+    } while ((a==new_cpu || b==new_cpu) 
+        || sys->cpus[a]->sched_state == NULL || sys->cpus[b]->sched_state == NULL); // Can't steal from a CPU which hasn't initialized the scheduler yet
 
     return (sys->cpus[a]->sched_state->aperiodic.size  >
 	    sys->cpus[b]->sched_state->aperiodic.size) ? a : b;
@@ -3568,11 +3593,17 @@ static inline void get_sporadic_util(rt_scheduler *sched, uint64_t now, uint64_t
 //
 static int rt_thread_admit(rt_scheduler *scheduler, rt_thread *thread, uint64_t now)
 {
+    DEBUG("rt_thread_admit(scheduler=%p, thread=%p, now=%u)\n",scheduler,thread,now);  
 
     uint64_t util_limit = scheduler->cfg.util_limit;
     uint64_t aper_res = scheduler->cfg.aperiodic_reservation;
     uint64_t spor_res = scheduler->cfg.sporadic_reservation;
     uint64_t per_res = util_limit - aper_res - spor_res;
+
+    if(thread == NULL) {
+      ERROR("Cannot admit NULL thread!\n");
+      return -1;
+    }
 
     DEBUG("Admission: %s tpr=%u util_limit=%llu aper_res=%llu spor_res=%llu per_res=%llu\n",
 	  thread->constraints.type==APERIODIC ? "Aperiodic" :
@@ -4103,7 +4134,7 @@ int nk_task_complete(struct nk_task *task, void *output)
     TASK_DEBUG("task %p complete\n",task);
     task->output = output;
     // setting the flag must occur *after* setting the output
-    __sync_fetch_and_or(&task->flags,NK_TASK_COMPLETED);
+    atomic_or(task->flags,NK_TASK_COMPLETED);
     task->stats.complete_time_ns = cur_time();
     if (task->flags & NK_TASK_DETACHED) {
 	task_dealloc(task);
@@ -4554,7 +4585,7 @@ fail_free:
     }
     FREE(main);
 
-    sti();
+    arch_enable_ints();
 
     return -1;
 }
@@ -4635,7 +4666,7 @@ static int start_reaper()
 {
   nk_thread_id_t tid;
 
-  if (nk_thread_start(reaper, 0, 0, 1, REAPER_THREAD_STACK_SIZE, &tid, 0)) {
+  if (nk_thread_start(reaper, 0, 0, 1, REAPER_THREAD_STACK_SIZE, &tid, my_cpu_id())) {
       ERROR("Failed to start reaper thread\n");
       return -1;
   }
@@ -4659,7 +4690,7 @@ void nk_sched_start()
 
     // TODO: multicore scheduling for RISC-V port
     // barrier for all the schedulers
-    __sync_fetch_and_add(&sync_count,1);
+    atomic_add(sync_count,1);
     while (sync_count < num_cpus) {
 	// spin
     }
@@ -4888,7 +4919,7 @@ handle_threads (char * buf, void * priv)
     return 0;
 }
 
-static struct shell_cmd_impl threads_impl = {
+const static struct shell_cmd_impl threads_impl = {
     .cmd      = "threads",
     .help_str = "threads [n]",
     .handler  = handle_threads,
@@ -5187,14 +5218,14 @@ test_timed_stop (char * buf, void * priv)
   uint64_t* timestamps = (uint64_t*)MALLOC(sizeof(uint64_t) * count);
 
   nk_vc_printf("Starting and stopping the world %lu times\n", count);
-  start = rdtsc();
+  start = arch_read_timestamp();
   for (i = 0; i < count; i++) { 
-    timestamps[i] = rdtsc();
+    timestamps[i] = arch_read_timestamp();
     nk_sched_stop_world();
     nk_sched_start_world();
-    timestamps[i] = rdtsc() - timestamps[i];
+    timestamps[i] = arch_read_timestamp() - timestamps[i];
   }
-  end = rdtsc();
+  end = arch_read_timestamp();
   sum = 0;
   sum2 = 0;
   min = -1;

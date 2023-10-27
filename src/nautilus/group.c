@@ -103,12 +103,12 @@ static parallel_thread_group_list_t parallel_thread_group_list;
 
 static inline void
 bspin_lock (volatile int * lock) {
-  while (__sync_lock_test_and_set(lock, 1));
+  while (atomic_lock_test_and_set(*lock, 1));
 }
 
 static inline void
 bspin_unlock (volatile int * lock) {
-  __sync_lock_release(lock);
+  atomic_lock_release(*lock);
 }
 
 // init the global group list

@@ -23,6 +23,7 @@
 #ifndef __APIC_H__
 #define __APIC_H__
 
+#include <nautilus/nautilus.h>
 #include <nautilus/naut_types.h>
 
 #ifdef __cplusplus 

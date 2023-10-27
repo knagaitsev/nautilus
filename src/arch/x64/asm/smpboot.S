@@ -22,8 +22,8 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <asm/lowlevel.h>
-#include <nautilus/smp.h>
-#include <nautilus/gdt.h>
+#include <arch/x64/smp.h>
+#include <arch/x64/gdt.h>
 
 /*
 

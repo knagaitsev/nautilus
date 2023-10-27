@@ -28,6 +28,7 @@
 #include <nautilus/monitor.h>
 #include <nautilus/dr.h>
 #include <nautilus/smp.h>
+#include <nautilus/atomic.h>
 #ifdef NAUT_CONFIG_PROVENANCE
 #include <nautilus/provenance.h>
 #endif
@@ -1123,19 +1124,18 @@ static void dump_call(void)
   return;
 }
 
-static void dump_entry(excp_vec_t vector, excp_entry_t * excp)
+static void dump_entry(struct nk_irq_action *action, struct nk_regs *regs)
 {
-  struct nk_regs * r = (struct nk_regs*)((char*)excp - 128);
   print_drinfo();
-  if (excp) { 
+  if (regs) { 
       DS("[---------- Exception/Interrupt State ----------]\n");
       DS("vector: "); DHL(vector);
-      DS("      error: "); DHL(excp->error_code);
+      DS("      error: "); DHL(regs->error_code);
       DS("\n");
   }
-  monitor_print_regs(r);
+  monitor_print_regs(regs);
   DS("[------------------ Backtrace ------------------]\n");
-  do_backtrace((void **) r->rbp, 0); 
+  do_backtrace((void **) regs->rbp, 0); 
 }
 
 
@@ -1210,7 +1210,7 @@ int nk_monitor_check(int *cpu)
 // we just wait our turn and then alert everyone else
 static int monitor_init_lock()
 {
-    while (!__sync_bool_compare_and_swap(&monitor_entry_flag,0,1)) {
+    while (!atomic_bool_cmpswap(monitor_entry_flag,0,1)) {
 	// I lose the entry game to another cpu, so I must process
 	// wait until the leader is done before proceeding. After they are done, I can proceed.
 	nk_monitor_sync_entry();
@@ -1235,7 +1235,7 @@ static int monitor_deinit_lock(void)
     // let other cpus know the state is now ready
     nk_counting_barrier(&update);
     // reset the entry flag
-    __sync_fetch_and_and(&monitor_entry_flag,0);
+    atomic_and(monitor_entry_flag,0);
     // wait on other cpus to use the state
     nk_counting_barrier(&exit);
     return 0;
@@ -1308,15 +1308,15 @@ int nk_monitor_entry()
 }
 
 // Entering because we had an unhandled exception
-int nk_monitor_excp_entry(excp_entry_t * excp,
-			  excp_vec_t vector,
+int nk_monitor_excp_entry(struct nk_irq_action * action,
+			  struct nk_regs *regs,
 			  void *state)
 {
     uint8_t intr_flags = monitor_init();
     
     vga_attr = vga_make_color(COLOR_FOREGROUND, COLOR_BACKGROUND);
     vga_puts("+++ Unhandled Exception Caught by Monitor +++");
-    dump_entry(vector,excp);
+    dump_entry(action, regs);
     vga_attr = vga_make_color(COLOR_PROMPT_FOREGROUND, COLOR_PROMPT_BACKGROUND);
 
     nk_monitor_loop();
@@ -1327,15 +1327,15 @@ int nk_monitor_excp_entry(excp_entry_t * excp,
 }
 
 // Entering because we had an unhandled interrupt
-int nk_monitor_irq_entry(excp_entry_t * excp,
-			 excp_vec_t vector,
+int nk_monitor_irq_entry(struct nk_irq_action *action,
+			 struct nk_regs *regs,
 			 void *state)
 {
     uint8_t intr_flags = monitor_init();
 
     vga_attr = vga_make_color(COLOR_FOREGROUND, COLOR_BACKGROUND);
     vga_puts("+++ Unhandled Irq Caught by Monitor +++");
-    dump_entry(vector,excp);
+    dump_entry(action, regs);
     vga_attr = vga_make_color(COLOR_PROMPT_FOREGROUND, COLOR_PROMPT_BACKGROUND);
 
     nk_monitor_loop();
@@ -1364,15 +1364,15 @@ int nk_monitor_panic_entry(char *str)
 }
 
 // Entering because we panicked
-int nk_monitor_hang_entry(excp_entry_t * excp,
-			  excp_vec_t vector,
+int nk_monitor_hang_entry(struct nk_irq_action *action,
+			  struct nk_regs *regs,
 			  void *state)
 {
     uint8_t intr_flags = monitor_init();
     
     vga_attr = vga_make_color(COLOR_FOREGROUND, COLOR_BACKGROUND);
     vga_puts("+++ Hang Caught by Monitor +++");
-    dump_entry(vector,excp);
+    dump_entry(action, regs);
     vga_attr = vga_make_color(COLOR_PROMPT_FOREGROUND, COLOR_PROMPT_BACKGROUND);
     
     nk_monitor_loop();
@@ -1386,8 +1386,8 @@ static void* breakpoint_addr[NAUT_CONFIG_MAX_CPUS];
 static int breakpoint_drnum[NAUT_CONFIG_MAX_CPUS];
 
 // Entering because we hit a breakpoint or a watchpoint
-int nk_monitor_debug_entry(excp_entry_t * excp,
-			   excp_vec_t vector,
+int nk_monitor_debug_entry(struct nk_irq_action *action,
+			   struct nk_regs *regs,
 			   void *state)
 {
 
@@ -1402,13 +1402,13 @@ int nk_monitor_debug_entry(excp_entry_t * excp,
     if (dr6.bp_single == 1) {
 	// set breakpoint back
 	set_breakpoint((uint64_t) breakpoint_addr[my_cpu_id()], breakpoint_drnum[my_cpu_id()]);
-	excp->rflags &= ~0b100000000ul;
+	regs->rflags &= ~0b100000000ul;
 	
     } else {
 	
 	vga_attr = vga_make_color(COLOR_FOREGROUND, COLOR_BACKGROUND);
 	vga_puts("+++ Debug Exception Caught by Monitor +++");
-	dump_entry(vector,excp);
+	dump_entry(action,regs);
 	vga_attr = vga_make_color(COLOR_PROMPT_FOREGROUND, COLOR_PROMPT_BACKGROUND);
 	nk_monitor_loop();
 	
@@ -1420,25 +1420,25 @@ int nk_monitor_debug_entry(excp_entry_t * excp,
 	    breakpoint_addr[my_cpu_id()] = (void*) read_dr0();
 	    breakpoint_drnum[my_cpu_id()] = 0;
 	    disable(0);
-	    excp->rflags |= 0b100000000ul;
+	    regs->rflags |= 0b100000000ul;
 	}
 	if (dr6.dr1_detect && dr7.type1 == 0 && dr7.local1 && dr7.global1) {
 	    breakpoint_addr[my_cpu_id()] = (void*) read_dr1();
 	    breakpoint_drnum[my_cpu_id()] = 1;
 	    disable(1);
-	    excp->rflags |= 0b100000000ul;
+	    regs->rflags |= 0b100000000ul;
 	}
 	if (dr6.dr2_detect && dr7.type2 == 0 && dr7.local2 && dr7.global2) {
 	    breakpoint_addr[my_cpu_id()] = (void*) read_dr2();
 	    breakpoint_drnum[my_cpu_id()] = 2;
 	    disable(2);
-	    excp->rflags |= 0b100000000ul;
+	    regs->rflags |= 0b100000000ul;
 	}
 	if (dr6.dr3_detect && dr7.type3 == 0 && dr7.local3 && dr7.global3) {
 	    breakpoint_addr[my_cpu_id()] = (void*) read_dr3();
 	    breakpoint_drnum[my_cpu_id()] = 3;
 	    disable(3);
-	    excp->rflags |= 0b100000000ul;
+	    regs->rflags |= 0b100000000ul;
 	}
     
     }

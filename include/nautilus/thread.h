@@ -33,6 +33,7 @@ extern "C" {
 
 #include <nautilus/spinlock.h>
 #include <nautilus/intrinsics.h>
+#include <nautilus/smp.h>
 
 // Always included so we get the necessary type
 #include <nautilus/cachepart.h>
@@ -53,13 +54,24 @@ typedef uint64_t nk_stack_size_t;
     
 #include <nautilus/scheduler.h>
 
-#define CPU_ANY       -1
+#define CPU_ANY       (int)-1
 
 /* common thread stack sizes */
 #define TSTACK_DEFAULT 0  // will be 4K
 #define TSTACK_4KB     0x001000
 #define TSTACK_1MB     0x100000
 #define TSTACK_2MB     0x200000
+
+// push the child stack down by this much just in case
+// we only have one caller frame to mangle
+// the launcher function needs to put a new return address
+// prior to the current stack frame, at least.
+// should be at least 16
+#define LAUNCHPAD 16
+// Attempt to clone this many frames when doing a fork
+// If these cannot be resolved correctly, then only a single
+// frame is cloned
+#define STACK_CLONE_DEPTH 2
 
 /******** EXTERNAL INTERFACE **********/
 
@@ -163,8 +175,13 @@ int nk_tls_set(nk_tls_key_t key, const void * val);
 #define FXSAVE_SIZE 512           // per Intel docs
 #define FXSAVE_ALIGN 16           // per Intel docs
 
+#ifdef NAUT_CONFIG_ARCH_X86
 #define FPSTATE_SIZE (XSAVE_SIZE>FXSAVE_SIZE ? XSAVE_SIZE : FXSAVE_SIZE)
 #define FPSTATE_ALIGN (XSAVE_ALIGN>FXSAVE_ALIGN ? XSAVE_ALIGN : FXSAVE_ALIGN)
+#else
+#define FPSTATE_SIZE 4096
+#define FPSTATE_ALIGN 2
+#endif
 
 #define MAX_THREAD_NAME 32
 

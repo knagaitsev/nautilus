@@ -29,6 +29,7 @@
 #include <nautilus/mm.h>
 #include <nautilus/shell.h>
 #include <nautilus/dev.h>
+#include <nautilus/interrupt.h>
 
 #ifndef NAUT_CONFIG_DEBUG_PCI
 #undef DEBUG_PRINT
@@ -39,7 +40,6 @@
 #define PCI_DEBUG(fmt, args...) DEBUG_PRINT("PCI: " fmt, ##args)
 #define PCI_WARN(fmt, args...)  WARN_PRINT("PCI: " fmt, ##args)
 #define PCI_ERROR(fmt, args...) ERROR_PRINT("PCI: " fmt, ##args)
-
 
 uint16_t 
 pci_cfg_readw (uint8_t bus, 
@@ -52,16 +52,27 @@ pci_cfg_readw (uint8_t bus,
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
     uint32_t ret;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    struct pci_info *pci = nautilus_info.sys.pci;
+    uint16_t read = *(volatile uint16_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr);
+    return read;
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     ret = inl(PCI_CFG_DATA_PORT);
     return (ret >> ((off & 0x2) * 8)) & 0xffff;
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
+#endif
 }
 
 
@@ -75,15 +86,26 @@ pci_cfg_readl (uint8_t bus,
     uint32_t lbus  = (uint32_t)bus;
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    uint32_t read;
+    struct pci_info *pci = nautilus_info.sys.pci;
+    read = *(volatile uint32_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr);
+    return read;
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     return inl(PCI_CFG_DATA_PORT);
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
+#endif
 }
 
 
@@ -99,15 +121,24 @@ pci_cfg_writew (uint8_t bus,
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
     uint32_t ret;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    struct pci_info *pci = nautilus_info.sys.pci;
+    *(volatile uint16_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr) = val;
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     outw(val,PCI_CFG_DATA_PORT);
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
+#endif
 }
 
 
@@ -122,17 +153,39 @@ pci_cfg_writel (uint8_t bus,
     uint32_t lbus  = (uint32_t)bus;
     uint32_t lslot = (uint32_t)slot;
     uint32_t lfun  = (uint32_t)fun;
-
+    
     addr = (lbus  << PCI_BUS_SHIFT) | 
            (lslot << PCI_SLOT_SHIFT) | 
            (lfun  << PCI_FUN_SHIFT) |
            PCI_REG_MASK(off) | 
            PCI_ENABLE_BIT;
 
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    struct pci_info *pci = nautilus_info.sys.pci;
+    *(volatile uint32_t*)(pci->ecam_base_addr + (void*)(uint64_t)addr) = val;
+#elif NAUT_CONFIG_USE_PCI_CAM
     outl(addr, PCI_CFG_ADDR_PORT);
     outl(val, PCI_CFG_DATA_PORT);
+#elif NAUT_CONFIG_HAS_PCI
+#error "HAS_PCI has been specified, however no way to access configuration space has been given!"
+#else
+#warn "Compiling "__FILE__" with HAS_PCI undefined!"
+#endif
 }
 
+static inline void 
+pci_dump_cfg_raw(struct pci_dev *d) {
+  int i,j;
+  uint32_t v;
+  for (i=0;i<256;i+=32) {
+      PCI_DEBUG("%02x:", i);
+      for (j=0;j<8;j++) {
+          v = pci_cfg_readl(d->bus->num,d->num,d->fun,i+j*4);
+          printk(" %08x",v);
+      } 
+      printk("\n");
+  }
+}
 
 static inline uint16_t
 pci_dev_valid (uint8_t bus, uint8_t slot, uint8_t fun)
@@ -300,7 +353,10 @@ static void pci_msi_x_detect(struct pci_dev *d)
   void *table_start = pci_msi_x_get_bar_start(d,table_bar_num);
   void *pba_start = pci_msi_x_get_bar_start(d,pba_bar_num);
 
-  PCI_DEBUG("table_start=%p pba_start=%p\n",table_start,pba_start);
+  uint64_t table_size = pci_dev_get_bar_size(d, table_bar_num);
+  uint64_t pba_size = pci_dev_get_bar_size(d, pba_bar_num);
+
+  PCI_DEBUG("table_start=%p, table_size=0x%x, pba_start=%p, pba_size=0x%x\n",table_start,table_size,pba_start,pba_size);
 
   if (!table_start || !pba_start) {
     PCI_ERROR("relevant bars have invalid starting address (table_start=%p, pba_start=%p)\n", table_start,pba_start);
@@ -381,6 +437,34 @@ pci_dev_create (struct pci_bus * bus, uint32_t num, uint8_t func )
 
     dev->num = num;
     dev->fun = func;
+ 
+#ifdef NAUT_CONFIG_ARCH_ARM64
+/*
+    uint8_t hdr_type = pci_get_hdr_type(bus->num, num, func);
+    uint8_t num_bars = hdr_type == 0 ? 6 : hdr_type == 1 ? 2 : 0;
+
+    for(uint8_t i = 0; i < num_bars; i++) {
+      pci_bar_type_t bar_type = pci_dev_get_bar_type(dev, i);
+      uint64_t bar_addr;
+      uint64_t bar_size;
+      switch(bar_type) {
+        case PCI_BAR_MEM:
+          bar_addr = pci_dev_get_bar_addr(dev, i);
+          bar_size = pci_dev_get_bar_size(dev, i);
+          PCI_DEBUG("mem bar %u - addr = 0x%x, size = 0x%x\n", i, bar_addr, bar_size);
+          break;
+        case PCI_BAR_IO:
+          bar_size = pci_dev_get_bar_size(dev, i);
+          bar_addr = pci_dev_get_bar_addr(dev, i);
+          PCI_DEBUG("io bar %u - addr = 0x%x, size = 0x%x\n", i, bar_addr, bar_size);
+          break;
+        default:
+          PCI_DEBUG("no bar?\n");
+          break;
+      }
+    }
+  */
+#endif   
 
     pci_copy_cfg_space(dev,bus);
 
@@ -436,14 +520,14 @@ static void pci_func_probe (struct pci_bus * bus, uint8_t dev, uint8_t fun, int 
     
     *ismultifunc = 0;
 
-    //PCI_DEBUG("probing %x:%x:%x\n", bus->num, dev, fun);
+    PCI_DEBUG("probing %x:%x:%x\n", bus->num, dev, fun);
   
     vendor_id = pci_get_vendor_id(bus->num, dev, fun);
 
 
     /* No device present */
     if (vendor_id == 0xffff) {
-      //PCI_DEBUG("Skipping nonexistent device %x:%x:%x\n", bus->num, dev, fun);
+      PCI_DEBUG("Skipping nonexistent device %x:%x:%x\n", bus->num, dev, fun);
       return;
     }
 
@@ -453,9 +537,12 @@ static void pci_func_probe (struct pci_bus * bus, uint8_t dev, uint8_t fun, int 
 
 
     /* create a logical representation of the device */
-    if (pci_dev_create(bus,dev,fun) == NULL) {
+    struct pci_dev *d = pci_dev_create(bus,dev,fun); 
+    if (d == NULL) {
         PCI_ERROR("Could not create PCI device\n");
         return;
+    } else {
+      pci_dump_cfg_raw(d);
     }
 
     // If it's a PCI<->PCI bridge, we need to recurse into the child bus
@@ -513,7 +600,7 @@ pci_bus_probe (struct pci_info * pci, uint8_t bus)
     uint8_t dev_found = 0;
     struct pci_bus * bus_ptr = NULL;
 
-    //PCI_DEBUG("probing bus 0x%x\n",bus);
+    PCI_DEBUG("probing bus 0x%x\n",bus);
 
     // probe/scan bus only once
     if (pci_already_have_bus(pci,bus)) { 
@@ -540,7 +627,7 @@ pci_bus_probe (struct pci_info * pci, uint8_t bus)
             pci_dev_probe(bus_ptr, dev);
         }
     } else {
-      //PCI_DEBUG("not adding bus since it has no devices\n");
+      PCI_DEBUG("not adding bus since it has no devices\n");
     }
 }
 
@@ -604,7 +691,7 @@ pci_bus_scan (struct pci_info * pci)
             if (pci_get_vendor_id(0, 0, fun) != 0xffff) {
                 PCI_DEBUG("Found new PCI host bridge, scanning bus %d\n", fun);
                 pci_bus_probe(pci, fun);
-            } 
+            }
         }
     }
 }
@@ -691,18 +778,22 @@ pci_dev_get_bar_next (struct pci_dev * d, uint8_t barnum)
 static uint32_t
 __get_bar_size_32 (struct pci_dev * d, uint32_t offset)
 {
+    PCI_DEBUG("\t__get_bar_size32\n");
     uint32_t baddr = pci_dev_cfg_readl(d, offset);
+    PCI_DEBUG("\tbaddr = 0x%x\n", baddr);
     uint32_t size  = 0;
 
-    if (!baddr) {
-        return 0;
-    }
+    //if (!baddr) {
+    //    return 0;
+    //}
 
     pci_dev_cfg_writel(d, offset, PCI_BAR_SIZE_MAGIC);
 
     size = pci_dev_cfg_readl(d, offset);
 
+    PCI_DEBUG("\tread size = 0x%x\n", size);
     size &= (baddr & 0x1) ? PCI_BAR_IO_MASK : PCI_BAR_MEM_MASK;
+    PCI_DEBUG("\tcomputed size = 0x%x\n", size);
 
     // restore original
     pci_dev_cfg_writel(d, offset, baddr);
@@ -887,14 +978,18 @@ pci_init (struct naut_info * naut)
     }
     memset(pci, 0, sizeof(struct pci_info));
 
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+    pci->ecam_base_addr = 0;
+#endif
+
     INIT_LIST_HEAD(&(pci->bus_list));
 
-    PCI_PRINT("Probing PCI bus...\n");
+    naut->sys.pci = pci;
 
+    PCI_PRINT("Probing PCI bus...\n");
+    
     // this will miss PCI buses attached to other complexes...
     pci_bus_scan(pci);
-
-    naut->sys.pci = pci;
 
     nk_dev_register("pci0", NK_DEV_BUS, 0, &ops, 0);
 
@@ -935,6 +1030,7 @@ int pci_map_over_devices(int (*f)(struct pci_dev *d, void *s), uint16_t vendor, 
 
 static int dump_dev_base(struct pci_dev *d, void *s)
 {
+#define nk_vc_printf printk
   uint16_t cmd, status, intr_pin, intr_line;
 
   cmd=pci_dev_cfg_readw(d,4);
@@ -974,6 +1070,7 @@ static int dump_dev_base(struct pci_dev *d, void *s)
     nk_vc_printf("not simple device\n");
   }
   return 0;
+#undef nk_vc_printf
 }
 
 
@@ -1171,7 +1268,6 @@ int pci_dump_device(struct pci_dev *d)
     nk_vc_printf("No further info for this type\n");
   }
 
-    
   return 0;
 }  
 
@@ -1570,17 +1666,34 @@ int pci_dev_is_pending_msi(struct pci_dev *dev, int vec)
 
 }
 
-
-
+#ifdef NAUT_CONFIG_USE_PCI_ECAM
+#define WRITEL(p,v) *(uint32_t*)p = v
+#define READL(p,v) v = *(uint32_t*)p
+#define WRITEQ(p,v) *(uint64_t*)p = v
+#define READQ(p,v) v = *(uint32_t*)p
+/*
+#define WRITEL(p,v) __asm__ __volatile__ ("strh %w[_v], [%x[_p]]" : : [_v] "r" (v), [_p] "r"(p) : "memory")
+#define READL(p,v) __asm__ __volatile__ ("ldrh %w0, [%x1]" : "=r"(v) :"r"(p) : "memory")
+#define WRITEQ(p,v) __asm__ __volatile__ ("str %x0, [%x1]" : : "r"(v), "r"(p) : "memory")
+#define READQ(p,v) __asm__ __volatile__ ("ldr %x0, [%x1]" : "=r"(v) :"r"(p) : "memory")
+*/
+#else
+#ifdef NAUT_CONFIG_ARCH_X86
 #define WRITEL(p,v) __asm__ __volatile__ ("movl %0, (%1)" : : "r"(v), "r"(p) : "memory")
 #define READL(p,v) __asm__ __volatile__ ("movl (%1), %0" : "=r"(v) :"r"(p) : "memory")
 #define WRITEQ(p,v) __asm__ __volatile__ ("movq %0, (%1)" : : "r"(v), "r"(p) : "memory")
 #define READQ(p,v) __asm__ __volatile__ ("movq (%1), %0" : "=r"(v) :"r"(p) : "memory")
+#else
+#error "NAUT_CONFIG_USE_PCI_ECAM is undefined for architeture other than x86!"
+#endif
+#endif
 
 int pci_dev_set_msi_x_entry(struct pci_dev *dev, int num, int vec, int target_cpu)
 {
   struct pci_msi_x_info *m = &dev->msix;
   pci_msi_x_table_entry_t *t = m->table + num;
+
+  PCI_DEBUG("Setting MSI-X Table Entry at Address %p, Entry %u\n", t, num);
 
   if (dev->msix.type!=PCI_MSI_X) {
     PCI_DEBUG("MSI-X not available\n");
@@ -1607,7 +1720,6 @@ int pci_dev_set_msi_x_entry(struct pci_dev *dev, int num, int vec, int target_cp
   // We use LEV=0 because we don't care and are using edge
   // We use TM=0 to get edge
 
-  // now we write the entry
   WRITEL(&t->msg_addr_lo, mar_low);
   WRITEL(&t->msg_addr_hi,0);
   WRITEL(&t->msg_data,mdr);
@@ -1662,7 +1774,6 @@ static int pci_dev_mask_unmask_msi_x_entry(struct pci_dev *dev, int num, int val
     PCI_DEBUG("num=%d is out of range\n",num);
     return -1;
   }
-
 
   READL(&t->vector_control,old);
   if (val) {
@@ -1781,6 +1892,35 @@ int pci_dev_is_pending_msi_x(struct pci_dev *dev, int num)
   PCI_DEBUG("entry %d %s\n", num, val ? "pending" : "not pending");
   
   return val;
+}
+
+int nk_msi_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
+{
+  return -1;
+/*
+  return nk_ivec_find_range(
+      num,
+      1,
+      NK_IVEC_DESC_FLAG_MSI, // Required flags
+      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU|NK_IVEC_DESC_FLAG_NMI, // Banned flags
+      NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
+      0, // Flags to clear
+      first);
+*/
+}
+int nk_msi_x_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first)
+{
+  return -1;
+  /*
+  return nk_ivec_find_range(
+      num,
+      1,
+      NK_IVEC_DESC_FLAG_MSI_X, // Required flags
+      NK_IVEC_DESC_FLAG_RESERVED|NK_IVEC_DESC_FLAG_PERCPU|NK_IVEC_DESC_FLAG_NMI, // Banned flags
+      NK_IVEC_DESC_FLAG_RESERVED, // Flags to set
+      0, // Flags to clear
+      first);
+      */
 }
 
 void pci_dev_dump_msi_x(struct pci_dev *dev)

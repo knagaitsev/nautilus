@@ -28,6 +28,7 @@
 #include <nautilus/scheduler.h>
 #include <nautilus/semaphore.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 
 // This is a trival implementation of classic semaphores for threads ONLY
 // interrupts can use the try functions only
@@ -89,7 +90,7 @@ struct nk_semaphore *nk_semaphore_create(char *name,
     char buf[32];
     
     if (!name) {
-	snprintf(buf,NK_SEMAPHORE_NAME_LEN, "semaphore%lu", __sync_fetch_and_add(&count,1));
+	snprintf(buf,NK_SEMAPHORE_NAME_LEN, "semaphore%lu", atomic_add(count,1));
 	name = buf;
     }
     
@@ -305,13 +306,13 @@ struct op {
 static int check_count(void *s)
 {
     struct op *o = (struct op *)s;
-    return __sync_fetch_and_or(&o->sem->count,0) >= 1;
+    return atomic_or(o->sem->count,0) >= 1;
 }
 
 static int check_timer(void *s)
 {
     struct op *o = (struct op *)s;
-    return __sync_fetch_and_or(&o->timer->state,0)==NK_TIMER_SIGNALLED;
+    return atomic_or(o->timer->state,0)==NK_TIMER_SIGNALLED;
 }
 
 #if USE_POLLING_TIMEOUT_FUNCS
@@ -400,7 +401,7 @@ int nk_semaphore_down_timeout(struct nk_semaphore *s, uint64_t timeout_ns)
 	}
 
 	// we are a prospective
-	__sync_fetch_and_add(&s->prospective_count,1);
+	atomic_add(s->prospective_count,1);
 
 	DEBUG("starting multiple sleep\n");
 	
@@ -417,7 +418,7 @@ int nk_semaphore_down_timeout(struct nk_semaphore *s, uint64_t timeout_ns)
 	nk_timer_cancel(t);
   
 	// no longer a prospective
-	__sync_fetch_and_add(&s->prospective_count,-1);
+	atomic_add(s->prospective_count,-1);
 	
 	now = nk_sched_get_realtime();
 

@@ -98,9 +98,9 @@ thread_group_tester(void *in, void **out) {
     return;
   }
 
-  start = rdtsc();
+  start = arch_read_timestamp();
   int tid = nk_thread_group_join(dst);
-  end = rdtsc();
+  end = arch_read_timestamp();
 
   if (tid < 0) {
     DEBUG("group join failed\n");
@@ -135,9 +135,9 @@ thread_group_tester(void *in, void **out) {
   }
 #endif
 
-  start = rdtsc();
+  start = arch_read_timestamp();
   nk_thread_group_election(dst);
-  end = rdtsc();
+  end = arch_read_timestamp();
 
   dur_array[tid][1] = end - start;
 
@@ -148,32 +148,32 @@ thread_group_tester(void *in, void **out) {
     constraints->aperiodic.priority = DEFAULT_PRIORITY;
   }
 
-  start = rdtsc();
+  start = arch_read_timestamp();
   if (nk_group_sched_change_constraints(dst, constraints)) {
-    end = rdtsc();
+    end = arch_read_timestamp();
     DEBUG("t%d change constraint failed!\n", tid);
   } else {
-    end = rdtsc();
+    end = arch_read_timestamp();
     DEBUG("t%d #\n", tid);
   }
 
   dur_array[tid][2] = end - start;
 
   //change_constraint measure
-  start = rdtsc();
+  start = arch_read_timestamp();
   if (nk_sched_thread_change_constraints(constraints)) {
       DEBUG("Failed to change thread constraints\n");
   }
-  end = rdtsc();
+  end = arch_read_timestamp();
 
   dur_array[tid][3] = end - start;
 
   //barrier test
   int ret;
   for (i = 0; i < BARRIER_TEST_LOOPS; ++i) {
-    start = rdtsc();
+    start = arch_read_timestamp();
     ret = nk_thread_group_barrier(dst);
-    end = rdtsc();
+    end = arch_read_timestamp();
     if (ret) {
       DEBUG("t%d &\n", tid);
     }

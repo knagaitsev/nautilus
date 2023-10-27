@@ -87,7 +87,7 @@ struct nk_regs {
     ulong_t rbx;
     ulong_t rax;
     ulong_t vector;
-    ulong_t err_code;
+    ulong_t error_code;
     ulong_t rip;
     ulong_t cs;
     ulong_t rflags;

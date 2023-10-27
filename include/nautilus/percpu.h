@@ -1,4 +1,5 @@
 /* 
+    new_cpu->lapic_id   = 0;
  * This file is part of the Nautilus AeroKernel developed
  * by the Hobbes and V3VEE Projects with funding from the 
  * United States National  Science Foundation and the Department of Energy.  
@@ -21,6 +22,9 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 
+#ifndef __PER_CPU_H__
+#define __PER_CPU_H__
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,6 +46,7 @@ struct cpu;
 #define __stringify(x) #x
 #define __percpu_seg tp
 
+#include <nautilus/smp.h>
 #include <nautilus/nautilus.h>
 
 #define __per_cpu_get(var, n)                                        \
@@ -99,10 +104,6 @@ do { \
 
 #define my_cpu_id() per_cpu_get(id)
 
-#ifndef __PER_CPU_H__
-#define __PER_CPU_H__
-
-#include <nautilus/smp.h>
 static inline struct cpu*
 get_cpu (void)
 {
@@ -111,9 +112,9 @@ get_cpu (void)
     return (struct cpu*) x;
 }
 
-#endif /* !__PER_CPU_H__ */
+#endif /* NAUT_CONFIG_ARCH_RISCV */
 
-#else
+#ifdef NAUT_CONFIG_ARCH_X86
 
 #define __movop_1 movb
 #define __movop_2 movw
@@ -205,10 +206,8 @@ do { \
     
 #define my_cpu_id() per_cpu_get(id)
 
-#ifndef __PER_CPU_H__
-#define __PER_CPU_H__
 
-#include <nautilus/msr.h>
+#include <arch/x64/msr.h>
 #include <nautilus/smp.h>
 static inline struct cpu*
 get_cpu (void)
@@ -216,11 +215,34 @@ get_cpu (void)
     return (struct cpu*)msr_read(MSR_GS_BASE);
 }
 
-#endif /* !__PER_CPU_H__ */
 
-#endif /* NAUT_CONFIG_ARCH_RISCV */
+#endif /* NAUT_CONFIG_ARCH_X86 */
+
+
+#ifdef NAUT_CONFIG_ARCH_ARM64
+
+#include<arch/arm64/sys_reg.h>
+
+static inline struct cpu*
+get_cpu (void)
+{
+  struct cpu *c;
+  LOAD_SYS_REG(TPIDR_EL1, c);
+  return c;
+}
+
+#define per_cpu_put(var, newval) do { \
+  get_cpu()->var = newval;\
+  } while(0)
+
+#define per_cpu_get(var) (get_cpu()->var)
+    
+#define my_cpu_id() per_cpu_get(id)
+
+#endif /* NAUT_CONFIG_ARCH_ARM64 */
 
 #ifdef __cplusplus
 }
 #endif
 
+#endif /* !__PER_CPU_H__ */

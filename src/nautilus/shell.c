@@ -566,6 +566,8 @@ shell_cmd_init (void)
 
     struct shell_cmd_state * state = malloc(sizeof(*state));
 
+    DEBUG("shell_cmd_init start=%p, stop=%p\n", __start_shell_cmds, __stop_shell_cmds);
+
     if (!state) {
         ERROR("Could not initialize shell cmd state\n");
         return NULL;

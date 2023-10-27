@@ -23,35 +23,31 @@
 #ifndef __SMP_H__
 #define __SMP_H__
 
-#ifndef __ASSEMBLER__ 
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #include <nautilus/naut_types.h>
 
-#ifdef NAUT_CONFIG_ARCH_X86
-#include <nautilus/msr.h>
-#endif
-
 /******* EXTERNAL INTERFACE *********/
 
 uint32_t nk_get_num_cpus (void);
-uint8_t nk_get_cpu_by_lapicid (uint8_t lapicid);
 
 /******* !EXTERNAL INTERFACE! *********/
 
-
-#ifdef NAUT_CONFIG_ARCH_X86
-#include <dev/apic.h>
-#endif
+#include <nautilus/printk.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/mm.h>
 #include <nautilus/queue.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+
+#include <dev/apic.h>
+
 #ifdef NAUT_CONFIG_USE_IST
-#include <nautilus/gdt.h>
+#include <arch/x86/gdt.h>
+#endif
+
 #endif
 
 struct naut_info;
@@ -64,8 +60,6 @@ struct nk_thread;
 //typedef struct nk_wait_queue nk_wait_queue_t;
 //typedef struct nk_thread nk_thread_t;
 typedef void (*nk_xcall_func_t)(void * arg);
-typedef uint32_t cpu_id_t;
-
 
 struct nk_xcall {
     nk_queue_entry_t xcall_node;
@@ -83,9 +77,9 @@ struct nk_xcall {
 struct cpu {
     struct nk_thread * cur_thread;             /* +0  KCH: this must be first! */
 
-#ifdef NAUT_CONFIG_ARCH_RISCV
-    uint32_t interrupt_nesting_level;
-    uint32_t preempt_disable_level;
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
+    uint32_t interrupt_nesting_level; /* +8 PAD: DO NOT MOVE */
+    uint32_t preempt_disable_level; /* +12 PAD: DO NOT MOVE */
 #else
     // track whether we are in an interrupt, nested or otherwise
     // this is intended for use by the scheduler (any scheduler)
@@ -103,19 +97,26 @@ struct cpu {
     // this field is only used if aspace are enabled
     struct nk_aspace    *cur_aspace;            /* +32 PAD: DO NOT MOVE */
 
-    #if NAUT_CONFIG_FIBER_ENABLE
+#if NAUT_CONFIG_FIBER_ENABLE
     struct nk_fiber_percpu_state *f_state; /* Fiber state for each CPU */
-    #endif
+#endif
 
-    #ifdef NAUT_CONFIG_WATCHDOG
+#ifdef NAUT_CONFIG_WATCHDOG
     uint64_t watchdog_count; /* Number of times the watchdog timer has been triggered */
-    #endif
+#endif
 
 // need to populate plic_claim_register with the value we want in initialization
 
     cpu_id_t id;
-    uint32_t lapic_id;   
-#ifdef NAUT_CONFIG_ARCH_RISCV
+
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    uint8_t aff0;
+    uint8_t aff1;
+    uint8_t aff2;
+    uint8_t aff3;
+#endif
+
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
     uint32_t enabled;
     uint32_t is_bsp;
     uint32_t *plic_claim_register;
@@ -127,15 +128,15 @@ struct cpu {
     uint8_t enabled;
     uint8_t is_bsp;
 #endif
+
     uint32_t cpu_sig;
     uint32_t feat_flags;
 
     volatile uint8_t booted;
 
+    int in_timer_interrupt;
+    int in_kick_interrupt;
 
-		int in_timer_interrupt;
-		int in_kick_interrupt;
-    struct apic_dev * apic;
 
     struct sys_info * system;
 
@@ -158,6 +159,11 @@ struct cpu {
 
     struct nk_rand_info * rand;
 
+#ifdef NAUT_CONFIG_ARCH_X86
+
+    struct apic_dev * apic;
+    uint32_t lapic_id;   
+
 #ifdef NAUT_CONFIG_USE_IST
     /* CPU-specific GDT, for separate IST per-CPU */
     // Set up in smp_ap_setup
@@ -166,57 +172,70 @@ struct cpu {
     struct tss64 tss;
 #endif
 
+#endif
+
     /* temporary */
 #ifdef NAUT_CONFIG_PROFILE
     struct nk_instr_data * instr_data;
 #endif
 };
 
+static inline void dump_cpu(struct cpu *cpu) {
+#define PF(field, format) printk("[CPU %u]." #field " = " #format "\n", cpu->id, cpu->field, format)
+  PF(cur_thread, "%p");
+  PF(interrupt_nesting_level, "%u");
+  PF(preempt_disable_level, "%u");
+  PF(interrupt_count, "%u");
+  PF(exception_count, "%u");
+  PF(cur_aspace, "%p");
+#ifdef NAUT_CONFIG_FIBER_ENABLE
+#if NAUT_CONFIG_FIBE_ENABLE
+  PF(f_state, "%p");
+#endif
+#endif
+#ifdef NAUT_CONFIG_WATCHDOG
+  PF(watchdog_count, "%u");
+#endif
+  PF(id, "%u");
+#ifdef NAUT_CONFIG_ARCH_ARM64
+  PF(aff0, "0x%02x");
+  PF(aff1, "0x%02x");
+  PF(aff2, "0x%02x");
+  PF(aff3, "0x%02x");
+#endif
+  PF(enabled, "%u");
+  PF(is_bsp, "%u");
+  PF(cpu_sig, "0x%08x");
+  PF(feat_flags, "0x%08x");
+  PF(booted, "%u");
+  PF(in_timer_interrupt, "%u");
+  PF(in_kick_interrupt, "%u");
+  PF(system, "%p");
+  PF(lock, "%u");
+  PF(sched_state, "%p");
+  PF(xcall_q, "%p");
+  PF(cpu_khz, "0x%u");
+  PF(tp, "%p");
+  PF(coord, "%p");
+  PF(domain, "%p");
+  PF(rand, "%p");
+#ifdef NAUT_CONFIG_ARCH_X86
+  PF(apic, "%p");
+  PF(lapic_id, "%u");
+#endif 
+#ifdef NAUT_CONFIG_PROFILE
+  PF(instr_data, "%p");
+#endif
+#undef PF
+}
 
-struct ap_init_area {
-    uint32_t stack;  // 0
-    uint32_t rsvd; // to align the GDT on 8-byte boundary // 4
-    uint32_t gdt[6] ; // 8
-    uint16_t gdt_limit; // 32
-    uint32_t gdt_base; // 34
-    uint16_t rsvd1; // 38
-    uint64_t gdt64[3]; // 40
-    uint16_t gdt64_limit; // 64
-    uint64_t gdt64_base; // 66
-    uint64_t cr3; // 74
-    struct cpu * cpu_ptr; // 82
-
-    void (*entry)(struct cpu * core); // 90
-
-} __packed;
-
-
-int smp_early_init(struct naut_info * naut);
-int smp_bringup_aps(struct naut_info * naut);
+struct nk_irq_action;
+struct nk_regs;
+int xcall_handler(struct nk_irq_action *, struct nk_regs *, void *);
 int smp_xcall(cpu_id_t cpu_id, nk_xcall_func_t fun, void * arg, uint8_t wait);
-void smp_ap_entry (struct cpu * core);
-int smp_setup_xcall_bsp (struct cpu * core);
-
-
-/* ARCH-SPECIFIC */
-
-int arch_early_init (struct naut_info * naut);
-
-
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* !__ASSEMBLER__ */
-
-#define AP_TRAMPOLINE_ADDR 0xf000 
-#define AP_BOOT_STACK_ADDR 0x1000
-#define AP_INFO_AREA       0x2000
-
-#define BASE_MEM_LAST_KILO 0x9fc00
-#define BIOS_ROM_BASE      0xf0000
-#define BIOS_ROM_END       0xfffff
-
 
 #endif

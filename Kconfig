@@ -5,13 +5,25 @@ menu "Platform"
 
 
 		config ARCH_X86
+                        select HAS_MSI
+                        select HAS_PCI
+			select HAS_PORT_IO
+                        select HAS_CONTIGUOUS_CPU_ID
+                        select USE_PCI_CAM
+                        select USE_MULTIBOOT
 			bool
 
 		config ARCH_RISCV
+                        select USE_FDT
+                        select USE_PCI_ECAM
 			bool
 
 		config ARCH_ARM64
 			bool
+                        select HAS_PCI
+                        select USE_FDT
+                        select USE_PCI_ECAM
+                        select SPARSE_IRQ
 
     choice
         prompt "Platform Selection"
@@ -38,7 +50,7 @@ menu "Platform"
 						select ARCH_RISCV
 
         config ARM64_GENERIC
-            bool "Generic ARM64 host (qemu-virt machine)"
+            bool "Generic ARM64 Host" 
 						select ARCH_ARM64
 
         config GEM5_FORCE_APIC_TIMER_CALIBRATION
@@ -79,11 +91,26 @@ menu "Platform"
           For uniprocessor environments, set this to 1
 
     config MAX_IOAPICS
+        depends on X86_64_HOST
         int "Maximum Number of IOAPICS"
         range 1 255
         default "16"
         help
           Specifies the maximum number of IOAPICS supported by Nautilus
+
+    config KERNEL_LINK_ADDR
+        hex "Kernel Load Address"
+        default 0x100000
+        help
+          Sets the base address which the kernel is linked to be loaded at
+
+    config ARM64_HAS_SECURE_MONITOR
+        bool "ARM Has Secure Monitor"
+        default n
+        depends on ARCH_ARM64
+        help
+          Is there trusted firmware present at EL3? (e.g. should we use HVC or SMC calls?)
+
 
     config HRT_HIHALF_OFFSET
         hex "HRT High-half offset"
@@ -179,7 +206,7 @@ menu "Build"
 
     config CXX_SUPPORT
       bool "Enable C++ support"
-      default y
+      default n
       help
         Compiles the Nautilus kernel with C++ support. Necessary for,
         e.g. C++ HRT integration
@@ -321,6 +348,7 @@ config VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME
 
 config VIRTUAL_CONSOLE_SERIAL_MIRROR
     bool "Mirror virtual console log output to serial"
+    depends on ARCH_X86
     default n
     help
 	Writes any log output 
@@ -675,6 +703,7 @@ config VIRTUAL_CONSOLE_SERIAL_MIRROR_ALL
 
 config REAL_MODE_INTERFACE
    bool "Enable the Long->Real interface"
+   depends on X86_64_HOST
    default n
    help
       Allows long mode code in Nautilus to execute real-mode
@@ -874,6 +903,7 @@ menu "Garbage Collection Options"
 
     config XSAVE_SUPPORT
       bool "Allow saving of FPRs with XSAVE instructions"
+      depends on X86_64_HOST
       default true
       help
         Adds xsave instruction support to Nautilus. Processor
@@ -1116,12 +1146,33 @@ menu Debugging
       help
         This adds a built in monitor to Nautilus.  You probably also want to enable the watchdog
 
+    config DEBUG_IOMAP
+      bool "Debug I/O Mappings"
+      depends on DEBUG_PRINTS
+      default n
+      help
+        Turn on debug prints for IO map subsystem
+
     config DEBUG_PAGING
       bool "Debug Paging"
       depends on DEBUG_PRINTS
       default n
       help
         Turn on debug prints for paging subsystem
+
+    config DEBUG_INTERRUPT_FRAMEWORK
+      bool "Debug Interrupt Framework"
+      depends on DEBUG_PRINTS
+      default n
+      help
+        Turn on debug prints for the generic interrupt handling framework
+
+    config DEBUG_UNFLATTENED_DEVICE_TREE
+      bool "Debug Unflattened Device Tree"
+      depends on USE_FDT
+      default n
+        help
+          Turn on debug prints for the unflattened device tree framework
 
     config DEBUG_BOOTMEM
       bool "Debug Bootmem Allocator"
@@ -1844,6 +1895,8 @@ source "src/fs/Kconfig"
 
 source "src/net/Kconfig"
 
+source "src/pass/Kconfig"
+
 menu "Languages"
 
 	config LOAD_LUA
@@ -1860,4 +1913,66 @@ menu "Languages"
 		  Nautilus functionas are made available to Lua externally
 
 endmenu
+
+# --- Invisible Options ---
+
+# Features
+
+config HAS_PORT_IO
+    def_bool n
+    help
+      Does the current configuration have support for Port Mapped I/O?
+
+config HAS_PCI
+    def_bool n
+    help
+      Does the current configuration have support for PCI devices?
+
+config HAS_MSI
+    def_bool n
+    help
+      Does the current configuration have support for MSI interrupts? (set by the architecture or irq device)
+
+# Multi Processing
+
+config HAS_CONTIGUOUS_CPU_ID
+    def_bool n
+    help
+      cpu_id_t values are all contiguous for this architecture
+
+# FDT
+config USE_FDT
+    def_bool n
+    help
+      Use the Open Firmware device tree to discover devices.
+
+# Multiboot
+config USE_MULTIBOOT
+    def_bool n
+    help
+      Use Mutliboot when booting the system
+
+# PCI
+config USE_PCI_CAM
+    def_bool n
+    depends on HAS_PORT_IO
+    help
+      Use the Port Mapped I/O to access PCI configuration space
+
+config USE_PCI_ECAM
+    def_bool n
+    help
+      Use the MMIO "Enhanced Configuration Access Mechanism" to access PCI configuration space
+
+# IRQ
+config IDENTITY_MAP_IRQ_VECTORS
+    def_bool n
+    help
+      Identity map IRQ's to Vectors for architectures where there isn't a conceptual difference between the two.
+
+config SPARSE_IRQ
+    def_bool n
+    help
+      Store Interrupt Vectors's efficiently on a system where there can be large gaps between IRQ numbers.
+      If this is disabled, the architecture will need to provide the MAX_IRQ_NUM macro.
 

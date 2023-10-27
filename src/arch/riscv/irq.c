@@ -20,12 +20,7 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
-#include <nautilus/irq.h>
+//#include <nautilus/irq.h>
 
 // RISCV HACK
-
-void
-nk_unmask_irq (uint8_t irq)
-{
-}
 

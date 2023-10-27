@@ -23,7 +23,6 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/idle.h>
 #include <nautilus/cpu.h>
-#include <nautilus/irq.h>
 #include <nautilus/thread.h>
 #include <nautilus/task.h>
 #include <nautilus/scheduler.h>
@@ -107,7 +106,7 @@ idle (void * in, void ** out)
 #endif
 
 #ifdef NAUT_CONFIG_HALT_WHILE_IDLE
-        sti();
+        arch_enable_ints();
         halt();
 #endif
     }

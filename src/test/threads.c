@@ -27,10 +27,35 @@
 #include <nautilus/shell.h>
 #include <nautilus/vc.h>
 
-#define DO_PRINT       0
+#define DO_PRINT               1
+#define DO_PRINT_PER_THREAD    0
 
 #if DO_PRINT
-#define PRINT(...) nk_vc_printf(__VA_ARGS__)
+#define PRINT(fmt, args...)					\
+do {									\
+    if (__cpu_state_get_cpu()) {					\
+	int _p=preempt_is_disabled();					\
+        preempt_disable();                                              \
+	struct nk_thread *_t = get_cur_thread();				\
+ 	nk_vc_printf("CPU %d (%s%s%s %lu \"%s\"): DEBUG: " fmt,		\
+		       my_cpu_id(),					\
+		       in_interrupt_context() ? "I" :"",		\
+                       arch_ints_enabled() ? "E" : "",\
+		       _p ? "" : "P",					\
+		       _t ? _t->tid : 0,				\
+		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+		       ##args);						\
+	preempt_enable();				                \
+    } else {								\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+ 	nk_vc_printf("CPU ? (%s%s): DEBUG: " fmt,			\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       ##args);						\
+	preempt_enable();						\
+    }									\
+} while (0)
 #else
 #define PRINT(...) 
 #endif
@@ -57,7 +82,9 @@ static void thread_func(void *in, void **out)
 
     get_cur_thread()->vc = get_cur_thread()->parent->vc;
 
+#if DO_PRINT_PER_THREAD
     PRINT("Hello from thread tid %lu - %d pass %d\n", t->tid, arg->thread, arg->pass);
+#endif
 
     free(arg);
 }
@@ -74,21 +101,24 @@ static int test_create_join(int nump, int numt)
 	    struct test_arg *arg = (struct test_arg *) malloc(sizeof(struct test_arg));
 	    arg->pass=i;
 	    arg->thread=j;
-	    if (nk_thread_start(thread_func,
+	    int res = nk_thread_start(thread_func,
 				arg,
 				0,
 				0,
 				PAGE_SIZE_4KB,
 				NULL,
-				-1)) { 
-		PRINT("Failed to launch thread %d on pass %d\n", j,i);
-		nk_join_all_children(0);
+				(int)-1);
+            if(res) { 
+		PRINT("ERROR: Failed to launch thread %d on pass %d - nk_thread_start returned %d\n", j,i,res);
+		if(nk_join_all_children(0)) {
+                  PRINT("ERROR: Failed to rejoin thread's children on error exit!\n");
+                }
 		return -1;
 	    }
 	}
 	PRINT("Launched %d threads in pass %d\n", j, i);
 	if (nk_join_all_children(0)) {
-	    PRINT("Failed to join threads on pass %d\n",i);
+	    PRINT("ERROR: Failed to join threads on pass %d\n",i);
 	    return -1;
 	}
 	PRINT("Joined %d threads in pass %d\n", j, i);
@@ -97,7 +127,6 @@ static int test_create_join(int nump, int numt)
     PRINT("Done with thread create/join stress test (SUCCESS)\n");
     return 0;
 }
-
 
 static int __noinline
 #ifndef __clang__
@@ -108,7 +137,9 @@ test_fork_join(int nump, int numt)
     int i,j;
 
     PRINT("Starting on threads fork/join stress test (%d passes, %d threads)\n",nump,numt);
-
+#ifdef NAUT_CONFIG_ARCH_RISCV
+    return -1;
+#else
     nk_thread_id_t t;
     
     for (i=0;i<nump;i++) {
@@ -117,7 +148,7 @@ test_fork_join(int nump, int numt)
 	    t = nk_thread_fork();
 	    if (t==NK_BAD_THREAD_ID) {
 		PRINT("Failed to fork thread\n");
-		return 0;
+		return -1;
 	    }
 	    if (t==0) { 
 		// child thread
@@ -144,6 +175,7 @@ test_fork_join(int nump, int numt)
 	PRINT("Joined %d forked threads in pass %d\n", j, i);
 	nk_sched_reap(1); // clean up unconditionally
     }
+#endif
     PRINT("Done with thread fork/join stress test (SUCCESS)\n");
     return 0;
 }
@@ -156,7 +188,9 @@ static void _test_recursive_create_join(void *in, void **out)
 	get_cur_thread()->vc = get_cur_thread()->parent->vc;
     }
 
+#if DO_PRINT_PER_THREAD
     PRINT("Hello from tid %lu at depth %lu\n", get_cur_thread()->tid, depth);
+#endif
 
     if (depth==DEPTH) { 
 	return;
@@ -185,9 +219,13 @@ static void _test_recursive_create_join(void *in, void **out)
 	    nk_join_all_children(0);
 	    return ;
 	}
+#if DO_PRINT_PER_THREAD
 	PRINT("Thread %lu launched left and right threads at depth %lu\n",get_cur_thread()->tid, depth);
+#endif
 	nk_join_all_children(0);
+#if DO_PRINT_PER_THREAD
 	PRINT("Thread %lu joined with left and right threads at depth %lu\n",get_cur_thread()->tid,depth);
+#endif
 	return ;
     }
 }
@@ -216,7 +254,10 @@ _test_recursive_fork_join(uint64_t depth, uint64_t pass)
     }
 
     PRINT("Hello from forked tid %lu at pass %lu depth %lu\n", get_cur_thread()->tid, pass, depth);
-
+#ifdef NAUT_CONFIG_ARCH_RISCV
+    hack = -1;
+    return;
+#else
     nk_thread_id_t l,r;
     
     if (depth==DEPTH) { 
@@ -225,6 +266,7 @@ _test_recursive_fork_join(uint64_t depth, uint64_t pass)
 	l = nk_thread_fork();
 	if (l==NK_BAD_THREAD_ID) {
 	    PRINT("Failed to fork left thread\n");
+            hack = -1;
 	    return;
 	}
 	if (l == 0) {
@@ -236,6 +278,7 @@ _test_recursive_fork_join(uint64_t depth, uint64_t pass)
 	r = nk_thread_fork();
 	if (r==NK_BAD_THREAD_ID) {
 	    PRINT("Failed to fork right thread\n");
+            hack = -1;
 	    return;
 	}
 	if (r == 0) {
@@ -250,20 +293,19 @@ _test_recursive_fork_join(uint64_t depth, uint64_t pass)
 	PRINT("Thread %lu joined with left and right threads at pass %lu depth %lu\n",get_cur_thread()->tid,pass,depth);
 	return ;
     }
+#endif
 }
 
 static int test_recursive_fork_join()
 {
     int i;
+    hack = 0;
     for (i=0;i<NUM_PASSES;i++) {
 	_test_recursive_fork_join(0,i);
 	nk_sched_reap(1);
     }
-    return 0;
+    return hack;
 }
-
-
-
 
 int test_threads()
 {
@@ -272,11 +314,13 @@ int test_threads()
     int recursive_create_join;
     int recursive_fork_join;
 
+    nk_vc_printf("Starting thread tests...\n");
+
     create_join = test_create_join(NUM_PASSES,NUM_THREADS);
 
     nk_vc_printf("Create-join test of %lu passes with %lu threads each: %s\n", 
 		 NUM_PASSES,NUM_THREADS, create_join ? "FAIL" : "PASS");
-    
+   
     fork_join = test_fork_join(NUM_PASSES,NUM_THREADS);
     
     nk_vc_printf("Fork-join test of %lu passes with %lu threads each: %s\n", 
@@ -294,8 +338,6 @@ int test_threads()
 
 
     return create_join | fork_join | recursive_create_join | recursive_fork_join;
-
-return fork_join;
 }
 
 
@@ -312,3 +354,4 @@ static struct shell_cmd_impl threads_impl = {
     .handler  = handle_threads,
 };
 nk_register_shell_cmd(threads_impl);
+

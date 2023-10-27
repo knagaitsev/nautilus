@@ -24,11 +24,14 @@
 #include <nautilus/nemo.h>
 #include <nautilus/cpu.h>
 #include <nautilus/percpu.h>
-#include <nautilus/irq.h>
 #include <nautilus/mm.h>
 #include <nautilus/naut_assert.h>
+#include <nautilus/interrupt.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/irq.h>
 #include <dev/apic.h>
+#endif
 
 #define NEMO_DEBUG(fmt, args...) DEBUG_PRINT("NEMO: " fmt, ##args)
 #define NEMO_INFO(fmt, args...)  printk("NEMO: " fmt, ##args)
@@ -53,7 +56,7 @@ event_is_valid (nemo_event_id_t id)
 
 
 static int
-nemo_ipi_event_recv (excp_entry_t * excp, excp_vec_t v, void *state)
+nemo_ipi_event_recv (struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
 	nemo_event_id_t eid = nemo_lookup_table[my_cpu_id()];
 
@@ -179,7 +182,7 @@ int
 nemo_init (void)
 {
 
-	if (register_int_handler(NEMO_INT_VEC, nemo_ipi_event_recv, NULL) != 0) {
+	if (nk_irq_add_handler(x86_vector_to_irq(NEMO_INT_VEC), nemo_ipi_event_recv, NULL) != 0) {
 		NEMO_ERR("Could not register Nemo interrupt handler\n");
 		return -1;
 	}

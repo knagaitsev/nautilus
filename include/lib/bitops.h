@@ -93,8 +93,10 @@
 
 #ifdef NAUT_CONFIG_ARCH_RISCV
 #include <arch/riscv/bitops.h>
-#else
-#include <asm/bitops.h>
+#elif NAUT_CONFIG_ARCH_ARM64
+#include <arch/arm64/bitops.h>
+#elif NAUT_CONFIG_ARCH_X86
+#include <arch/x64/bitops.h>
 #endif
 
 static __inline__ unsigned get_bitmask_order(unsigned int count)
@@ -227,6 +229,7 @@ static inline unsigned long __ffs64(uint64_t word)
 	return __ffs((unsigned long)word);
 }
 
+
 /**
  * find_last_bit - find the last set bit in a memory region
  * @addr: The address to start the search at
@@ -259,12 +262,8 @@ extern unsigned long find_next_zero_bit(const unsigned long *addr, unsigned
 		long size, unsigned long offset);
 #endif
 
-
-
 #define find_first_bit(addr, size) find_next_bit((addr), (size), 0)
 #define find_first_zero_bit(addr, size) find_next_zero_bit((addr), (size), 0)
-
-
 
 
 #endif /* __BITOPS_H__ */

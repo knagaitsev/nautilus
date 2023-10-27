@@ -23,9 +23,10 @@
  */
 
 #include <arch/riscv/sbi.h>
-#include <dev/sifive.h>
+
 #include <arch/riscv/plic.h>
 #include <nautilus/nautilus.h>
+#include <dev/sifive_serial.h>
 
 
 #define ITERATIONS 100
@@ -113,8 +114,8 @@ int my_strcmp (const char * s1, const char * s2)
     }
 }
 
-#define DB(x) sifive_serial_putchar(x)
-#define DHN(x) sifive_serial_putchar(((x & 0xF) >= 10) ? (((x & 0xF) - 10) + 'a') : ((x & 0xF) + '0'))
+#define DB(x) //sifive_serial_putchar(x)
+#define DHN(x) //sifive_serial_putchar(((x & 0xF) >= 10) ? (((x & 0xF) - 10) + 'a') : ((x & 0xF) + '0'))
 #define DHB(x) DHN(x >> 4) ; DHN(x);
 #define DHW(x) DHB(x >> 8) ; DHB(x);
 #define DHL(x) DHW(x >> 16) ; DHW(x);
@@ -124,10 +125,10 @@ int my_strcmp (const char * s1, const char * s2)
 static void print(char *b)
 {
     while (b && *b) {
-        sifive_serial_putchar(*b);
+        //sifive_serial_putchar(*b);
         b++;
     }
-    sifive_serial_putchar('\n');
+    //sifive_serial_putchar('\n');
 }
 
 // Keyboard stuff repeats here to be self-contained
@@ -649,7 +650,7 @@ static int execute_plic_bench(char command[]) {
   while (true) {
     // TODO: need to also measure this difference when it is a poll miss
     unsigned long t1 = read_csr(cycle);
-    int irq = plic_claim();
+    int irq = 0;//plic_claim();
     unsigned long t2 = read_csr(cycle);
     if (irq != 0) {
       unsigned long diff = t2 - t1;
@@ -662,9 +663,9 @@ static int execute_plic_bench(char command[]) {
       // the incoming interrupt will be due to serial input, so we
       // need to clear out the input or else the interrupt will be
       // triggered again
-      sifive_serial_getchar();
+      //sifive_serial_getchar();
 
-      plic_complete(irq);
+      //plic_complete(irq);
       c++;
     }
 
@@ -749,7 +750,7 @@ static int nk_monitor_loop()
   while (!done) {
     DS("monitor> ");
     wait_for_command(buffer, buffer_size);
-    sifive_serial_putchar('\n');
+    //sifive_serial_putchar('\n');
     done = execute_potential_command(buffer);
   };
   return 0;

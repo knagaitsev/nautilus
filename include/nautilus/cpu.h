@@ -29,9 +29,15 @@ extern "C" {
 
 #include <nautilus/naut_types.h>
 
+#ifdef NAUT_CONFIG_ARCH_ARM64
+#include <arch/arm64/cpu.h>
+#endif
+
 #ifdef NAUT_CONFIG_ARCH_RISCV
 #include <arch/riscv/cpu.h>
-#else
+#endif
+
+#ifdef NAUT_CONFIG_ARCH_X86
 #include <arch/x64/cpu.h>
 #endif
     

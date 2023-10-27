@@ -1,0 +1,8 @@
+# ==========================================================================
+# Build system
+# ==========================================================================
+
+CFLAGS += -mno-outline-atomics -mstrict-align -Werror=pointer-sign -fomit-frame-pointer
+
+LDFLAGS += --fatal-warnings
+

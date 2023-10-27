@@ -20,7 +20,7 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
-#include <nautilus/msr.h>
+
 #include <nautilus/nautilus.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
@@ -28,6 +28,9 @@
 #include <nautilus/mm.h>
 #include <nautilus/shell.h>
 
+#ifdef NAUT_CONFIG_ARCH_X64
+#include <arch/x64/msr.h>
+#endif
 
 /*
  * PMC Subsystem

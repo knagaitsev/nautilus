@@ -2,12 +2,16 @@
 #include <nautilus/syscalls/kernel.h>
 #include <nautilus/syscalls/numbers.h>
 
-#include <nautilus/irq.h>
 #include <nautilus/msr.h>
 #include <nautilus/nautilus.h>
 #include <nautilus/process.h>
 #include <nautilus/shell.h>
 #include <nautilus/thread.h>
+#include <nautilus/interrupt.h>
+
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/irq.h>
+#endif
 
 #define SYSCALL_NAME "syscall"
 #include "impl_preamble.h"
@@ -344,10 +348,9 @@ void init_syscall_table() {
   return;
 }
 
-int int80_handler(excp_entry_t* excp, excp_vec_t vector, void* state) {
+int int80_handler(struct nk_irq_action* action, struct nk_regs *regs, void* state) {
 
-  struct nk_regs* r = (struct nk_regs*)((char*)excp - 128);
-  return nk_syscall_handler(r);
+  return nk_syscall_handler(regs);
 }
 
 uint64_t nk_syscall_handler(struct nk_regs* r) {
@@ -401,7 +404,7 @@ int syscall_setup() {
 }
 
 void nk_syscall_init() {
-  register_int_handler(0x80, int80_handler, 0);
+  nk_irq_add_handler_early(x86_vector_to_irq(0x80), int80_handler, 0);
   syscall_setup();
 }
 

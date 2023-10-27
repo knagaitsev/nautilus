@@ -22,9 +22,6 @@
  */
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
-#include <nautilus/msr.h>
-#include <nautilus/irq.h>
-#include <nautilus/paging.h>
 #include <nautilus/nautilus.h>
 #include <nautilus/percpu.h>
 #include <nautilus/intrinsics.h>
@@ -32,11 +29,20 @@
 #include <nautilus/shell.h>
 #include <nautilus/timer.h>
 #include <nautilus/dev.h>
+#include <nautilus/irqdev.h>
+#include <nautilus/interrupt.h>
 #include <dev/apic.h>
 #include <dev/i8254.h>
 #include <lib/bitops.h>
 
-#include <dev/gpio.h>
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/msr.h>
+#include <arch/x64/irq.h>
+#else
+#error "APIC requires that the architecture is set to ARCH_X86!"
+#endif
+
+#include <dev/port_gpio.h>
 
 #ifndef NAUT_CONFIG_DEBUG_APIC
 #undef DEBUG_PRINT
@@ -139,7 +145,7 @@ static int set_mode(struct apic_dev *apic, apic_mode_t mode)
 
 
 static int
-spur_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
+spur_int_handler (struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
     APIC_WARN("APIC (ID=0x%x) Received Spurious Interrupt on core %u\n",
         per_cpu_get(apic)->id,
@@ -153,7 +159,7 @@ spur_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
 }
 
 static int
-null_kick (excp_entry_t * excp, excp_vec_t v, void *state)
+null_kick (struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
     struct apic_dev * apic = (struct apic_dev*)per_cpu_get(apic);
     
@@ -167,7 +173,7 @@ null_kick (excp_entry_t * excp, excp_vec_t v, void *state)
 }
 
 static int
-error_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
+error_int_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     struct apic_dev * apic = per_cpu_get(apic);
     char * s = "[Unknown Error]";
@@ -201,7 +207,7 @@ error_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
 
 
 static int
-dummy_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
+dummy_int_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     panic("Received an interrupt from an Extended LVT vector  on LAPIC (0x%x) on core %u (Should be masked)\n",
         per_cpu_get(apic)->id,
@@ -212,7 +218,7 @@ dummy_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
 
 
 static int
-pc_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
+pc_int_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     panic("Received a performance counter interrupt from the LAPIC (0x%x) on core %u (Should be masked)\n",
         per_cpu_get(apic)->id,
@@ -223,7 +229,7 @@ pc_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
 
 
 static int
-thermal_int_handler (excp_entry_t * excp, excp_vec_t v, void *state)
+thermal_int_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     panic("Received a thermal interrupt from the LAPIC (0x%x) on core %u (Should be masked)\n",
         per_cpu_get(apic)->id,
@@ -453,11 +459,11 @@ apic_bcast_sipi (struct apic_dev * apic, uint8_t target)
 }
 
 static void calibrate_apic_timer(struct apic_dev *apic);
-int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state);
+int apic_timer_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state);
 
 
 static void
-apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms)
+apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms, struct nk_dev *dev)
 {
     uint32_t busfreq;
     uint32_t tmp;
@@ -478,9 +484,9 @@ apic_timer_setup (struct apic_dev * apic, uint32_t quantum_ms)
 	       x2apic, tscdeadline, arat);
 
     // Note that no state is used here since APICs are per-CPU
-    if (register_int_handler(APIC_TIMER_INT_VEC,
+    if (nk_irq_add_handler_dev(x86_vector_to_irq(APIC_TIMER_INT_VEC),
 			     apic_timer_handler,
-			     NULL) != 0) {
+			     NULL, dev) != 0) {
         panic("Could not register APIC timer handler\n");
     }
 
@@ -760,9 +766,22 @@ apic_dump (struct apic_dev * apic)
 
 }
 
-static struct nk_dev_int ops = {
-    .open = 0,
-    .close = 0,
+static int apic_dev_get_characteristics(void *state, struct nk_irq_dev_characteristics *c)
+{
+  memset(c, 0, sizeof(c));
+  return 0;
+}
+
+
+
+static struct nk_irq_dev_int apic_ops = {
+  .get_characteristics = apic_dev_get_characteristics
+  // Leave the rest as NULL
+};
+
+static struct nk_dev_int timer_ops = {
+  .open = 0,
+  .close = 0
 };
 
 void
@@ -882,37 +901,41 @@ apic_init (struct cpu * core)
 
     apic_global_enable();
 
+    char n[32];
+    snprintf(n,32,"apic%u",core->id);
+    struct nk_irq_dev *dev = nk_irq_dev_register(n,0,&apic_ops,(void*)apic);
+
     // assign interrupt handlers
     // all cores share the same IDT/etc, so only the BSP needs to do this
     if (core->is_bsp) {
 
 	// Note that no state is used here since APICs are per-CPU
 
-        if (register_int_handler(APIC_NULL_KICK_VEC, null_kick, NULL) != 0) {
+        if (nk_irq_add_handler_dev(x86_vector_to_irq(APIC_NULL_KICK_VEC), null_kick, NULL, dev) != 0) {
             panic("Could not register null kick interrupt handler\n");
         }
 
-        if (register_int_handler(APIC_SPUR_INT_VEC, spur_int_handler, NULL) != 0) {
+        if (nk_irq_add_handler_dev(x86_vector_to_irq(APIC_SPUR_INT_VEC), spur_int_handler, NULL, dev) != 0) {
             panic("Could not register spurious interrupt handler\n");
         }
 
-        if (register_int_handler(APIC_ERROR_INT_VEC, error_int_handler, NULL) != 0) {
+        if (nk_irq_add_handler_dev(x86_vector_to_irq(APIC_ERROR_INT_VEC), error_int_handler, NULL, dev) != 0) {
             panic("Could not register spurious interrupt handler\n");
             return;
         }
 
         /* we shouldn't ever get these, but just in case */
-        if (register_int_handler(APIC_PC_INT_VEC, pc_int_handler, NULL) != 0) {
+        if (nk_irq_add_handler_dev(x86_vector_to_irq(APIC_PC_INT_VEC), pc_int_handler, NULL, dev) != 0) {
             panic("Could not register perf counter interrupt handler\n");
             return;
         }
 
-        if (register_int_handler(APIC_THRML_INT_VEC, thermal_int_handler, NULL) != 0) {
+        if (nk_irq_add_handler_dev(x86_vector_to_irq(APIC_THRML_INT_VEC), thermal_int_handler, NULL, dev) != 0) {
             panic("Could not register thermal interrupt handler\n");
             return;
         }
 
-        if (register_int_handler(APIC_EXT_LVT_DUMMY_VEC, dummy_int_handler, NULL) != 0) {
+        if (nk_irq_add_handler_dev(x86_vector_to_irq(APIC_EXT_LVT_DUMMY_VEC), dummy_int_handler, NULL, dev) != 0) {
             panic("Could not register dummy ext lvt handler\n");
             return;
         }
@@ -951,14 +974,14 @@ apic_init (struct cpu * core)
 
     /* pass in quantum as milliseconds */
 #ifndef NAUT_CONFIG_XEON_PHI
-    apic_timer_setup(apic, 1000/NAUT_CONFIG_HZ);
+    struct nk_dev *timer_dev = nk_dev_register(
+		    "apic-timer", 
+		    NK_DEV_TIMER,
+		    0,&timer_ops,0);
+    apic_timer_setup(apic, 1000/NAUT_CONFIG_HZ, timer_dev);
 #endif
 
     apic_dump(apic);
-
-    char n[32];
-    snprintf(n,32,"apic%u",core->id);
-    nk_dev_register(n,NK_DEV_INTR,0,&ops,apic);
 }
 
 
@@ -1350,7 +1373,7 @@ static void calibrate_apic_timer(struct apic_dev *apic)
 }
 
 
-int apic_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
+int apic_timer_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     NK_GPIO_OUTPUT_MASK(0x2,GPIO_OR);
 

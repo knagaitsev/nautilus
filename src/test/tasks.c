@@ -223,6 +223,8 @@ int test_tasks()
     int create_wait;
     int recursive_create_wait;
 
+    nk_vc_printf("Starting task tests...\n");
+
     create_wait = test_create_wait(NUM_PASSES,NUM_TASKS);
 
     nk_vc_printf("Create-wait test of %lu passes with %lu tasks each: %s\n", 

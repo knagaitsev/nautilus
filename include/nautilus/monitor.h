@@ -30,26 +30,26 @@
 int nk_monitor_entry(void);
 
 // entry due to unhandled exception
-int nk_monitor_excp_entry(excp_entry_t * excp,
-			  excp_vec_t vector,
+int nk_monitor_excp_entry(struct nk_irq_action* action,
+			  struct nk_regs *regs,
 			  void *state);
 
 // entry due to unhandled interrupt
-int nk_monitor_irq_entry(excp_entry_t * excp,
-			 excp_vec_t vector,
+int nk_monitor_irq_entry(struct nk_irq_action *action,
+			 struct nk_regs *regs,
 			 void *state);
 
 // entry due to explicit panic call
 int nk_monitor_panic_entry(char *str);
 
 // entry due to hanging on some cpu (NMI from watchdog)
-int nk_monitor_hang_entry(excp_entry_t * excp,
-			  excp_vec_t vector,
+int nk_monitor_hang_entry(struct nk_irq_action *action,
+			  struct nk_regs *regs,
 			  void *state);
 
 // entry for debug exceptions (debug register use within monitor)
-int nk_monitor_debug_entry(excp_entry_t * excp,
-			   excp_vec_t vector,
+int nk_monitor_debug_entry(struct nk_irq_action *action,
+			   struct nk_regs *regs,
 			   void *state);
 
 // entry in response to another CPU's entry

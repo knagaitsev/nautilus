@@ -3,11 +3,12 @@ obj-y += \
 	printk.o \
 	doprnt.o \
 	vc.o \
-	idt.o \
 	queue.o \
-	irq.o \
+	irqdev.o \
+	gpio.o \
+	gpiodev.o \
+	interrupt.o \
 	naut_string.o \
-	cpuid.o \
 	crypto.o \
 	spinlock.o \
 	rwlock.o \
@@ -16,6 +17,7 @@ obj-y += \
 	msg_queue.o \
 	hashtable.o \
 	rbtree.o \
+	radix_tree.o \
 	random.o \
 	smp.o \
 	idle.o \
@@ -44,19 +46,14 @@ obj-y += \
 	dtoa.o \
 	module.o \
 	linker.o \
-	prog.o \
 	getopt.o \
 	cmdline.o \
 	lru_cache.o \
-	fdt.o \
-	fdt_ro.o
+	iomap.o
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \
 	mb_utils.o \
 	paging.o \
-	msr.o \
-	cpuid.o \
-	mtrr.o \
 	ticketlock.o \
 	cpu.o \
 	acpi.o \
@@ -64,13 +61,16 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	nemo.o \
 	pmc.o \
 	setjmp.o \
+	prog.o \
+
+obj-$(NAUT_CONFIG_USE_FDT) += \
+	of/
 
 obj-$(NAUT_CONFIG_PROFILE) += instrument.o
 obj-$(NAUT_CONFIG_XEON_PHI) += sfi.o
 
 obj-$(NAUT_CONFIG_PALACIOS) += vmm.o
 
-obj-$(NAUT_CONFIG_REAL_MODE_INTERFACE) += realmode.o
 
 obj-$(NAUT_CONFIG_ISOCORE) += isocore.o
 
@@ -93,7 +93,7 @@ obj-$(NAUT_CONFIG_PARTITION_SUPPORT) += partition.o
 obj-$(NAUT_CONFIG_PROVENANCE) += provenance.o
 
 obj-$(NAUT_CONFIG_PROCESSES) += process.o \
-								signal.o
+				signal.o
 
 obj-$(NAUT_CONFIG_LINUX_SYSCALLS) += syscalls/
 

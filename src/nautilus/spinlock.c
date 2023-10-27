@@ -21,7 +21,8 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/spinlock.h>
-#include <nautilus/irq.h>
+#include <nautilus/atomic.h>
+#include <nautilus/cpu_state.h>
 
 void 
 spinlock_init (volatile spinlock_t * lock) 
@@ -39,17 +40,17 @@ spinlock_deinit (volatile spinlock_t * lock)
 void
 spin_lock_nopause (volatile spinlock_t * lock)
 {
-    while (__sync_lock_test_and_set(lock, 1)) {
-        /* nothing */
-    }
+  while (atomic_lock_test_and_set(*lock, 1)) {
+      /* nothing */
+  }
 }
 
 uint8_t
 spin_lock_irq_save_nopause (volatile spinlock_t * lock)
 {
     uint8_t flags = irq_disable_save();
-    while (__sync_lock_test_and_set(lock, 1)) {
-        /* nothing */
+    while (atomic_lock_test_and_set(*lock, 1)) {
+      /* nothing */
     }
     return flags;
 }

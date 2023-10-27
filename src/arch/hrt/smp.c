@@ -25,7 +25,7 @@
 #include <arch/hrt/hrt.h>
 
 int 
-arch_early_init (struct naut_info * naut)
+arch_smp_early_init (struct naut_info * naut)
 {
     return __early_init_hrt(naut);
 }

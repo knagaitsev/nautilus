@@ -4,7 +4,7 @@ menu "Serial Options"
 
 config SERIAL_REDIRECT
     bool "Serial Redirect"
-    depends on !HVM_HRT
+    depends on !HVM_HRT && ARCH_X86 && !PC_8250_UART
     default n
     help
         Redirect printing to serial device
@@ -25,7 +25,7 @@ config SERIAL_REDIRECT_PORT
 
 config SERIAL_DEBUGGER
     bool "Serial Debugger"
-    depends on ENABLE_REMOTE_DEBUGGING
+    depends on ENABLE_REMOTE_DEBUGGING && ARCH_X86 && !PC_8250_UART
     default n
     help
         Provide a simple serial interface to a remote debugger
@@ -48,14 +48,188 @@ config RISCV_GPIO_ENABLE
     help
        Enable RISC-V GPIO
 
+config SIFIVE_PLIC
+    bool "SiFive Platform Level Interrupt Controller"
+    depends on ARCH_RISCV
+    help
+      Provide a driver for the RISC-V Platform Level Interrupt Controller (PLIC)
+
+config DEBUG_SIFIVE_PLIC
+    bool "Debug SiFive Platform Level Interrupt Controller"
+    depends on DEBUG_PRINTS && SIFIVE_PLIC
+    help
+      Debug the RISC-V Platform Level Interrupt Controller (PLIC)
+
+config ARM_GIC
+    bool "ARM Generic Interrupt Controller Driver"
+    depends on ARCH_ARM64
+    default y
+    help
+      Provide a driver for the ARM Generic Interrupt Controller (GIC)
+
+choice 
+    prompt "GIC Version"
+    depends on ARCH_ARM64 && ARM_GIC
+    default GIC_VERSION_2M
+
+    config GIC_VERSION_2
+      bool "Arm GICv2"
+
+    config GIC_VERSION_2M
+      bool "Arm GICv2m"
+      select HAS_MSI
+      
+    config GIC_VERSION_3
+      bool "Arm GICv3"
+      select HAS_MSI
+
+endchoice
+
+config DEBUG_GIC
+    bool "Debug GIC"
+    depends on ARCH_ARM64 && ARM_GIC
+    default n
+    help
+      Debug the Generic Interrupt Controller for the ARM64 Architecture
+
+config GENERIC_8250_UART
+    bool
+    default n
+    help
+      Include a base 8250 UART implementation which can be used by other UART drivers
+
+config DEBUG_GENERIC_8250_UART
+    bool
+    default n
+    help
+      Debug the generic 8250 UART implementation
+
+config OF_8250_UART
+    bool "Generic OF 8250 UART"
+    depends on USE_FDT
+    select GENERIC_8250_UART
+    default n
+    help
+      Driver for Generic NS8250 UART found in the device tree, see 
+      Linux's "linux/Documentation/device-tree/bindings/tty/serial/of-serial.txt" for the exact binding
+
+config DEBUG_OF_8250_UART
+    bool "Debug Generic OF 8250 UART"
+    depends on DEBUG_PRINTS && OF_8250_UART
+    default n
+    help
+      Debug the generic device tree NS8250 UART driver
+
+config OF_8250_UART_EARLY_OUTPUT
+    bool "Generic OF 8250 UART Early Output"
+    depends on OF_8250_UART
+    default n
+    help
+      Try to use the Generic 8250 UART found in the device tree for early output before the Virtual Console
+
+config PC_8250_UART
+    bool "PC 8250 UART"
+    depends on ARCH_X86 && !STANDALONE_SERIAL_DRIVER
+    select GENERIC_8250_UART
+    default n
+    help
+      Driver for PC serial ports based on the generic 8250 framework in Nautilus.
+      Selecting this disables the original serial port driver.
+
+config DEBUG_PC_8250_UART
+    bool "Debug PC 8250 UART"
+    depends on DEBUG_PRINTS && PC_8250_UART
+    select DEBUG_GENERIC_8250_UART
+
+config PC_8250_UART_EARLY_OUTPUT
+    bool "PC 8250 UART Early Output"
+    depends on PC_8250_UART
+    default n
+    help
+      Use one of the PC COM Ports for Early Output
+
+config PC_8250_UART_EARLY_COM_PORT
+    int "PC 8250 UART Early COM Port"
+    depends on PC_8250_UART_EARLY_OUTPUT
+    default 1
+    help
+      Specify which COM port should be used for early output
+
+config DW_8250_UART
+    bool "DesignWare UART"
+    depends on USE_FDT
+    select GENERIC_8250_UART
+    default n
+    help
+      Driver for the Designware Serial UART
+
+config DW_8250_UART_EARLY_OUTPUT
+    bool "DesignWare UART Early Output"
+    depends on DW_8250_UART
+    default n
+    help
+      Register the DesignWare 8250 UART for output before the virtual console system is active
+
+config DEBUG_DW_8250_UART
+    bool "Debug DesignWare UART"
+    depends on DEBUG_PRINTS && DW_8250_UART
+    select DEBUG_GENERIC_8250_UART
+    default n
+    help
+      Debug the DesignWare UART Driver
+
+config PL011_UART
+    bool "PL011 UART"
+    depends on ARCH_ARM64 && USE_FDT
+    default n
+    help
+      Include support for the Primecell PL011 UART
+
+config PL011_UART_EARLY_OUTPUT
+    bool "PL011 Early Output"
+    depends on PL011_UART
+    default n
+    help
+      Register the PL011 for output before the virtual console system is active
+
+config DEBUG_PL011_UART
+    bool "Debug PL011 UART"
+    depends on PL011_UART && DEBUG_PRINTS
+    default n
+    help
+      Turn on debug prints for the Primecell PL011 UART
+
+config SIFIVE_SERIAL
+    bool "SiFive Serial"
+    depends on ARCH_RISCV && USE_FDT
+    default n
+    help
+      Include driver for SiFive Serial Port
+
+config SIFIVE_SERIAL_EARLY_OUTPUT
+    bool "SiFive Serial Early Output"
+    depends on SIFIVE_SERIAL
+    default n
+    help
+      Register the SiFive serial port for output before the virtual console system is active
+
+config SIFIVE_SERIAL_DEBUG
+    bool "Debug SiFive Serial"
+    depends on SIFIVE_SERIAL && DEBUG_PRINTS
+    default n
+    help
+      Debug the driver for the SiFive serial port
+
 config APIC_FORCE_XAPIC_MODE
     bool "Force APIC to use XAPIC mode"
+    depends on ARCH_X86
     default n
     help
        Force the use of XAPIC mode even if X2APIC mode is available
 
 config APIC_TIMER_CALIBRATE_INDEPENDENTLY
     bool "Calibrate APIC timer independently on each core"
+    depends on ARCH_X86
     default n
     help
       If set, each core's APIC timer is independently calibrated
@@ -65,21 +239,21 @@ config APIC_TIMER_CALIBRATE_INDEPENDENTLY
 
 config DEBUG_APIC
     bool "Debug APIC"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help
         Turn on debug prints for the LAPIC driver
 
 config DEBUG_IOAPIC
     bool "Debug IOAPIC"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help 
         Turn on debug prints for the IOAPIC driver
 
 config DEBUG_PCI
     bool "Debug PCI"
-    depends on DEBUG_PRINTS
+    depends on HAS_PCI && DEBUG_PRINTS
     default n
     help 
         Turn on debug prints for PCI devices
@@ -92,47 +266,47 @@ config DISABLE_PS2_MOUSE
         This is useful on bizarro platforms that have broken or
         disabled PS2 emulation where we can't detect it
 
-
 config DEBUG_PS2
     bool "Debug PS2 interface (Keyboard/Mouse)"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help
         Turn on debug prints for the keyboard/mouse on the PS/2 interface
 
-config GPIO
-    bool "GPIO support"
+config PARALLEL_PORT_GPIO
+    bool "Parallel Port GPIO Support"
+    depends on ARCH_X86
     default n
     help
        Provide parallel port GPIO device driver
 
-config GPIO_PORT
+config PARALLEL_PORT_GPIO_PORT
     hex "Port"
     default 0xe010
-    depends on GPIO
+    depends on PARALLEL_PORT_GPIO
     help
        Parallel port I/O port to use
        Common: 0x378  = first legacy parallel port
                0x278  = second legacy parallel port
                0xd010 = port in NU test Phi (lspci to find out)
 
-config DEBUG_GPIO
+config DEBUG_PARALLEL_PORT_GPIO
     bool "Debug GPIO interface (parallel port)"
-    depends on DEBUG_PRINTS && GPIO
+    depends on DEBUG_PRINTS && PARALLEL_PORT_GPIO
     default n
     help
         Turn on debug prints for the parallel port GPIO device
 
 config DEBUG_PIT
     bool "Debug PIT"
-    depends on DEBUG_PRINTS
+    depends on ARCH_X86 && DEBUG_PRINTS
     default n
     help
       Turn on debug prints for the i8253/8254 PIT
 
 config HPET
     bool "HPET Support"
-    depends on X86_64_HOST
+    depends on ARCH_X86
     default n
     help
       Includes HPET timer support in Nautilus
@@ -146,7 +320,7 @@ config DEBUG_HPET
 
 config VIRTIO_PCI
     bool "Core Virtio PCI Driver"
-    depends on X86_64_HOST
+    depends on HAS_PCI && HAS_MSI
     default n
     help
       Adds the basic Virtio PCI interface
@@ -186,9 +360,23 @@ config DEBUG_VIRTIO_BLK
     help
       Turn on debug prints for the Virtio Block Driver
 
+config VIRTIO_GPU
+    bool "Virtio GPU"
+    depends on VIRTIO_PCI
+    default n
+    help
+      Adds the Virtio GPU Driver
+
+config DEBUG_VIRTIO_GPU
+    bool "Debug Virtio GPU"
+    depends on DEBUG_PRINTS && VIRTIO_GPU
+    default n
+    help
+      Turn on debug prints for the Virtio GPU Driver
+
 config E1000_PCI
     bool "E1000 PCI NIC Driver"
-    depends on X86_64_HOST
+    depends on HAS_PCI
     default n
     help
       Adds the basic E1000 PCI network interface driver
@@ -202,7 +390,7 @@ config DEBUG_E1000_PCI
 
 config E1000E_PCI
     bool "E1000E PCI NIC Driver"
-    depends on X86_64_HOST
+    depends on HAS_PCI
     default n
     help
       Adds the basic E1000E PCI network interface driver
@@ -216,7 +404,7 @@ config DEBUG_E1000E_PCI
 
 config MLX3_PCI
     bool "Mellanox ConnectX-3 PCI Driver"
-    depends on X86_64_HOST
+    depends on HAS_PCI
     default n
     help
       Adds experimental driver for the Mellanox ConnectX-3 HCA Adapter
@@ -252,6 +440,7 @@ config DEBUG_RAMDISK
 
 config ATA
     bool "ATA Support"
+    depends on ARCH_X86
     default n
     help 
        Adds very primitive ATA suppor 

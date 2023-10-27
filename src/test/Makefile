@@ -1,15 +1,32 @@
 CXXFLAGS += -DSHARED_LOWLEVEL -DCOMPILE_TIME_MIN_LEVEL=LEVEL_DEBUG  -D__LEGION__
 #-DDEBUG_LOWLEVEL -DDEBUG_HIGHLEVEL 
 
-# obj-y  = threads.o
-# obj-y += groups.o
-# obj-y += tasks.o
-# obj-y += futures.o
-# obj-y += bsp.o
-# obj-y += net_udp_echo.o
-# obj-y += test.o
-obj-y += NPB-NAS/
-# obj-y += lru_cache_test.o
+obj-$(NAUT_CONFIG_ARCH_X86) = \
+	threads.o \
+	groups.o \
+        tasks.o \
+        futures.o \
+        bsp.o \
+        net_udp_echo.o \
+        test.o \
+	NPB-NAS/ \
+#       lru_cache_test.o
+
+obj-$(NAUT_CONFIG_ARCH_ARM64) = \
+	threads.o \
+	groups.o \
+	tasks.o \
+	futures.o \
+	NPB-NAS/ \
+	bsp.o
+
+obj-$(NAUT_CONFIG_ARCH_RISCV) = \
+	threads.o \
+	groups.o \
+	tasks.o \
+	futures.o \
+        NPB-NAS/ \
+	bsp.o
 
 obj-$(NAUT_CONFIG_ASPACE_CARAT) += skiplist_test.o \
                                    map_test.o

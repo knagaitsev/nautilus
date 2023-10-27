@@ -29,7 +29,6 @@
 #include <nautilus/mm.h>
 #include <nautilus/libccompat.h>
 #include <nautilus/shell.h>
-#include <nautilus/irq.h>
 
 #include <nautilus/instrument.h>
 

@@ -26,6 +26,8 @@
 
 #include <nautilus/list.h>
 
+#ifndef NAUT_CONFIG_USE_PCI_ECAM
+
 #define PCI_CFG_ADDR_PORT 0xcf8
 #define PCI_CFG_DATA_PORT 0xcfc
 
@@ -33,9 +35,19 @@
 #define PCI_BUS_SHIFT  16
 #define PCI_FUN_SHIFT  8
 
-#define PCI_REG_MASK(x) ((x) & 0xfc)
-
 #define PCI_ENABLE_BIT 0x80000000UL
+
+#else // PCIe
+
+#define PCI_SLOT_SHIFT 15
+#define PCI_BUS_SHIFT 20
+#define PCI_FUN_SHIFT 12
+
+#define PCI_ENABLE_BIT 0x0UL
+
+#endif
+
+#define PCI_REG_MASK(x) ((x) & 0x3ffc)
 
 #define PCI_MAX_BUS 256
 #define PCI_MAX_DEV 32
@@ -241,6 +253,8 @@ struct pci_dev {
 struct pci_info {
     uint32_t num_buses;
     struct list_head bus_list;
+
+    uint64_t ecam_base_addr;
 };
 
 
@@ -324,6 +338,8 @@ int pci_dev_unmask_msi(struct pci_dev *dev, int vec);
 // with per-vec masking it returns the pending bit
 int pci_dev_is_pending_msi(struct pci_dev *dev, int vec);
 
+int nk_msi_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first);
+
 /*
   There is currently no specific support for registering MSI interrupt handlers,
   You want to follow roughly these steps:
@@ -335,7 +351,7 @@ int pci_dev_is_pending_msi(struct pci_dev *dev, int vec);
 
   // try to find an aligned chunk of vectors we can use
   // note that prioritization here is your problem
-  if (idt_find_and_reserve_range(num_vecs,aligned=1,&base_vec) {
+  if (nk_msi_find_and_reserve_range(num_vecs,&base_vec) {
      // fail - cannot find aligned block of vectors
   }
   if (pci_dev_enable_msi(d,base_vec,num_vecs, target_cpu=?) {
@@ -343,7 +359,8 @@ int pci_dev_is_pending_msi(struct pci_dev *dev, int vec);
   }
   // now register your handlers
   for (i=base_vec;i<base_vec+num_vecs;i++) { 
-     if (register_int_handler(i, handler, state)) { 
+     // Possibly use nk_ivec_add_handler_dev() if you have registered the device before this
+     if (nk_ivec_add_handler(i, handler, state)) { 
          // failed.... 
      }
   }
@@ -374,8 +391,10 @@ int pci_dev_is_pending_msi_x(struct pci_dev *dev, int num);
 
 void pci_dev_dump_msi_x(struct pci_dev *dev);
 
+int nk_msi_x_find_and_reserve_range(nk_ivec_t num, nk_ivec_t *first);
+
 /*
-  There is currently no specific support for registering MSI-X interrupt handlers,
+  There is currently little support for registering MSI-X interrupt handlers,
   You want to follow roughly these steps:
 
   struct pci_dev *d = ... find the device... - it must have MSI-X...
@@ -386,11 +405,13 @@ void pci_dev_dump_msi_x(struct pci_dev *dev);
   for (i=0;i<num_vecs;i++) { 
      // find a free vector
      // note that prioritization here is your problem
-     if (idt_find_and_reserve_range(1,0,&vec) {
+     if (nk_msi_x_find_and_reserve_range(1,&vec)) {
        // fail - cannot find a vector entry...
      }
      // register your handler for that vector
-     if (register_int_handler(vec, handler, state)) { 
+     // (If you have registered the device at this point, use
+     //  nk_ivec_add_handler_dev() instead and pass in the nk_dev*)
+     if (nk_ivec_add_handler(vec, handler, state)) { 
          // failed.... 
      }
      // set the table entry to point to your handler

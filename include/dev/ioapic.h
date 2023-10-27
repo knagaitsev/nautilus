@@ -116,10 +116,15 @@ struct ioapic {
     uint8_t usable;
     addr_t  base;
 
+    struct nk_irq_dev *dev;
+
     uint8_t num_entries;
     struct iored_entry * entries;
 
     unsigned first_hrt_entry;
+
+    nk_irq_t base_irq;
+    struct nk_irq_desc *irq_descs;
 };
 
 struct sys_info;
@@ -128,6 +133,7 @@ int ioapic_init(struct sys_info * sys);
 void ioapic_mask_irq (struct ioapic * ioapic, uint8_t irq);
 void ioapic_unmask_irq (struct ioapic * ioapic, uint8_t irq);
 
+struct nk_irq_dev * ioapic_get_dev_by_id(uint8_t id);
 
 static inline void
 ioapic_write_reg (struct ioapic * ioapic, 

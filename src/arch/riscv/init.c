@@ -28,6 +28,9 @@
 #include <nautilus/barrier.h>
 #include <nautilus/blkdev.h>
 #include <nautilus/chardev.h>
+#include <nautilus/irqdev.h>
+#include <nautilus/gpiodev.h>
+#include <nautilus/endian.h>
 #include <nautilus/cmdline.h>
 #include <nautilus/cpu.h>
 #include <nautilus/dev.h>
@@ -56,21 +59,28 @@
 #include <nautilus/timer.h>
 #include <nautilus/vc.h>
 #include <nautilus/waitqueue.h>
-#include <nautilus/fdt.h>
 #include <nautilus/timehook.h>
+#include <nautilus/of/fdt.h>
 
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING
 #include <nautilus/gdb-stub.h>
 #endif
 
-#include <arch/riscv/plic.h>
+#ifdef NAUT_CONFIG_SIFIVE_PLIC
+#include <dev/sifive_plic.h>
+#endif
+
+#ifdef NAUT_CONFIG_OF_8250_UART
+#include <dev/8250/of_8250.h>
+#endif
+
 #include <arch/riscv/sbi.h>
 #include <arch/riscv/trap.h>
 #include <arch/riscv/riscv_idt.h>
 #include <arch/riscv/npb.h>
 
-#include <dev/sifive.h>
 #include <dev/sifive_gpio.h>
+#include <dev/sifive_serial.h>
 
 #define QUANTUM_IN_NS (1000000000ULL / NAUT_CONFIG_HZ)
 
@@ -118,12 +128,18 @@ extern uint64_t secondary_core_stack;
 extern uint64_t _bssStart[];
 extern uint64_t _bssEnd[];
 
+// KJH - The stack switch which happens halfway through "init" makes this needed (I think)
+static volatile const char *chardev_name = NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE_NAME;
+
 extern struct naut_info *smp_ap_stack_switch(uint64_t, uint64_t,
                          struct naut_info *);
 
 bool_t second_done = false;
 
-void secondary_entry(int hartid) {
+void secondary_entry(int hartid) 
+{
+  w_tp(0);
+
   printk("RISCV: hart %d started!\n", hartid);
 
   struct naut_info *naut = &nautilus_info;
@@ -132,25 +148,40 @@ void secondary_entry(int hartid) {
 
   w_tp((uint64_t)naut->sys.cpus[hartid]);
 
-  /* Initialize the platform level interrupt controller for this HART */
-  plic_init_hart(hartid);
-
   // Write supervisor trap vector location
   trap_init();
+
+  if(hlic_percpu_init()) {
+    panic("Failed to initialize the HLIC locally for CPU %u!\n", my_cpu_id());
+  }
+
+#ifdef NAUT_CONFIG_SIFIVE_PLIC
+  /* Initialize the platform level interrupt controller for this HART */
+  if(plic_percpu_init()) {
+    panic("Failed to initialize the PLIC locally for CPU %u!\n", my_cpu_id()); 
+  }
+#endif
+
+  nk_rand_init(naut->sys.cpus[hartid]);
 
   nk_sched_init_ap(&sched_cfg);
 
   /* set the timer with sbi :) */
   // sbi_set_timer(rv::get_time() + TICK_INTERVAL);
+  sbi_set_timer(read_csr(time) + TICK_INTERVAL);
 
   second_done = true;
 
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+  printk("hart %u swapped stacks\n", hartid);
 
   nk_sched_start();
 
-  sti();
+  printk("started scheduling on hart %u\n", hartid);
 
+  arch_enable_ints();
+
+  printk("hart %u idling...\n", hartid);
   idle(NULL, NULL);
 }
 
@@ -211,31 +242,47 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   struct naut_info *naut = &nautilus_info;
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
 
-  nk_vc_print(NAUT_WELCOME);
+#ifdef NAUT_CONFIG_SIFIVE_SERIAL_EARLY_OUTPUT
+  if(sifive_serial_pre_vc_init((void*)fdt)) {
+    // Nothing we can do
+  }
+#endif
+#ifdef NAUT_CONFIG_OF_8250_UART_EARLY_OUTPUT
+  if(of_8250_pre_vc_init((void*)fdt)) {
+    // Nothing we can do
+  }
+#endif
+
+  printk_init();
+
+  printk(NAUT_WELCOME);
 
   naut->sys.bsp_id = hartid;
   naut->sys.dtb = (struct dtb_fdt_header *)fdt;
 
+  /*
   printk("RISCV: hart %d mvendorid: %llx\n", hartid, sbi_call(SBI_GET_MVENDORID).value);
   printk("RISCV: hart %d marchid:   %llx\n", hartid, sbi_call(SBI_GET_MARCHID).value);
   printk("RISCV: hart %d mimpid:    %llx\n", hartid, sbi_call(SBI_GET_MIMPID).value);
+  */
 
   print_fdt(fdt);
 
   // asm volatile ("wfi");
 
   nk_dev_init();
+  nk_irq_dev_init();
+  nk_gpio_dev_init();
   nk_char_dev_init();
   nk_block_dev_init();
   nk_net_dev_init();
   nk_gpu_dev_init();
 
-
   // Setup the temporary boot-time allocator
   mm_boot_init(fdt);
 
   // Enumate CPUs and initialize them
-  smp_early_init(naut);
+  arch_smp_early_init(naut);
 
   /* this will populate NUMA-related structures */
   arch_numa_init(&naut->sys);
@@ -253,16 +300,11 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
    * allocated in the boot mem allocator are kept reserved */
   mm_boot_kmem_init();
 
-  // Initialize platform level interrupt controller for this HART
-  plic_init(fdt, naut);
-
-  /* from this point on, we can use percpu macros (even if the APs aren't up) */
-  plic_init_hart(hartid);
-
-  riscv_setup_idt();
-
+  // KJH - Not sure what this is
+  //riscv_setup_idt();
+  
   // We now have serial output without SBI
-  sifive_serial_init(fdt);
+  //sifive_serial_init(fdt);
 
 #ifdef NAUT_CONFIG_RISCV_GPIO_ENABLE
   sifive_gpio_init(fdt);
@@ -270,41 +312,73 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   // my_monitor_entry();
 
-  sbi_init();
+  //sbi_init();
 
   sysinfo_init(&(naut->sys));
 
+  printk("of_init(dtb=%p)\n");
+  of_init((void*)fdt);
+
+  nk_gpio_init();
+
   nk_wait_queue_init();
-
   nk_future_init();
-
   nk_timer_init();
-
   nk_rand_init(naut->sys.cpus[hartid]);
-
   nk_semaphore_init();
-
   nk_msg_queue_init();
-
   nk_sched_init(&sched_cfg);
-
   nk_thread_group_init();
   nk_group_sched_init();
 
   /* we now switch away from the boot-time stack */
   naut = smp_ap_stack_switch(get_cur_thread()->rsp, get_cur_thread()->rsp, naut);
+  nk_thread_name(get_cur_thread(), "init");
+
+  printk("Swapped stacks\n");
 
   /* mm_boot_kmem_cleanup(); */
 
-#ifdef NAUT_ENABLE_INTS
+  if(hlic_init()) {
+    panic("failed to initialize the HLIC!\n");
+  }
+  if(hlic_percpu_init()) {
+    panic("failed to initialize the HLIC on BSP!\n");
+  }
+
+#ifdef NAUT_CONFIG_SIFIVE_PLIC
+  if(plic_init()) {
+    panic("failed to initialized the PLIC!\n");
+  }
+  if(plic_percpu_init()) {
+    panic("Failed to initialize the PLIC locally for the BSP!\n"); 
+  }
+#endif
+
   arch_enable_ints();
 #endif
 
   /* interrupts are now on */
 
-  // nk_vc_init();
+#ifdef NAUT_CONFIG_OF_8250_UART
+  of_8250_init();
+#endif
 
-  // nk_fs_init();
+  nk_dump_irq_info();
+
+  start_secondary(&(naut->sys));
+
+  nk_sched_start();
+/*
+  nk_vc_init();
+
+#ifdef NAUT_CONFIG_VIRTUAL_CONSOLE_CHARDEV_CONSOLE
+  nk_vc_start_chardev_console(chardev_name);
+#endif 
+*/
+
+
+  nk_fs_init();
 
   // // nk_linker_init(naut);
   // // nk_prog_init(naut);
@@ -313,8 +387,8 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
 
   // // nk_pmc_init();
 
-  // nk_cmdline_init(naut);
-  // // nk_test_init(naut);
+  //nk_cmdline_init(naut);
+  // nk_test_init(naut);
 
   // // kick off the timer subsystem by setting a timer sometime in the future
   // sbi_set_timer(read_csr(time) + TICK_INTERVAL);
@@ -322,12 +396,10 @@ __attribute__((annotate("nohook"))) void init(unsigned long hartid, unsigned lon
   // // sifive_test();
   // /* my_monitor_entry(); */
 
-  // start_secondary(&(naut->sys));
+//  nk_launch_shell("root-shell",0,0,0);
+  //execute_threading(NULL);
 
-  // nk_sched_start();
-
-  // // nk_launch_shell("root-shell",my_cpu_id(),0,0);
-  // execute_threading(NULL);
+  execute_threading(NULL);
 
   // printk("%d\n", 5.0 / 0);
   
@@ -570,22 +642,22 @@ void init_simple(unsigned long hartid, unsigned long fdt) {
   nk_low_level_memset(naut, 0, sizeof(struct naut_info));
 
   // Initialize platform level interrupt controller for this HART
-  plic_init(fdt, NULL);
+  plic_init(fdt);
 
-  plic_init_hart(hartid);
+  //plic_init_hart(hartid);
 
   arch_enable_ints();
 
   // We now have serial output without SBI
-  sifive_serial_init(fdt);
+  //sifive_serial_init(fdt);
 
   printk("hartid: %ld, fdt: %p (%x) \n", hartid, fdt, *(uint32_t*)fdt);
 
-  plic_dump();
+  //plic_dump();
 
   my_monitor_entry();
 
-  sifive_test();
+  //sifive_test();
 }
 
 
@@ -608,7 +680,6 @@ static void print_ones(void)
 {
     while (!done) {
         printk("1");
-        nk_yield();
     }
 }
 
@@ -616,7 +687,6 @@ static void print_twos(void)
 {
     while (!done) {
         printk("2");
-        nk_yield();
     }
 }
 

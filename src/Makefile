@@ -7,10 +7,17 @@ obj-$(NAUT_CONFIG_ARCH_X86) += \
 	rt/ \
 	net/ \
 	acpi/ \
-    compat/ \
+        compat/ \
 	test/ 
 
 obj-$(NAUT_CONFIG_ARCH_RISCV) += \
+	nautilus/ \
+	arch/ \
+	compat/ \
+	dev/ \
+	test/
+
+obj-$(NAUT_CONFIG_ARCH_ARM64) += \
 	nautilus/ \
 	arch/ \
 	compat/ \

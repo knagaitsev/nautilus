@@ -24,20 +24,6 @@
 #define __LOWLEVEL_H__
 
 
-#ifdef NAUT_CONFIG_ARCH_RISCV
-#define ENTRY(x)   \
-    .globl x;      \
-    .align 4, 0x00,0x01;\
-    x:
-
-#define PTRLOG 3
-#define SZREG 8
-#define REG_S sd
-#define REG_L ld
-#define REG_SC sc.d
-#define ROFF(N, R) N*SZREG(R)
-
-#else
 #define GEN_NOP(x) .byte x
 
 #define NOP_1BYTE 0x90
@@ -89,7 +75,6 @@
     movq 104(%rsp), %rbx; \
     movq 112(%rsp), %rax; \
     addq $120, %rsp; 
-#endif
 
 #define GLOBAL(x)  \
     .globl x;      \

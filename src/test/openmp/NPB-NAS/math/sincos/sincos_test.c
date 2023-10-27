@@ -5,8 +5,8 @@
 static int sincos(char *__buf, void* __priv);
 
 static struct shell_cmd_impl nas_sincos_impl = {
-    .cmd      = "sc",
-    .help_str = "sincos test",
+    .cmd      = "sincos",
+    .help_str = "sincos",
     .handler  = sincos,
 };
 nk_register_shell_cmd(nas_sincos_impl);

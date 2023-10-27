@@ -72,11 +72,15 @@ __set_bit (ulong_t nr, volatile void * addr)
 {
 #ifdef NAUT_CONFIG_ARCH_RISCV
     set_bit(nr, addr);
-#else
+#endif
+#ifdef NAUT_CONFIG_ARCH_X86
     __asm__ __volatile__ (
         "btsq %1,%0"
         :"+m" (*(volatile long*)addr)
         :"r" (nr) : "memory");
+#endif
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    set_bit(nr, addr);
 #endif
 }
 
@@ -86,11 +90,15 @@ __clear_bit (ulong_t nr, volatile void * addr)
 {
 #ifdef NAUT_CONFIG_ARCH_RISCV
     clear_bit(nr, addr);
-#else
+#endif
+#ifdef NAUT_CONFIG_ARCH_X86
     __asm__ __volatile__ (
         "btrq %1,%0"
         :"+m" (*(volatile long*)addr)
         :"r" (nr));
+#endif
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    clear_bit(nr, addr);
 #endif
 }
 
@@ -143,7 +151,6 @@ block_to_id (struct buddy_mempool *mp, struct block *block)
 
     return block_id;
 }
-
 
 /**
  * Marks a block as free by setting its tag bit to one.
@@ -320,16 +327,17 @@ buddy_alloc (struct buddy_mempool *mp, ulong_t order, addr_t lb, addr_t ub)
 	// note that if [lb,ub) = [0,-1) then this will always find the first
 	// block
 	block = 0;
-	list_for_each_entry(search_block,list,link) {
-        addr_t block_start = (addr_t) search_block;
-        addr_t block_end = (addr_t)search_block + (1ULL<<(order));
-        BUDDY_DEBUG("Considering block [%p,%p) for match against [%p,%p)\n",
-                block_start, block_end, lb,ub);
-        if (block_start>=lb && block_end<=ub) {
-            BUDDY_DEBUG("Matched\n");
-            block = search_block;
-            break;
-        }
+	list_for_each_entry(search_block,list,link) 
+        {
+          addr_t block_start = (addr_t) search_block;
+          addr_t block_end = (addr_t)search_block + (1ULL<<(order));
+          BUDDY_DEBUG("Considering block [%p,%p) for match against [%p,%p)\n",
+                  block_start, block_end, lb,ub);
+          if (block_start>=lb && block_end<=ub) {
+              BUDDY_DEBUG("Matched\n");
+              block = search_block;
+              break;
+          }
 	}
 
 	if (!block) {

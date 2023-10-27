@@ -1,0 +1,16 @@
+menu "Compiler Passes"
+
+config CARAT_PASS
+  bool "CARAT Pass"
+  default n
+  select CARAT_RT
+  help
+    Enables the CARAT LLVM Pass
+
+config EXAMPLE_PASS
+  bool "Example Pass"
+  default n
+  help
+    Enables the Example LLVM Pass (does nothing)
+
+endmenu

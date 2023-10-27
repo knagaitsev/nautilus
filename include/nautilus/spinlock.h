@@ -20,6 +20,7 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
 #ifndef __SPINLOCK_H__
 #define __SPINLOCK_H__
 
@@ -27,14 +28,15 @@
 extern "C" {
 #endif
 
+#define SPINLOCK_INITIALIZER 0
+
 #include <nautilus/naut_types.h>
 #include <nautilus/intrinsics.h>
 #include <nautilus/atomic.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpu_state.h>
 #include <nautilus/instrument.h>
-
-#define SPINLOCK_INITIALIZER 0
+#include <nautilus/atomic.h>
 
 typedef uint32_t spinlock_t;
 
@@ -49,8 +51,8 @@ spin_lock (volatile spinlock_t * lock)
 {
     NK_PROFILE_ENTRY();
     
-    while (__sync_lock_test_and_set(lock, 1)) {
-	// spin away
+    while (atomic_lock_test_and_set(*lock, 1)) {
+      // spin away
     }
 
     NK_PROFILE_EXIT();
@@ -59,15 +61,15 @@ spin_lock (volatile spinlock_t * lock)
 // returns zero on successful lock acquisition, -1 otherwise
 static inline int
 spin_try_lock(volatile spinlock_t *lock)
-{
-    return  __sync_lock_test_and_set(lock,1) ? -1 : 0 ;
+{ 
+    return  atomic_lock_test_and_set(*lock,1) ? -1 : 0 ;
 }
 
 static inline uint8_t
 spin_lock_irq_save (volatile spinlock_t * lock)
 {
     uint8_t flags = irq_disable_save();
-    PAUSE_WHILE(__sync_lock_test_and_set(lock, 1));
+    PAUSE_WHILE(atomic_lock_test_and_set(*lock, 1));
     return flags;
 }
 
@@ -75,11 +77,11 @@ static inline int
 spin_try_lock_irq_save(volatile spinlock_t *lock, uint8_t *flags)
 {
     *flags = irq_disable_save();
-    if (__sync_lock_test_and_set(lock,1)) {
-	irq_enable_restore(*flags);
-	return -1;
+    if (atomic_lock_test_and_set(*lock,1)) {
+        irq_enable_restore(*flags);
+        return -1;
     } else {
-	return 0;
+        return 0;
     }
 }
 
@@ -93,14 +95,14 @@ static inline void
 spin_unlock (volatile spinlock_t * lock) 
 {
     NK_PROFILE_ENTRY();
-    __sync_lock_release(lock);
+    atomic_lock_release(*lock);
     NK_PROFILE_EXIT();
 }
 
 static inline void
 spin_unlock_irq_restore (volatile spinlock_t * lock, uint8_t flags)
 {
-    __sync_lock_release(lock);
+    atomic_lock_release(*lock);
     irq_enable_restore(flags);
 }
 

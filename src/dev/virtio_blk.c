@@ -25,7 +25,6 @@
 
 #include <nautilus/nautilus.h>
 #include <nautilus/blkdev.h>
-#include <nautilus/irq.h>
 
 #include <dev/pci.h>
 #include <dev/virtio_blk.h>
@@ -344,7 +343,7 @@ static int process_used_ring(struct virtio_blk_dev *dev)
     return 0;
 }
 
-static int handler(excp_entry_t *exp, excp_vec_t vec, void *priv_data)
+static int handler(struct nk_irq_action *action, struct nk_regs *regs, void *priv_data)
 {
     DEBUG("[received an interrupt!]\n");
     struct virtio_blk_dev *dev = (struct virtio_blk_dev *) priv_data;
@@ -660,12 +659,13 @@ int virtio_blk_init(struct virtio_pci_dev *dev)
 	for (i=0;i<num_vec;i++) {
 	    // find a free vector
 	    // note that prioritization here is your problem
-	    if (idt_find_and_reserve_range(1,0,&vec)) {
+	    if (nk_msi_x_find_and_reserve_range(1,&vec)) 
+	    {
 		ERROR("cannot get vector...\n");
 		return -1;
 	    }
 	    // register your handler for that vector
-	    if (register_int_handler(vec, handler, d)) {
+	    if (nk_irq_add_handler_dev(vec, handler, d, (struct nk_dev*)d->blk_dev)) {
 		ERROR("failed to register int handler\n");
 		return -1;
 		// failed....
@@ -690,16 +690,16 @@ int virtio_blk_init(struct virtio_pci_dev *dev)
 	}
 	
     } else {
-	
+#ifdef NAUT_CONFIG_ARCH_X86
 	DEBUG("setting up interrupts via legacy path at 0x%x\n",HACKED_LEGACY_VECTOR);
 	INFO("THIS HACKED LEGACY INTERRUPT SETUP IS PROBABLY NOT WHAT YOU WANT\n");
 
-        if (register_int_handler(HACKED_LEGACY_VECTOR, handler, d)) {
+        if (nk_irq_add_handler_dev(x86_vector_to_irq(HACKED_LEGACY_VECTOR), handler, d, (struct nk_dev*)d->blk_dev)) {
             ERROR("Failed to register int handler\n");
             return -1;
         }
 	
-	nk_unmask_irq(HACKED_LEGACY_IRQ);
+	nk_unmask_irq(x86_vector_to_irq(HACKED_LEGACY_VECTOR));
 	
 	// for (i=0; i<256; i++) { nk_umask_irq(i); }
 	
@@ -707,7 +707,10 @@ int virtio_blk_init(struct virtio_pci_dev *dev)
         uint16_t cmd = pci_dev_cfg_readw(p,0x4);
         cmd &= ~0x0400;
         pci_dev_cfg_writew(p,0x4,cmd);
-	
+#else
+        ERROR("Failed to set up interrupts!\n");
+        return -1;
+#endif
     }
     
     DEBUG("device inited\n");

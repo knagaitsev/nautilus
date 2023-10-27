@@ -29,9 +29,11 @@
 #include <nautilus/backtrace.h>
 #include <nautilus/shell.h>
 #include <nautilus/topo.h>
-#include <nautilus/irq.h>
 #include <dev/i8254.h>
 
+#ifdef NAUT_CONFIG_ARCH_X86
+#include <arch/x64/irq.h>
+#endif
 
 static int
 get_vendor_string (char name[13])
@@ -246,6 +248,7 @@ handle_regs (char * buf, void * priv)
     #ifdef NAUT_CONFIG_ARCH_X86
     extern int nk_interrupt_like_trampoline(void (*)(struct nk_regs *));
     #endif
+
     uint64_t tid;
 
     if (sscanf(buf,"regs %lu",&tid) == 1) { 
@@ -272,6 +275,7 @@ static struct shell_cmd_impl regs_impl = {
 };
 nk_register_shell_cmd(regs_impl);
 
+#ifdef NAUT_CONFIG_ARCH_X86
 static int
 handle_in (char * buf, void * priv)
 {
@@ -361,5 +365,5 @@ static struct shell_cmd_impl out_impl = {
 };
 nk_register_shell_cmd(out_impl);
 
-
+#endif /* NAUT_CONFIG_ARCH_X86 */
 

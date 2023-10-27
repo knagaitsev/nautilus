@@ -36,6 +36,7 @@
 #include <nautilus/dev.h>             // NK_DEV_REQ_*
 #include <nautilus/timer.h>           // nk_sleep(ns);
 #include <nautilus/cpu.h>             // udelay
+#include <nautilus/arch.h>
 
 #ifndef NAUT_CONFIG_DEBUG_E1000E_PCI
 #undef DEBUG_PRINT
@@ -993,10 +994,10 @@ static int e1000e_post_receive(void *vstate,
 
 enum pkt_op { op_unknown, op_tx, op_rx };
 
-static int e1000e_irq_handler(excp_entry_t * excp, excp_vec_t vec, void *s)
+static int e1000e_irq_handler(struct nk_irq_action *action, struct nk_regs *regs, void *s)
 {
   DEBUG("irq_handler fn: vector: 0x%x rip: 0x%p s: 0x%p\n",
-        vec, excp->rip, s);
+        action->desc->hwirq, arch_instr_ptr_reg(regs), s);
 
   // #measure
   uint64_t irq_start = 0;
@@ -1185,9 +1186,9 @@ int e1000e_pci_init(struct naut_info * naut)
           uint32_t size;
           DEBUG("bar %d: 0x%0x\n",i, bar);
           // go through until the last one, and get out of the loop
-          if (bar==0) {
-            break;
-          }
+          //if (bar==0) {
+          //  break;
+          //}
           // get the last bit and if it is zero, it is the memory
           // " -------------------------"  one, it is the io
           if (!(bar & 0x1)) {
@@ -1359,17 +1360,17 @@ int e1000e_pci_init(struct naut_info * naut)
 	    continue;
 	}
 
-	uint64_t num_vecs = pdev->msi.num_vectors_needed;
-	uint64_t base_vec = 0;
+	uint64_t num_irqs = pdev->msi.num_vectors_needed;
+	uint64_t base_irq = 0;
 
-	if (idt_find_and_reserve_range(num_vecs,1,&base_vec)) {
-	    ERROR("Cannot find %d vectors for %s - skipping\n",num_vecs,state->name);
+	if (nk_msi_find_and_reserve_range(num_irqs, &base_irq)) {
+	    ERROR("Cannot find %d interrupts for %s - skipping\n",num_irqs,state->name);
 	    continue;
 	}
 
-	DEBUG("%s vectors are %d..%d\n",state->name,base_vec,base_vec+num_vecs-1);
+	DEBUG("%s vectors are %d..%d\n",state->name,base_irq,base_irq+num_irqs-1);
 
-	if (pci_dev_enable_msi(pdev, base_vec, num_vecs, 0)) {
+	if (pci_dev_enable_msi(pdev, base_irq, num_irqs, 0)) {
 	    ERROR("Failed to enable MSI for device %s - skipping\n", state->name);
 	    continue;
 	}
@@ -1377,16 +1378,16 @@ int e1000e_pci_init(struct naut_info * naut)
 	int i;
 	int failed=0;
 
-	for (i=base_vec;i<(base_vec+num_vecs);i++) {
-	    if (register_int_handler(i, e1000e_irq_handler, state)) {
-		ERROR("Failed to register handler for vector %d on device %s - skipping\n",i,state->name);
+	for (i=base_irq;i<(base_irq+num_irqs);i++) {
+	    if (nk_irq_add_handler_dev(i, e1000e_irq_handler, state, (struct nk_dev*)state->netdev)) {
+		ERROR("Failed to register handler for IRQ %d on device %s - skipping\n",i,state->name);
 		failed=1;
 		break;
 	    }
 	}
 
 	if (!failed) { 
-	    for (i=base_vec; i<(base_vec+num_vecs);i++) {
+	    for (i=base_irq; i<(base_irq+num_irqs);i++) {
 		if (pci_dev_unmask_msi(pdev, i)) {
 		    ERROR("Failed to unmask interrupt %d for device %s\n",i,state->name);
 		    failed = 1;

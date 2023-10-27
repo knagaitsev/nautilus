@@ -25,7 +25,6 @@
 #include <nautilus/queue.h>
 #include <nautilus/thread.h>
 #include <nautilus/errno.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/atomic.h>
 #include <nautilus/mm.h>
@@ -45,7 +44,7 @@ nk_condvar_init (nk_condvar_t * c)
 
     memset(c, 0, sizeof(nk_condvar_t));
 
-    snprintf(buf,NK_WAIT_QUEUE_NAME_LEN,"condvar%lu-wait",__sync_fetch_and_add(&count,1));
+    snprintf(buf,NK_WAIT_QUEUE_NAME_LEN,"condvar%lu-wait",atomic_add(count,1));
     c->wait_queue = nk_wait_queue_create(buf);
     if (!c->wait_queue) {
         ERROR_PRINT("Could not create wait queue for cond var\n");

@@ -7,7 +7,9 @@ SECTIONS
    * ensure that entry.S / _entry is at 0x80000000,
    * where qemu's -kernel jumps.
    */
-  . = 0x80100000;
+  . = NAUT_CONFIG_KERNEL_LINK_ADDR;
+
+  PROVIDE(kernel_start = .);
 
   .text ALIGN(0x1000) : {
     _loadStart = .;
@@ -48,7 +50,7 @@ SECTIONS
 
   .shell_cmds ALIGN(0x1000) : {
     __start_shell_cmds = .;
-    *(.shell_cmds*);
+    KEEP(*(SORT_BY_NAME(.shell_cmd.*)));
     __stop_shell_cmds = .;
   }
 

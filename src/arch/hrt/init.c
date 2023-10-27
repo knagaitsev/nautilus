@@ -32,7 +32,6 @@
 #include <nautilus/msr.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/smp.h>
-#include <nautilus/irq.h>
 #include <nautilus/thread.h>
 #include <nautilus/fiber.h>
 #include <nautilus/waitqueue.h>
@@ -53,7 +52,9 @@
 #include <nautilus/mm.h>
 #include <nautilus/libccompat.h>
 #include <nautilus/barrier.h>
+#include <nautilus/atomic.h>
 #include <arch/hrt/hrt.h>
+#include <arch/x64/irq.h>
 
 #include <dev/apic.h>
 #include <dev/pci.h>
@@ -208,6 +209,8 @@ hrt_bsp_init (unsigned long mbd,
     // Now we are safe to use optimized code that relies
     // on SSE
     
+    nk_pre_vc_register(hrt_putchar, hrt_print);
+
     spinlock_init(&printk_lock);
 
     nk_vc_print(NAUT_WELCOME);
@@ -285,7 +288,7 @@ hrt_bsp_init (unsigned long mbd,
     runtime_init();
 
     /* let the other cores loose */
-    __sync_lock_test_and_set(&hrt_core_sync, 1);
+    atomic_lock_test_and_set(hrt_core_sync, 1);
 
     printk("Nautilus boot thread yielding (indefinitely)\n");
 

@@ -78,6 +78,10 @@ int nk_vc_log(char *fmt, ...);
 
 int nk_vc_printf_specific(struct nk_virtual_console *vc, char *fmt, ...);
 
+// If only putchar is provided a default puts will be used
+int nk_pre_vc_register(void(*putchar)(char), void(*puts)(char*));
+int nk_pre_vc_puts(char *s);
+int nk_pre_vc_putchar(char c);
 
 int nk_vc_setattr(uint8_t attr);
 int nk_vc_setattr_specific(struct nk_virtual_console *vc, uint8_t attr);
@@ -113,7 +117,7 @@ int nk_vc_handle_mouse(nk_mouse_event_t *mouse);
 int nk_vc_init(void);
 int nk_vc_is_active(void);
 
-int nk_vc_start_chardev_console(char *chardev);
+int nk_vc_start_chardev_console(const char *chardev);
 int nk_vc_stop_chardev_console(char *chardev);
 
 int nk_vc_deinit(void);

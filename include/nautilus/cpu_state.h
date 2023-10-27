@@ -28,7 +28,7 @@
 #define __CPU_STATE
 
 #ifdef NAUT_CONFIG_ARCH_X86
-#include <nautilus/msr.h>
+#include <arch/x64/msr.h>
 #endif
 
 //
@@ -46,14 +46,25 @@ static inline void *__cpu_state_get_cpu()
     uint64_t tp;
     asm volatile("mv %0, tp" : "=r" (tp) );
     return (void *) tp;
-#else
+#endif
+
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    uint64_t tid;
+    asm volatile("mrs %0, TPIDR_EL1" : "=r" (tid));
+    return (void*)tid;
+#endif
+
+#ifdef NAUT_CONFIG_ARCH_X86
     return (void *) msr_read(MSR_GS_BASE);
 #endif
+
+		// TODO: unreachable
+		return 0;
 }
 
 
 #define INL_OFFSET 8
-#ifdef NAUT_CONFIG_ARCH_RISCV
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
 #define PREEMPT_DISABLE_OFFSET 12
 #else
 #define PREEMPT_DISABLE_OFFSET 10
@@ -64,10 +75,10 @@ static inline void preempt_disable()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	__sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
+	atomic_add(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
-	__sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+	atomic_add(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #endif
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
@@ -79,10 +90,10 @@ static inline void preempt_enable()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	__sync_fetch_and_sub((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
+	atomic_sub(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #else
-	__sync_fetch_and_sub((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
+	atomic_sub(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),1);
 #endif
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
@@ -97,10 +108,10 @@ static inline void preempt_reset()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	__sync_fetch_and_and((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
+	atomic_and(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
-	__sync_fetch_and_sub((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+	atomic_and(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #endif
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
@@ -112,10 +123,10 @@ static inline int preempt_is_disabled()
     void *base = __cpu_state_get_cpu();
     if (base) {
 	// per-cpu functional
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
+	return atomic_add(*(uint32_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #else
-	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
+	return atomic_add(*(uint16_t *)((uint64_t)base+PREEMPT_DISABLE_OFFSET),0);
 #endif
     } else {
 	// per-cpu is not running, so we are not going to get preempted anyway
@@ -127,10 +138,10 @@ static inline uint16_t interrupt_nesting_level()
 {
     void *base = __cpu_state_get_cpu();
     if (base) {
-#ifdef NAUT_CONFIG_ARCH_RISCV
-	return __sync_fetch_and_add((uint32_t *)((uint64_t)base+INL_OFFSET),0);
+#if defined(NAUT_CONFIG_ARCH_RISCV) || defined(NAUT_CONFIG_ARCH_ARM64)
+	return atomic_add(*(uint32_t *)((uint64_t)base+INL_OFFSET),0);
 #else
-	return __sync_fetch_and_add((uint16_t *)((uint64_t)base+INL_OFFSET),0);
+	return atomic_add(*(uint16_t *)((uint64_t)base+INL_OFFSET),0);
 #endif
     } else {
 	return 0; // no interrupt should be on if we don't have percpu
@@ -143,16 +154,23 @@ static inline int in_interrupt_context()
     return interrupt_nesting_level()>0;
 }
 
+
+
+void arch_enable_ints(void);
+void arch_disable_ints(void);
+int arch_ints_enabled(void);
+
 // Do not directly use these functions or sti/cli unless you know
 // what you are doing...  
 // Instead, use irq_disable_save and a matching irq_enable_restore
-#define enable_irqs() sti()
-#define disable_irqs() cli()
+#define enable_irqs() arch_enable_ints()
+#define disable_irqs() arch_disable_ints()
 
 static inline uint8_t irqs_enabled (void)
 {
-    uint64_t rflags = read_rflags();
-    return (rflags & RFLAGS_IF) != 0;
+    return arch_ints_enabled();
+    // uint64_t rflags = read_rflags();
+    // return (rflags & RFLAGS_IF) != 0;
 }
 
 static inline uint8_t irq_disable_save (void)
@@ -162,20 +180,22 @@ static inline uint8_t irq_disable_save (void)
     uint8_t enabled = irqs_enabled();
 
     if (enabled) {
-        disable_irqs();
+	arch_disable_ints();
+        // disable_irqs();
     }
 
     preempt_enable();
 
     return enabled;
 }
-        
+ 
 
 static inline void irq_enable_restore (uint8_t iflag)
 {
     if (iflag) {
         /* Interrupts were originally enabled, so turn them back on */
-        enable_irqs();
+	arch_enable_ints();
+        // enable_irqs();
     }
 }
 

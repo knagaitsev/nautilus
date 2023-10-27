@@ -25,9 +25,9 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/paging.h>
-#include <nautilus/irq.h>
 #include <nautilus/mm.h>
 #include <arch/hrt/hrt.h>
+#include <arch/x64/irq.h>
 
 #define PML4_STRIDE (0x1ULL << (12+9+9+9))
 
@@ -118,7 +118,7 @@ unmerge_from_ros (void)
 
 
 int 
-nautilus_hrt_upcall_handler (excp_entry_t * excp, excp_vec_t vec)
+nautilus_hrt_upcall_handler (struct nk_irq_action *action, struct nk_regs *regs)
 {
     uint64_t *page = (uint64_t *) ((uint64_t) nautilus_info.sys.mb_info->hrt_info->comm_page_gpa + HRT_HIHALF_OFFSET);  // fixup if using gvaoffset
     uint64_t a1, a2;

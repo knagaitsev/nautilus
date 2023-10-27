@@ -45,25 +45,30 @@
 #include <nautilus/math.h>
 #include <nautilus/vc.h>
 
-#ifdef NAUT_CONFIG_ARCH_RISCV
-#include <dev/sifive.h>
+#ifdef NAUT_CONFIG_ARCH_RISCVBLAG
+#include <dev/sifive_serial.h>
 // All output is handled via UART
 #define do_putchar(x) do { sifive_serial_putchar(x); } while (0)
 #define do_puts(x)    do { sifive_serial_write(x); sifive_serial_putchar('\n'); } while (0)
 #else
-// All output is handled via the virtual console
+// All output is handled via the virtual console (use nk_pre_vc_ functions to set up a handler before the virtual console is active)
 #define do_putchar(x) do { nk_vc_putchar(x);} while (0)
 #define do_puts(x)    do { nk_vc_puts(x); } while (0)
 #endif
 
 spinlock_t printk_lock;
 
-extern void sifive_serial_putchar(uchar_t c);
-extern void serial_putln(const char * ln);
+int printk_init(void) {
+  spinlock_init(&printk_lock);
+  return 0;
+}
+
+//extern void sifive_serial_putchar(uchar_t c);
+//extern void serial_putln(const char * ln);
 
 struct printk_state {
 	char buf[PRINTK_BUFMAX];
-	unsigned int index;
+        unsigned int index;
 };
 
 
@@ -85,16 +90,16 @@ printk_char (char * arg, int c)
 {
 	struct printk_state *state = (struct printk_state *) arg;
 
-	if (c == '\n')
+	if ((c == 0) || (state->index >= PRINTK_BUFMAX))
+	{
+		flush(state);
+		do_putchar(c);
+        }
+        else if (c == '\n')
 	{
 		state->buf[state->index] = 0;
 		do_puts(state->buf);
 		state->index = 0;
-	}
-	else if ((c == 0) || (state->index >= PRINTK_BUFMAX))
-	{
-		flush(state);
-		do_putchar(c);
 	}
 	else
 	{
@@ -109,17 +114,19 @@ vprintk (const char * fmt, va_list args)
 {
 	struct printk_state state;
 
-    //uint8_t flags = spin_lock_irq_save(&printk_lock);
+        uint8_t flags = spin_lock_irq_save(&printk_lock);
 
 	state.index = 0;
+
 	_doprnt(fmt, args, 0, printk_char, (char *) &state);
 
 	if (state.index != 0)
 	    flush(&state);
 
-    //spin_unlock_irq_restore(&printk_lock, flags);
+        spin_unlock_irq_restore(&printk_lock, flags);
 	/* _doprnt currently doesn't pass back error codes,
 	   so just assume nothing bad happened.  */
+
 	return 0;
 }
 
@@ -142,14 +149,17 @@ panic (const char * fmt, ...)
     nk_monitor_panic_entry(buf);
 
 #endif
-
     va_list arg;
 
     va_start(arg, fmt);
     vprintk(fmt, arg);
     va_end(arg);
 
-   cli();
+#ifdef NAUT_CONFIG_ARCH_X86
+    backtrace_here();
+#endif
+
+   arch_disable_ints();
 
    while(1);
 }
@@ -166,6 +176,7 @@ early_printk (const char *fmt, va_list args)
 int
 printk (const char *fmt, ...)
 {
+
 	va_list	args;
 	int err = 0;
 

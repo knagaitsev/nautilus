@@ -1,5 +1,6 @@
 *.o
 *.cmd
+*.d
 
 # ctags
 tags
@@ -16,6 +17,8 @@ GTAGS
 *.syms
 *.bc
 *.ll
+*.dtb
+*.dts
 ./src/llvm/toolchain
 
 # LSP-related tools
@@ -31,6 +34,7 @@ include/config/
 include/autoconf.h
 .kconfig.d
 nautilus.secs
+nautilus.asm
 
 # Scripts created by Kconfig when building the ncurses menu system
 scripts/basic/docproc
@@ -43,7 +47,23 @@ scripts/kconfig/lxdialog/lxdialog
 scripts/kconfig/mconf
 scripts/kconfig/lkc_defs.h
 
+# Sources for GCC, GDB, and Binutils
+scripts/toolchain/gcc*
+scripts/toolchain/gdb*
+scripts/toolchain/bin*
+
+# QEMU Flash Image
+setups/arm64/flash.img
+
 /dep
+src/test/NPB-NAS/*/npbparams.h
+
+# Linker Script After Preprocessing
+link/processed.ld
+
+# Kernel Images
+Image
 uImage
 
-src/test/NPB-NAS/*/npbparams.h
+# Debug Output
+output.txt

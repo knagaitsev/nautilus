@@ -99,7 +99,7 @@ typedef struct nk_aspace_interface {
     int    (*switch_to)(void *state);
     
     // invoked in exception context if we have registered for pagefaults, gpfs, etc
-    int    (*exception)(void *state, excp_entry_t *exp, excp_vec_t vec);
+    int    (*exception)(void *state, struct nk_irq_action *action, struct nk_regs *regs);
     
     // print out info about the aspace
     int    (*print)(void *state, int detailed);
@@ -174,7 +174,7 @@ int          nk_aspace_init_aspace(nk_aspace_t *aspace, char *name);
 int          nk_aspace_switch(nk_aspace_t *aspace);
 
 // called when a hooked exception occurs
-int          nk_aspace_exception(excp_entry_t *entry, excp_vec_t vec, void *priv_data);
+int          nk_aspace_exception(struct nk_irq_action *, struct nk_regs *, void *priv_data);
 
 
 int          nk_aspace_dump_aspace_impls();

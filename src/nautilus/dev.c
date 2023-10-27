@@ -27,6 +27,7 @@
 #include <nautilus/thread.h>
 #include <nautilus/waitqueue.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 
 #ifndef NAUT_CONFIG_DEBUG_DEV
 #undef DEBUG_PRINT
@@ -103,6 +104,35 @@ struct nk_dev *nk_dev_register(char *name, nk_dev_type_t type, uint64_t flags, s
     return d;
 }
 
+int nk_dev_register_pre_allocated(struct nk_dev *d, char *name, nk_dev_type_t type, uint64_t flags, struct nk_dev_int *inter, void *state)
+{
+    STATE_LOCK_CONF;
+    char buf[NK_WAIT_QUEUE_NAME_LEN]; 
+    memset(d,0,sizeof(*d));
+
+    snprintf(buf,NK_WAIT_QUEUE_NAME_LEN,"%s-wait", name);
+    d->waiting_threads = nk_wait_queue_create(buf);
+    
+    if (!d->waiting_threads) { 
+	ERROR("Failed to allocate wait queue\n");
+	return -1;
+    }
+
+    strncpy(d->name,name,DEV_NAME_LEN); d->name[DEV_NAME_LEN-1] = 0;
+    d->type = type;
+    d->flags = flags;
+    d->state = state;
+    d->interface = inter;
+
+    STATE_LOCK();
+    list_add(&d->dev_list_node,&dev_list);
+    STATE_UNLOCK();
+    
+    INFO("Added device with name %s, type %lu, flags 0x%lx\n", d->name, d->type,d->flags);
+    
+    return 0;
+}
+
 int            nk_dev_unregister(struct nk_dev *d)
 {
     STATE_LOCK_CONF;
@@ -115,6 +145,20 @@ int            nk_dev_unregister(struct nk_dev *d)
     nk_wait_queue_destroy(d->waiting_threads);
     INFO("Unregistered device %s\n",d->name);
     free(d);
+    return 0;
+}
+
+int nk_dev_unregister_pre_allocated(struct nk_dev *d)
+{
+    STATE_LOCK_CONF;
+    
+    STATE_LOCK();
+    list_del(&d->dev_list_node);
+    STATE_UNLOCK();
+
+    nk_wait_queue_wake_all(d->waiting_threads);
+    nk_wait_queue_destroy(d->waiting_threads);
+    INFO("Unregistered device %s\n",d->name);
     return 0;
 }
 
@@ -134,8 +178,6 @@ struct nk_dev *nk_dev_find(char *name)
     return target;
 }
 
-
-
 void nk_dev_wait(struct nk_dev *d,
 		 int (*cond_check)(void *state),
 		 void *state)
@@ -144,6 +186,11 @@ void nk_dev_wait(struct nk_dev *d,
 	// We are in an interrupt context, and 
 	// we cannot wait...
 	return;
+    } else if(d->flags & NK_DEV_FLAG_NO_WAIT) {
+        // We cannot sleep on this device for some reason, 
+        // but incase we have interrupts off we should still yield
+        // so another thread can run
+        nk_yield(); 
     } else {
 	// We are in a thread context and we will
 	// put ourselves to sleep
@@ -153,7 +200,6 @@ void nk_dev_wait(struct nk_dev *d,
 
 void nk_dev_signal(struct nk_dev *d)
 {
-    //    ERROR_PRINT("dev signal d->waiting_threads->lock=%d\n",d->waiting_threads->lock);
     nk_wait_queue_wake_all(d->waiting_threads);
 }
 
@@ -169,11 +215,12 @@ void nk_dev_dump_devices()
 		     d->type==NK_DEV_GENERIC ? "generic" : 
 		     d->type==NK_DEV_BUS ? "bus" : 
 		     d->type==NK_DEV_TIMER ? "timer" : 
-		     d->type==NK_DEV_INTR ? "interrupt" : 
 		     d->type==NK_DEV_CHAR ? "char" : 
 		     d->type==NK_DEV_BLK ? "block" :
 		     d->type==NK_DEV_NET ? "net" : 
-		     d->type==NK_DEV_GRAPHICS ? "graphics" : "unknown", 
+		     d->type==NK_DEV_GRAPHICS ? "graphics" : 
+                     d->type==NK_DEV_GPIO ? "gpio" :
+                     d->type==NK_DEV_IRQ ? "irqchip" : "unknown",
 		     d->flags,
 		     d->interface,
 		     d->state);
@@ -182,6 +229,11 @@ void nk_dev_dump_devices()
     STATE_UNLOCK();
 }
 
+static uint32_t next_serial_device_number;
+uint32_t nk_dev_get_serial_device_number(void) 
+{
+  return atomic_add(next_serial_device_number, 1);
+}
 
 static int
 handle_devs (char * buf, void * priv)

@@ -20,6 +20,7 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
 #ifndef __NAUTILUS_H__
 #define __NAUTILUS_H__
 
@@ -30,121 +31,121 @@ typedef enum {UNCOND, IF_EARLIER, IF_LATER} nk_timer_condition_t;
 #include <dev/serial.h>
 #include <nautilus/naut_types.h>
 #include <nautilus/instrument.h>
-#include <nautilus/smp.h>
 #include <nautilus/thread.h>
 #include <nautilus/vc.h>
+#include <nautilus/smp.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// #define DEBUG_PRINT(fmt, args...)					\
-// do {									\
-//     if (__cpu_state_get_cpu()) {					\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-// 	struct nk_thread *_t = get_cur_thread();				\
-//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): DEBUG: " fmt,		\
-// 		       my_cpu_id(),					\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-// 		       _t ? _t->tid : 0,				\
-// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     } else {								\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-//  	nk_vc_log_wrap("CPU ? (%s%s): DEBUG: " fmt,			\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     }									\
-// } while (0)
+#define DEBUG_PRINT(fmt, args...)					\
+do {									\
+    if (__cpu_state_get_cpu()) {					\
+	int _p=preempt_is_disabled();					\
+        preempt_disable();                                              \
+	struct nk_thread *_t = get_cur_thread();				\
+ 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): DEBUG: " fmt,		\
+		       my_cpu_id(),					\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       _t ? _t->tid : 0,				\
+		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+		       ##args);						\
+	preempt_enable();				                \
+    } else {								\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+ 	nk_vc_log_wrap("CPU ? (%s%s): DEBUG: " fmt,			\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       ##args);						\
+	preempt_enable();						\
+    }									\
+} while (0)
 
-// #define ERROR_PRINT(fmt, args...)					\
-// do {									\
-//     if (__cpu_state_get_cpu()) {					\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-// 	struct nk_thread *_t = get_cur_thread();				\
-//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): ERROR at %s(%lu): " fmt,		\
-// 		       my_cpu_id(),					\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-// 		       _t ? _t->tid : 0,					\
-// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-// 	               __FILE__,__LINE__,                               \
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     } else {								\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-//  	nk_vc_log_wrap("CPU ? (%s%s): ERROR at %s(%lu): " fmt,			\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-//                        __FILE__,__LINE__,                               \
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     }									\
-// } while (0)
+#define ERROR_PRINT(fmt, args...)					\
+do {									\
+    if (__cpu_state_get_cpu()) {					\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+	struct nk_thread *_t = get_cur_thread();				\
+ 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): ERROR at %s(%lu): " fmt,		\
+		       my_cpu_id(),					\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       _t ? _t->tid : 0,					\
+		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+	               __FILE__,__LINE__,                               \
+		       ##args);						\
+	preempt_enable();						\
+    } else {								\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+ 	nk_vc_log_wrap("CPU ? (%s%s): ERROR at %s(%lu): " fmt,			\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+                       __FILE__,__LINE__,                               \
+		       ##args);						\
+	preempt_enable();						\
+    }									\
+} while (0)
 
 
-// #define WARN_PRINT(fmt, args...)					\
-// do {									\
-//     if (__cpu_state_get_cpu()) {					\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-// 	struct nk_thread *_t = get_cur_thread();				\
-//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): WARNING : " fmt,	        \
-// 		       my_cpu_id(),					\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-// 		       _t ? _t->tid : 0,					\
-// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     } else {								\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-//  	nk_vc_log_wrap("CPU ? (%s%s): WARNING: " fmt,			\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     }									\
-// } while (0)
+#define WARN_PRINT(fmt, args...)					\
+do {									\
+    if (__cpu_state_get_cpu()) {					\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+	struct nk_thread *_t = get_cur_thread();				\
+ 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): WARNING : " fmt,	        \
+		       my_cpu_id(),					\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       _t ? _t->tid : 0,					\
+		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+		       ##args);						\
+	preempt_enable();						\
+    } else {								\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+ 	nk_vc_log_wrap("CPU ? (%s%s): WARNING: " fmt,			\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       ##args);						\
+	preempt_enable();						\
+    }									\
+} while (0)
 
-// #define INFO_PRINT(fmt, args...)					\
-// do {									\
-//     if (__cpu_state_get_cpu()) {					\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-// 	struct nk_thread *_t = get_cur_thread();				\
-//  	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): " fmt,	        \
-// 		       my_cpu_id(),					\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-// 		       _t ? _t->tid : 0,					\
-// 		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     } else {								\
-// 	int _p=preempt_is_disabled();					\
-// 	preempt_disable();						\
-//  	nk_vc_log_wrap("CPU ? (%s%s): " fmt,       			\
-// 		       in_interrupt_context() ? "I" :"",		\
-// 		       _p ? "" : "P",					\
-// 		       ##args);						\
-// 	preempt_enable();						\
-//     }									\
-// } while (0)
+#define INFO_PRINT(fmt, args...)					\
+do {									\
+    if (__cpu_state_get_cpu()) {					\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+	struct nk_thread *_t = get_cur_thread();				\
+ 	nk_vc_log_wrap("CPU %d (%s%s %lu \"%s\"): " fmt,	        \
+		       my_cpu_id(),					\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       _t ? _t->tid : 0,					\
+		       _t ? _t->is_idle ? "*idle*" : _t->name[0]==0 ? "*unnamed*" : _t->name : "*none*", \
+		       ##args);						\
+	preempt_enable();						\
+    } else {								\
+	int _p=preempt_is_disabled();					\
+	preempt_disable();						\
+ 	nk_vc_log_wrap("CPU ? (%s%s): " fmt,       			\
+		       in_interrupt_context() ? "I" :"",		\
+		       _p ? "" : "P",					\
+		       ##args);						\
+	preempt_enable();						\
+    }									\
+} while (0)
 
-#define DEBUG_PRINT(fmt, args...)
-#define ERROR_PRINT(fmt, args...)
-#define WARN_PRINT(fmt, args...)
-#define INFO_PRINT(fmt, args...)
+//#define DEBUG_PRINT(fmt, args...)
+//#define ERROR_PRINT(fmt, args...)
+//#define WARN_PRINT(fmt, args...)
+//#define INFO_PRINT(fmt, args...)
 
 void panic(const char *, ...) __attribute__((noreturn));
 
@@ -158,13 +159,13 @@ void panic(const char *, ...) __attribute__((noreturn));
 
 
 #include <dev/ioapic.h>
-#include <nautilus/smp.h>
 #include <nautilus/paging.h>
 #include <nautilus/limits.h>
 #include <nautilus/naut_assert.h>
 #include <nautilus/barrier.h>
 #include <nautilus/list.h>
 #include <nautilus/numa.h>
+#include <nautilus/smp.h>
 
 
 struct ioapic;
@@ -190,10 +191,12 @@ struct nk_prog_info;
 struct sys_info {
 
     struct cpu * cpus[NAUT_CONFIG_MAX_CPUS];
-    struct ioapic * ioapics[NAUT_CONFIG_MAX_IOAPICS];
-
     uint32_t num_cpus;
+    
+#ifdef NAUT_CONFIG_ARCH_X86
+    struct ioapic * ioapics[NAUT_CONFIG_MAX_IOAPICS];
     uint32_t num_ioapics;
+#endif
 
     uint64_t flags;
 #define NK_SYS_LEGACY 1  // system has dual PIC and ISA devices
@@ -209,8 +212,6 @@ struct sys_info {
     struct pci_info * pci;
     struct hpet_dev * hpet;
 
-    struct multiboot_info * mb_info;
-
     struct nk_int_info int_info;
 
     struct nk_locality_info locality_info;
@@ -221,8 +222,11 @@ struct sys_info {
 
     struct nk_prog_info * prog_info;
 
+#ifdef NAUT_CONFIG_USE_FDT
     struct dtb_fdt_header * dtb; /* Device tree binary */
+#endif
 
+    struct multiboot_info * mb_info;
 };
 
 struct cmdline_state;
@@ -246,6 +250,7 @@ nk_get_nautilus_info (void)
     return &nautilus_info;
 }
 
+<<<<<<< HEAD
 static inline double __math_invalid(double x) {
   return (x - x) / (x - x);
 }
@@ -419,6 +424,14 @@ static double sqrt(double x) {
 
 //   return guess;
 // }
+=======
+// Slap this on the front of a function that should be 'interrupt' style
+#ifdef NAUT_CONFIG_ARCH_X86
+#define INTERRUPT __attribute__((target("no-sse")))
+#else
+#define INTERRUPT
+#endif
+>>>>>>> integration
 
 
 
@@ -431,8 +444,10 @@ static double sqrt(double x) {
 #include <arch/x64/main.h>
 #elif defined NAUT_CONFIG_GEM5
 #include <arch/gem5/main.h>
-#elif defined NAUT_CONFIG_RISCV_HOST
+#elif defined NAUT_CONFIG_ARCH_RISCV
 #include <arch/riscv/main.h>
+#elif defined NAUT_CONFIG_ARCH_ARM64
+#include <arch/arm64/main.h>
 #else
 #error "Unsupported architecture"
 #endif

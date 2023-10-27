@@ -28,7 +28,7 @@ int nk_gdb_init_ap();
 
 // invoke with state = 0x1 if you are calling from a debug device
 // driver's handler
-int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_addr, void * state_addr);
+int nk_gdb_handle_exception(struct nk_irq_action* action, struct nk_regs *regs, addr_t fault_addr, void * state_addr);
 
 #define nk_gdb_breakpoint_here() __asm__ __volatile__ ("int $3")
 

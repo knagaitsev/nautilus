@@ -39,7 +39,7 @@
 #else
 
 #include <nautilus/nautilus.h>
-#include <nautilus/irq.h>
+#include <arch/x64/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/libccompat.h>
 #include <nautilus/mwait.h>
@@ -51,7 +51,12 @@
 #include <nautilus/nemo.h>
 #include <nautilus/pmc.h>
 #include <nautilus/shell.h>
+#include <nautilus/interrupt.h>
 
+#endif
+
+#ifdef NAUT_CONFIG_ARCH_X86
+#include<arch/x64/irq.h>
 #endif
 
 #include "benchmark.h"
@@ -809,7 +814,7 @@ time_ipi_send(void)
 static uint64_t int80_end = 0;
 
 static int
-int80_handler (excp_entry_t * excp, excp_vec_t v, void *state)
+int80_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     rdtscll(int80_end);
     return 0;
@@ -821,7 +826,7 @@ time_int80 (void)
 {
     int i;
     uint64_t start;
-    if (register_int_handler(0x80, int80_handler, NULL)) {
+    if (nk_irq_add_handler(x86_vector_to_irq(0x80), int80_handler, NULL)) {
 	PRINT("FAILED TO REGISTER HANDLER FOR INT 0x80\n");
 	return;
     }

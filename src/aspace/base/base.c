@@ -131,12 +131,12 @@ static int switch_to(void *state)
     return 0;
 }
     
-static int exception(void *state, excp_entry_t *exp, excp_vec_t vec)
+static int exception(void *state, struct nk_irq_action *action, struct nk_regs *regs)
 {
     struct nk_aspace_base *as = (struct nk_aspace_base *)state;
     struct nk_thread *thread = get_cur_thread();
 
-    DEBUG("Exception 0x%x on thread %d\n",vec,thread->tid);
+    DEBUG("Exception 0x%x on thread %d\n",action->ivec,thread->tid);
 
     panic("PAGE FAULTS CANNOT OCCUR FOR BASE ADDRESS SPACE\n");
     

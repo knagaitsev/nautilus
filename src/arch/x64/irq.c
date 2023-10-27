@@ -21,10 +21,17 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/nautilus.h>
-#include <nautilus/idt.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/mm.h>
+#include <arch/x64/idt.h>
+#include <arch/x64/irq.h>
+
+#ifndef NAUT_CONFIG_DEBUG_INTERRUPT_FRAMEWORK
+#undef DEBUG_PRINT
+#define DEBUG_PRINT(fmt, args...)
+#endif
+
+#define PIC_MAX_IRQ_NUM    15     // this is really PIC-specific
 
 #define PIC_MASTER_CMD_PORT  0x20
 #define PIC_MASTER_DATA_PORT 0x21
@@ -54,48 +61,6 @@
  * priority with increasing vector number
  *
  */
-
-void
-irqmap_set_ioapic (uint8_t irq, struct ioapic * ioapic)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-    naut->sys.int_info.irq_map[irq].ioapic = ioapic;
-    naut->sys.int_info.irq_map[irq].assigned = 1;
-}
-
-static inline void 
-set_irq_vector (uint8_t irq, uint8_t vector)
-{
-    nk_get_nautilus_info()->sys.int_info.irq_map[irq].vector = vector;
-}
-
-
-void 
-nk_mask_irq (uint8_t irq)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-	if (nk_irq_is_assigned(irq)) {
-		ioapic_mask_irq(naut->sys.int_info.irq_map[irq].ioapic, irq);
-	}
-}
-
-
-void
-nk_unmask_irq (uint8_t irq)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-	if (nk_irq_is_assigned(irq)) {
-		ioapic_unmask_irq(naut->sys.int_info.irq_map[irq].ioapic, irq);
-	}
-}
-
-
-uint8_t
-nk_irq_is_assigned (uint8_t irq)
-{
-    struct naut_info * naut = nk_get_nautilus_info();
-    return naut->sys.int_info.irq_map[irq].assigned;
-}
 
 void 
 disable_8259pic (void)
@@ -184,33 +149,59 @@ nk_add_int_entry (int_trig_t trig_mode,
     new->dst_ioapic_intin = dst_ioapic_intin;
     new->dst_ioapic_id    = dst_ioapic_id;
 
+    DEBUG_PRINT("nk_add_int_entry(trig=%u,pol=%u,type=%u,src_bus_id=%u,src_bus_irq=%u,dst_ioapic_intin=%u,dst_ioapic_id=%u) ptr=%p\n",
+		    trig_mode,
+		    polarity,
+		    type,
+		    src_bus_id,
+		    src_bus_irq,
+		    dst_ioapic_intin,
+		    dst_ioapic_id,
+		    new);
+
     list_add(&(new->elm), &(naut->sys.int_info.int_list));
 }
 
+nk_irq_t x86_irq_vector_base = NK_NULL_IRQ;
+static struct nk_irq_desc x86_irq_vector_descs[256];
 
 int 
-nk_int_init (struct sys_info * sys)
+x86_irq_vector_init (struct sys_info * sys)
 {
     struct nk_int_info * info = &(sys->int_info);
-    int i;
-    uint8_t vector;
 
-    /* set it up so we get an illegal vector if we don't
-     * assign IRQs properly. 0xff is reserved for APIC 
-     * suprious interrupts */
-    for (i = 0; i < 256; i++) {
-        set_irq_vector(i, 0xfe);
+    if(nk_request_irq_range(256, &x86_irq_vector_base)) {
+      // Couldn't get a range of IRQ's
     }
 
-    /* we're going to count down in decreasing priority 
-     * when we run out of vectors, we'll stop */
-    for (i = 0, vector = 0xef; vector > 0x1f; vector--, i++) {
-        set_irq_vector(i, vector);
+    struct nk_irq_desc *excp_desc = x86_irq_vector_descs;
+    struct nk_irq_desc *other_desc = x86_irq_vector_descs + 32;
+
+    int res;
+    res = nk_setup_irq_descs_devless(32, excp_desc,
+        0, // hwirq
+	0, // flags
+        IRQ_STATUS_ENABLED
+        );
+    if(res) {
+      return -1;
+    }
+    res = nk_setup_irq_descs_devless(256-32, other_desc,
+        32, 
+        NK_IRQ_DESC_FLAG_MSI | NK_IRQ_DESC_FLAG_MSI_X,
+        IRQ_STATUS_ENABLED
+	);
+    if(res) {
+      return -1;
+    }
+
+    res = nk_assign_irq_descs(256, x86_irq_vector_base, x86_irq_vector_descs);
+    if(res) {
+      return -1;
     }
 
     INIT_LIST_HEAD(&(info->int_list));
     INIT_LIST_HEAD(&(info->bus_list));
-
     return 0;
 }
 

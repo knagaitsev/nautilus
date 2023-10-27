@@ -102,7 +102,7 @@ static inline nk_wait_queue_entry_t *nk_wait_queue_alloc_entry(nk_wait_queue_t *
 {
     int i;
     for (i=0;i<NAUT_CONFIG_MAX_THREADS;i++) {
-	if (__sync_bool_compare_and_swap(&q->slots[i].thread,0,t)) {
+	if (atomic_bool_cmpswap(q->slots[i].thread,0,t)) {
 	    INIT_LIST_HEAD(&q->slots[i].node);
 	    return &q->slots[i];
 	}
@@ -112,7 +112,8 @@ static inline nk_wait_queue_entry_t *nk_wait_queue_alloc_entry(nk_wait_queue_t *
 
 static inline void nk_wait_queue_free_entry(nk_wait_queue_t *q, nk_wait_queue_entry_t *e)
 {
-    (void)__sync_fetch_and_and(&e->thread,0);
+  void *null = NULL;
+  atomic_store(e->thread,null);
 }
 
 
@@ -131,8 +132,8 @@ static inline int nk_wait_queue_enqueue_extended(nk_wait_queue_t *q, nk_thread_t
 	return -1;
     } else { 
 	list_add_tail(&e->node,&q->list);
-	__sync_fetch_and_add(&t->num_wait,1);
-	__sync_fetch_and_add(&q->num_wait,1);
+	atomic_add(t->num_wait,1);
+	atomic_add(q->num_wait,1);
 	if (!havelock) {
 	    spin_unlock_irq_restore(&q->lock,flags);
 	}
@@ -155,8 +156,8 @@ static inline nk_thread_t     *nk_wait_queue_dequeue_extended(nk_wait_queue_t *q
         e  = list_first_entry(&q->list, nk_wait_queue_entry_t, node);
 	t = e->thread;
         list_del_init(&e->node);
-	__sync_fetch_and_add(&t->num_wait,-1);
-	__sync_fetch_and_add(&q->num_wait,-1);
+	atomic_add(t->num_wait,-1);
+	atomic_add(q->num_wait,-1);
 	nk_wait_queue_free_entry(q,e);
     }
     if (!havelock) {
@@ -179,8 +180,8 @@ static inline void nk_wait_queue_remove_specific_extended(nk_wait_queue_t *q, nk
         e  = list_entry(cur, nk_wait_queue_entry_t, node);
 	if (e->thread == t) {
 	    list_del_init(cur);
-	    __sync_fetch_and_add(&t->num_wait,-1);
-	    __sync_fetch_and_add(&q->num_wait,-1);
+	    atomic_add(t->num_wait,-1);
+	    atomic_add(q->num_wait,-1);
 	    nk_wait_queue_free_entry(q,e);
 	}
     }

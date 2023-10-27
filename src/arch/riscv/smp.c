@@ -2,12 +2,11 @@
 #include <nautilus/acpi.h>
 #include <nautilus/smp.h>
 #include <nautilus/sfi.h>
-#include <nautilus/irq.h>
 #include <nautilus/mm.h>
 #include <nautilus/percpu.h>
 #include <nautilus/numa.h>
 #include <nautilus/cpu.h>
-#include <nautilus/fdt.h>
+#include <nautilus/of/fdt.h>
 
 #ifndef NAUT_CONFIG_DEBUG_SMP
 #undef DEBUG_PRINT
@@ -36,14 +35,15 @@ configure_cpu (unsigned long fdt, int offset) {
         panic("CPU count exceeded max (check your .config)\n");
     }
 
-    if(!(new_cpu = mm_boot_alloc(sizeof(struct cpu)))) {
+    new_cpu = mm_boot_alloc(sizeof(struct cpu));
+
+    if(new_cpu == NULL) {
         panic("Couldn't allocate CPU struct\n");
     } 
 
     memset(new_cpu, 0, sizeof(struct cpu));
 
     new_cpu->id         = reg_addr;
-    new_cpu->lapic_id   = 0;
 
     new_cpu->enabled    = enabled;
     new_cpu->is_bsp     = (new_cpu->id == sys->bsp_id ? 1 : 0);
@@ -90,7 +90,7 @@ static int __early_init_dtb(struct naut_info * naut) {
 }
 
 int 
-arch_early_init (struct naut_info * naut)
+arch_smp_early_init (struct naut_info * naut)
 {
     int ret;
 

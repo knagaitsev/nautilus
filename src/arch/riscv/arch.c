@@ -1,5 +1,7 @@
 #include <nautilus/arch.h>
-#include <nautilus/irq.h>
+#include <nautilus/cpu_state.h>
+#include <nautilus/of/numa.h>
+#include <nautilus/endian.h>
 
 void arch_enable_ints(void)  {
     printk("ENABLED INTS\n");
@@ -11,16 +13,13 @@ int  arch_ints_enabled(void) { return read_csr(sstatus) & SSTATUS_SIE; };
 
 #include <arch/riscv/plic.h>
 
+/*
 void arch_irq_enable(int irq) { plic_enable(irq, 1); }
 void arch_irq_disable(int irq) { 
     printk("im disabling irq=%d\n", irq);
-    plic_disable(irq); }
-void arch_irq_install(int irq, int (*handler)(excp_entry_t *, excp_vec_t, void *)) {
-    printk("registering int handler! irq=%d, handler=%p\n", irq, handler);
-    register_int_handler(irq, handler, (void *)0);
-    arch_irq_enable(irq);
+    plic_disable(irq); 
 }
-void arch_irq_uninstall(int irq) { /* TODO */ }
+*/
 
 uint32_t arch_cycles_to_ticks(uint64_t cycles) { /* TODO */ return cycles; }
 uint32_t arch_realtime_to_ticks(uint64_t ns) { return ((ns*RISCV_CLOCKS_PER_SECOND)/1000000000ULL); }
@@ -37,7 +36,7 @@ static uint64_t timer_count = 0;
 
 void arch_update_timer(uint32_t ticks, nk_timer_condition_t cond) {
     if (!timer_set) {
-    arch_set_timer(ticks);
+      arch_set_timer(ticks);
     } else {
     switch(cond) {
     case UNCOND:
@@ -65,7 +64,7 @@ void arch_set_timer(uint32_t ticks) {
 
 int  arch_read_timer(void) { /* TODO */ return 0; }
 
-int  arch_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
+int arch_timer_handler(struct nk_irq_action * action, struct nk_regs *regs, void *state)
 {
     uint64_t time_to_next_ns;
 
@@ -78,32 +77,34 @@ int  arch_timer_handler(excp_entry_t * excp, excp_vec_t vec, void *state)
     time_to_next_ns = nk_timer_handler();
 
     if (time_to_next_ns == 0) {
-    arch_set_timer(-1);
+      arch_set_timer(-1);
     } else {
-    arch_set_timer(arch_realtime_to_ticks(time_to_next_ns));
+      arch_set_timer(arch_realtime_to_ticks(time_to_next_ns));
     }
-
-    nk_yield();
 
     return 0;
 }
 
-uint64_t arch_read_timestamp() { return read_csr(time); }
+uint64_t arch_read_timestamp() { 
+  uint64_t time = read_csr(time); 
+  return time;
+}
+
+int arch_numa_init(struct sys_info *sys) {
+  return fdt_numa_init(sys);
+}
 
 void arch_print_regs(struct nk_regs * r) {
 
     printk("RA:  %016lx SP:  %016lx\n", r->ra, r->sp);
-    printk("GP:  %016lx TP:  %016lx\n", r->gp, r->tp);
+    //printk("GP:  %016lx TP:  %016lx\n", r->gp, r->tp);
+    printk("A00: %016lx A01: %016lx A02: %016lx\n", r->a0, r->a1, r->a2);
+    printk("A03: %016lx A04: %016lx A05: %016lx\n", r->a3, r->a4, r->a5);
+    printk("A06: %016lx A07: %016lx\n", r->a6, r->a7);
     printk("T00: %016lx T01: %016lx T02: %016lx\n", r->t0, r->t1, r->t2);
-    printk("S00: %016lx S01: %016lx A00: %016lx\n", r->s0, r->s1, r->a0);
-    printk("A01: %016lx A02: %016lx A03: %016lx\n", r->a1, r->a2, r->a3);
-    printk("A04: %016lx A05: %016lx A06: %016lx\n", r->a4, r->a5, r->a6);
-    printk("A07: %016lx S02: %016lx S03: %016lx\n", r->a7, r->s2, r->s3);
-    printk("S04: %016lx S05: %016lx S06: %016lx\n", r->s4, r->s5, r->s6);
-    printk("S07: %016lx S08: %016lx S09: %016lx\n", r->s7, r->s8, r->s9);
-    printk("S10: %016lx S11: %016lx T03: %016lx\n", r->s10, r->s11, r->t3);
-    printk("T04: %016lx T05: %016lx T06: %016lx\n", r->t4, r->t5, r->t6);
-
+    printk("T03: %016lx T04: %016lx T05: %016lx\n", r->t4, r->t5, r->t6);
+    printk("T06: %016lx T07: %016lx\n", r->t6, r->t7);
+    printk("ZERO: %016lx\n", r->__zero);
 }
 
 void * arch_read_sp(void) {
@@ -122,3 +123,20 @@ void arch_halt(void) {
     // asm volatile ("hlt");
 }
 
+int arch_little_endian(void) {
+  return check_little_endian();
+}
+
+int arch_atomics_enabled(void) {
+  // KJH - I'm just assuming RISC-V atomics should be enabled always
+  return 1;
+}
+
+int arch_handle_io_map(struct nk_io_mapping *mapping) {
+  // KJH - do nothing we should be identity mapped
+  return 0;
+}
+int arch_handle_io_unmap(struct nk_io_mapping *mapping) {
+  // KJH - same as arch_handle_io_map
+  return 0;
+}

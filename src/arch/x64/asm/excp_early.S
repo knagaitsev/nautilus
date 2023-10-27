@@ -20,7 +20,7 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
-#include <nautilus/idt.h>
+#include <arch/x64/idt.h>
 #include <nautilus/thread.h>
 
 #define GPIO_OUTPUT 1
@@ -137,7 +137,7 @@ skip_cat_entry:
 
 #endif
 
-#if GPIO_OUTPUT && defined(NAUT_CONFIG_GPIO)
+#if GPIO_OUTPUT && defined(NAUT_CONFIG_PARALLEL_PORT_GPIO)
     movq $0x10, %rdi   // bit 4
     movq $0x0, %rsi    // or it high
     callq nk_gpio_output_mask
@@ -163,14 +163,9 @@ skip_cat_entry:
     callq nk_irq_prof_enter
 #endif
 
-    leaq 128(%rsp), %rdi # pointer to exception struct
-    movq 120(%rsp), %rsi # irq num
-    movabs $idt_handler_table, %rdx
-    movq (%rdx, %rsi, 8), %r8   # pointer to handler
-    movabs $idt_state_table, %rdx
-    movq (%rdx, %rsi, 8), %rdx   # pointer to state
-	
-    
+    movq %rsp, %rdi # pointer to nk_regs struct
+    movq 120(%rsp), %rsi # vector num
+	 
 #ifdef NAUT_CONFIG_ENABLE_ASSERTS
     cmpq $256, %rsi
     jge irq_err
@@ -179,7 +174,7 @@ skip_cat_entry:
     jl irq_err
 #endif
 
-    callq *%r8    # rdi = exp struct, rsi = irq num, rdx = state
+    callq route_interrupt_vector # rdi = nk_regs, rsi = ivec
 
     testq %rax, %rax
     jnz irq_err
@@ -243,7 +238,7 @@ EE_skip_signal_delivery:
 #endif /* if not enabled, just fall through like usual */
 
 thr_return:
-#if GPIO_OUTPUT && defined(NAUT_CONFIG_GPIO)
+#if GPIO_OUTPUT && defined(NAUT_CONFIG_PARALLEL_PORT_GPIO)
     movq $0x10, %rdi   // bit 4
     notq %rdi          // clear
     movq $0x1, %rsi    // and it low
@@ -340,14 +335,10 @@ skip_per_cpu_update1:
     cmpq $32, %rsi
     jge excp_err
 
-    leaq 128(%rsp), %rdi # pointer to exception struct
+    movq %rsp, %rdi # pointer to register struct
     movq 120(%rsp), %rsi # excp vector
-    movabs $idt_handler_table, %rdx
-    movq (%rdx, %rsi, 8), %r8   # pointer to handler
-    movabs $idt_state_table, %rdx
-    movq (%rdx, %rsi, 8), %rdx   # pointer to state
 
-    callq *%r8   # rdi = exp struct, rsi = irq num, rdx = state
+    callq route_interrupt_vector # rdi = register struct, rsi = ivec num
     testq %rax, %rax
     jnz excp_err
 
@@ -381,26 +372,6 @@ excp_err:
 loop1:
     hlt
     jmp loop1
-
-
-.align 8
-GLOBAL(idt_handler_table)
-.rept NUM_EXCEPTIONS
-    .quad null_excp_handler
-.endr
-
-.rept NUM_IDT_ENTRIES - NUM_EXCEPTIONS
-    .quad null_irq_handler
-.endr
-END(idt_handler_table)
-
-.align 8
-GLOBAL(idt_state_table)
-.rept NUM_IDT_ENTRIES
-    .quad 0
-.endr
-END(idt_state_table)
-
 
 irq_err_str:
 .asciz "Received illegal interrupt %u\12"

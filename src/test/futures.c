@@ -76,7 +76,7 @@ static int test_basic()
 	for (j=0;j<NUM_FUTURES;j++) {
 	    void *ret;
 	    // randomly flip between spin wait and block wait
-	    if (nk_future_wait(futures[j], rdtsc() % 2,&ret)) {
+	    if (nk_future_wait(futures[j], arch_read_timestamp() % 2,&ret)) {
 		PRINT("Failed to wait on future %d\n", j);
 		rc = -1;
 		goto out_clean;

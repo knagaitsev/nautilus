@@ -67,6 +67,27 @@ typedef uchar_t bool_t;
 typedef unsigned long  uintptr_t;
 typedef long           intptr_t;
 
+// Must be large enough to represent every interrupt vector number for the system
+#ifdef NAUT_CONFIG_ARCH_X86
+typedef unsigned int nk_ivec_t;
+#else
+typedef unsigned int nk_ivec_t;
+#endif
+
+// Must be large enough to represent every IRQ line number in the system
+typedef unsigned int nk_irq_t;
+typedef unsigned int nk_hwirq_t;
+
+#define NK_NULL_IRQ (nk_irq_t)(-1)
+
+typedef uint32_t nk_gpio_t;
+
+typedef uint32_t cpu_id_t;
+
+// Declare these so pointers can be passed to irq handlers without needing to include the full <nautilus/interrupts.h>
+struct nk_irq_action;
+struct nk_regs;
+
 //#define NULL ((void *)0)
 #ifndef NULL
 #define NULL 0

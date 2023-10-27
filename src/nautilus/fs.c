@@ -560,10 +560,18 @@ void nk_fs_dump_filesystems()
 
     STATE_LOCK();
 
+    int num_printed = 0;
+
     list_for_each(cur,&fs_list) {
 	struct nk_fs *fs = list_entry(cur,struct nk_fs,fs_list_node);
 	nk_vc_printf("%s:\n", fs->name);
+        num_printed += 1;
     }
+
+    if(num_printed == 0) {
+      nk_vc_printf("No Filesystems Installed\n");
+    }
+
     STATE_UNLOCK();
 }
 
@@ -575,10 +583,18 @@ void nk_fs_dump_files()
 
     STATE_LOCK();
 
+    int num_dumped = 0;
+
     list_for_each(cur,&open_files) {
 	struct nk_fs_open_file_state *f = list_entry(cur,struct nk_fs_open_file_state,file_node);
 	nk_vc_printf("%s:%p at %lu flags %x\n", f->fs->name,f->file,f->position,f->flags);
+        num_dumped += 1;
     }
+
+    if(num_dumped == 0) {
+      nk_vc_printf("No Open Files\n");
+    }
+
     STATE_UNLOCK();
 }
 

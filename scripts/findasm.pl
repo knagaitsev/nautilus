@@ -7,4 +7,3 @@ foreach $f (@files) {
 	$o =~ s/\.S$/\.o/;
 	print " $o " if (-e $o);
 }
-

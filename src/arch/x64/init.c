@@ -22,17 +22,19 @@
  */
 #define __NAUTILUS_MAIN__
 
+#include <arch/x64/idt.h>
+#include <arch/x64/irq.h>
+#include <arch/x64/msr.h>
+#include <arch/x64/mtrr.h>
+
 #include <nautilus/nautilus.h>
 #include <nautilus/paging.h>
-#include <nautilus/idt.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/mb_utils.h>
 #include <nautilus/cpu.h>
-#include <nautilus/msr.h>
-#include <nautilus/mtrr.h>
 #include <nautilus/cpuid.h>
 #include <nautilus/smp.h>
-#include <nautilus/irq.h>
+#include <nautilus/interrupt.h>
 #include <nautilus/thread.h>
 #include <nautilus/fiber.h>
 #include <nautilus/waitqueue.h>
@@ -111,10 +113,14 @@
 #include <dev/ioapic.h>
 #include <dev/i8254.h>
 #include <dev/ps2.h>
-#ifdef NAUT_CONFIG_GPIO
-#include <dev/gpio.h>
+#ifdef NAUT_CONFIG_PARALLEL_PORT_GPIO
+#include <dev/port_gpio.h>
 #endif
+#ifdef NAUT_CONFIG_PC_8250_UART
+#include<dev/8250/pc_8250.h>
+#else
 #include <dev/serial.h>
+#endif
 #include <dev/vga.h>
 #ifdef NAUT_CONFIG_VIRTIO_PCI
 #include <dev/virtio_pci.h>
@@ -150,7 +156,7 @@
 #endif
 
 #ifdef NAUT_CONFIG_REAL_MODE_INTERFACE 
-#include <nautilus/realmode.h>
+#include <arch/x64/realmode.h>
 #endif
 
 #ifdef NAUT_CONFIG_VESA
@@ -185,9 +191,6 @@
 #ifdef NAUT_CONFIG_ENABLE_MONITOR
 #include <nautilus/monitor.h>
 #endif
-
-
-extern spinlock_t printk_lock;
 
 extern struct gdt_desc64 gdtr64;
 
@@ -321,7 +324,7 @@ init (unsigned long mbd,
     struct naut_info * naut = &nautilus_info;
 
 
-     // At this point, we have no FPU, so we need to be
+    // At this point, we have no FPU, so we need to be
     // sure that nothing we invoke could be using SSE or
     // similar due to compiler optimization
     
@@ -329,27 +332,35 @@ init (unsigned long mbd,
 
     vga_early_init();
 
-    // At this point we have VGA output only
-    
+    // At this point we have VGA output only    
+    if(x86_irq_vector_init(&naut->sys)) {
+      //Nothing we can really do
+      panic("Couldn't initialize x86 vector IRQ descriptors!\n");
+    }
+
     fpu_init(naut, FPU_BSP_INIT);
 
     // Now we are safe to use optimized code that relies
     // on SSE
 
-    spinlock_init(&printk_lock);
+    printk_init();
 
     setup_idt();
-
-    nk_int_init(&(naut->sys));
-
+    
+#ifdef NAUT_CONFIG_PC_8250_UART
+#ifdef NAUT_CONFIG_PC_8250_UART_EARLY_OUTPUT
+    pc_8250_pre_vc_init();
+#endif
+#else
     // Bring serial device up early so we can have output
     serial_early_init();
+#endif
 
     nk_mtrr_init();
 
-#ifdef NAUT_CONFIG_GPIO
-    nk_gpio_init();
-    nk_gpio_cpu_mask_add(1); // consider cpu 1 writes only
+#ifdef NAUT_CONFIG_PARALLEL_PORT_GPIO
+    nk_port_gpio_init();
+    nk_port_gpio_cpu_mask_add(1); // consider cpu 1 writes only
 #endif
 
 #ifdef NAUT_CONFIG_ENABLE_REMOTE_DEBUGGING 
@@ -358,6 +369,8 @@ init (unsigned long mbd,
 
 
     nk_dev_init();
+    nk_irq_dev_init();
+    nk_gpio_dev_init();
     nk_char_dev_init();
     nk_block_dev_init();
     nk_net_dev_init();
@@ -417,18 +430,20 @@ init (unsigned long mbd,
 
     disable_8259pic();
 
-    i8254_init(naut);
-
     /* from this point on, we can use percpu macros (even if the APs aren't up) */
 
     sysinfo_init(&(naut->sys));
 
-    ioapic_init(&(naut->sys));
-
     nk_wait_queue_init();
 
+    // These register devices so need to happen after we have waitqueues
+    ioapic_init(&(naut->sys));
+    i8254_init(naut);
+
+    printk("4\n");
     nk_future_init();
     
+    printk("5\n");
     nk_timer_init();
 
     apic_init(naut->sys.cpus[0]);
@@ -469,6 +484,7 @@ init (unsigned long mbd,
     smp_setup_xcall_bsp(naut->sys.cpus[0]);
 
     nk_cpu_topo_discover(naut->sys.cpus[0]); 
+
 #ifdef NAUT_CONFIG_HPET
     nk_hpet_init();
 #endif
@@ -511,7 +527,14 @@ init (unsigned long mbd,
     // reinit the early-initted devices now that
     // we have malloc and the device framework functional
     vga_init();
+
+#ifdef NAUT_CONFIG_PC_8250_UART
+    // Use the driver based on the generic 8250
+    pc_8250_init();
+#else
+    // Use the non-generic 8250 based driver
     serial_init();
+#endif
 
     nk_sched_start();
     
@@ -528,10 +551,11 @@ init (unsigned long mbd,
     nk_gdt_init();
 #endif
     
-    sti();
+    arch_enable_ints();
 
     /* interrupts are now on */
 
+    nk_dump_irq_info();
     nk_vc_init();
 
     
@@ -618,7 +642,7 @@ init (unsigned long mbd,
     nk_syscall_init();
     init_syscall_table();
 #endif
-    
+ 
     // nk_launch_shell("root-shell",0,script,0);
     nk_launch_shell("root-shell",0,0,0);
 

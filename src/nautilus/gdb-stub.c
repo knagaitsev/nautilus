@@ -605,11 +605,11 @@ struct excp_gpr_state {
 #define EXCP_OFFSET_TO_GPRS -128
 
 
-static void snapshot_regs(excp_entry_t * excp)
+static void snapshot_regs(struct nk_regs * regs)
 {
     int i;
 
-    struct excp_gpr_state *r = (struct excp_gpr_state*)((addr_t)excp + EXCP_OFFSET_TO_GPRS);
+    struct excp_gpr_state *r = (struct excp_gpr_state*)((addr_t)regs);
 
     memset(registers,0,NUM_REG_BYTES);
 
@@ -630,11 +630,11 @@ static void snapshot_regs(excp_entry_t * excp)
     set_reg(R15,(char*)&r->r15);
     
     // get critical data directly from the exception structure
-    set_reg(CS,(char*)&excp->cs);
-    set_reg(RIP,(char*)&excp->rip);
-    set_reg(SS,(char*)&excp->ss);
-    set_reg(RSP,(char*)&excp->rsp);
-    set_reg(EFLAGS,(char*)&excp->rflags);
+    set_reg(CS,(char*)&regs->cs);
+    set_reg(RIP,(char*)&regs->rip);
+    set_reg(SS,(char*)&regs->ss);
+    set_reg(RSP,(char*)&regs->rsp);
+    set_reg(EFLAGS,(char*)&regs->rflags);
 
     // and DS, GS, FS, ES
     uint32_t val=0;
@@ -668,11 +668,11 @@ static void snapshot_regs(excp_entry_t * excp)
 
 }
 
-static void update_regs(excp_entry_t * excp)
+static void update_regs(struct nk_regs * regs)
 {
     int i;
 
-    struct excp_gpr_state *r = (struct excp_gpr_state*)((addr_t)excp + EXCP_OFFSET_TO_GPRS);
+    struct excp_gpr_state *r = (struct excp_gpr_state*)((addr_t)regs);
 
     get_reg(RAX,(char*)&r->rax);
     get_reg(RBX,(char*)&r->rbx);
@@ -691,11 +691,11 @@ static void update_regs(excp_entry_t * excp)
     get_reg(R15,(char*)&r->r15);
     
     // get critical data directly from the exception structure
-    get_reg(CS,(char*)&excp->cs);
-    get_reg(RIP,(char*)&excp->rip);
-    get_reg(SS,(char*)&excp->ss);
-    get_reg(RSP,(char*)&excp->rsp);
-    get_reg(EFLAGS,(char*)&excp->rflags);
+    get_reg(CS,(char*)&regs->cs);
+    get_reg(RIP,(char*)&regs->rip);
+    get_reg(SS,(char*)&regs->ss);
+    get_reg(RSP,(char*)&regs->rsp);
+    get_reg(EFLAGS,(char*)&regs->rflags);
 
     // and DS, ES
     uint32_t val=0;
@@ -995,7 +995,7 @@ static int hex2long(char **ptr, long *longValue)
 }
 
 static struct entry {
-    int (*handler)(excp_entry_t * excp, excp_vec_t vec, addr_t fault_addr, void * state_addr);
+    int (*handler)(struct nk_irq_action * action, struct nk_regs *regs, addr_t fault_addr, void * state_addr);
     void *state;
 } orig_exception_state[NUM_EXCEPTIONS];
 	
@@ -1005,7 +1005,7 @@ static struct entry {
 /*
  * This function does all command procesing for interfacing to gdb.
  */
-int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_addr, void * state_addr)
+int nk_gdb_handle_exception(struct nk_irq_action *action, struct nk_regs *regs, addr_t fault_addr, void * state_addr)
 {
     int sigval, stepping;
     uint64_t addr, length;
@@ -1016,7 +1016,7 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
     int  newthread;
     int have_per_cpu = __cpu_state_get_cpu() != 0 ;
 
-    void *cur_excp = excp;
+    void *cur_regs = regs;
 
     int switched_cpus = 0;
     
@@ -1032,9 +1032,9 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
     nk_sched_stop_world();
     
     DEBUG("entry - vector %x, error_code=%lx rip=%lx:%lx fault_addr=%lx\n", 
-          vec, excp->error_code, excp->cs, excp->rip, fault_addr);
+          action->desc->hwirq, regs->error_code, regs->cs, regs->rip, fault_addr);
 
-    snapshot_regs(excp);
+    snapshot_regs(regs);
 
     get_reg(RIP,(char*)&orig_rip);
     
@@ -1046,11 +1046,11 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
         get_reg(EFLAGS,(char*)&eflags);
         
         DEBUG("vector=%d, rip=0x%lx, eflags=0x%x\n",
-             vec, rip, eflags);
+             action->desc->hwirq, rip, eflags);
     }
     
     /* reply to host that an exception has occurred */
-    sigval = compute_signal(vec,state_addr);
+    sigval = compute_signal(action->desc->hwirq,state_addr);
     
     out = remcomOutBuffer;
 
@@ -1135,7 +1135,7 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
 	    
             in = hex2mem(in, registers, NUM_REG_BYTES, 0);
 
-            update_regs(cur_excp);
+            update_regs(cur_regs);
 
             strcpy(out,"OK");
         
@@ -1153,7 +1153,7 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
         
             if (regname >= MIN_REG_NAME && regname <= MAX_REG_NAME ) {
                 in = hex_to_reg_val(in, regname, 0);
-                update_regs(cur_excp);
+                update_regs(cur_regs);
                 strcpy(out, "OK");
                 break;
             }
@@ -1267,7 +1267,7 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
         
             set_reg(EFLAGS, (char*)&eflags);
 
-            update_regs(cur_excp);
+            update_regs(cur_regs);
             
             goto out;
         
@@ -1314,9 +1314,9 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
                         out += sprintf(out,"E01");
                     } else {
                         DEBUG("current thread on cpu is %d with rsp %p\n",t->tid,t->rsp);
-                        cur_excp = (excp_entry_t * )(t->rsp - EXCP_OFFSET_TO_GPRS);
+                        cur_regs = (struct nk_regs * )(t->rsp);
                         thread = newthread;
-                        snapshot_regs(cur_excp);
+                        snapshot_regs(t->rsp);
                         out += sprintf(out,"OK");
                     }
                 } else {
@@ -1395,7 +1395,7 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
  out:
 
 
-    switch (vec) { 
+    switch (action->desc->hwirq) { 
     case DB_EXCP:
         DEBUG("Continuing from a debug exception (DB_EXCP) so not invoking nested handler\n");
         nk_sched_start_world();
@@ -1418,8 +1418,8 @@ int nk_gdb_handle_exception(excp_entry_t * excp, excp_vec_t vec, addr_t fault_ad
             // so it looks like a direct invocation of the next handler
             DEBUG("Invoking original handler\n");
             nk_sched_start_world();
-            return orig_exception_state[vec].handler(excp, vec, fault_addr, 
-                                                     orig_exception_state[vec].state);
+            return orig_exception_state[action->desc->hwirq].handler(action, regs, fault_addr, 
+                                                     orig_exception_state[action->desc->hwirq].state);
         }
     }
 

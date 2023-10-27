@@ -47,10 +47,33 @@ static void print_prov_info(uint64_t addr) {
 }
 #endif
 
+#define MAX_BACKTRACE_DEPTH 64
+
+extern int kernel_start[];
+extern int kernel_end[];
+
 void __attribute__((noinline))
 __do_backtrace (void ** fp, unsigned depth)
 {
-    if (!fp || fp >= (void**)nk_get_nautilus_info()->sys.mem.phys_mem_avail) {
+    if(depth > MAX_BACKTRACE_DEPTH) {return;}
+
+    void **mem_start, **mem_end;
+
+#ifdef NAUT_CONFIG_ARCH_X86
+    mem_start = 0;
+    mem_end = nk_get_nautilus_info()->sys.mem.phys_mem_avail;
+    if(mem_end == NULL) {
+      // This backtrace is before memory bounds are discovered
+      mem_end = (void**)kernel_end;
+    }
+#else
+    // KJH - Not technically "memory start" and "memory end" but
+    // it's good enough for most purposes (and when memory doesn't need to start at 0)
+    mem_start = (void**)kernel_start;
+    mem_end = (void**)kernel_end;
+#endif
+
+    if (!fp || fp < mem_start || fp >= mem_end) {
         return;
     }
     

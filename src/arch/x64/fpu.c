@@ -20,15 +20,17 @@
  * This is free software.  You are permitted to use,
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
+
 #include <nautilus/nautilus.h>
 #include <nautilus/printk.h>
 #include <nautilus/fpu.h>
 #include <nautilus/cpu.h>
 #include <nautilus/cpuid.h>
-#include <nautilus/idt.h>
-#include <nautilus/irq.h>
-#include <nautilus/msr.h>
 #include <nautilus/smp.h>
+
+#include <arch/x64/idt.h>
+#include <arch/x64/msr.h>
+#include <arch/x64/irq.h>
 
 #include <nautilus/backtrace.h>
 #ifndef NAUT_CONFIG_DEBUG_FPU
@@ -118,12 +120,12 @@ clear_x87_excp (void)
     asm volatile ("fnclex" :::);
 }
 
-int mf_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
+int mf_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     cpu_id_t cpu_id = cpu_info_ready ? my_cpu_id() : 0xffffffff;
     unsigned tid = cpu_info_ready ? get_cur_thread()->tid : 0xffffffff;
     FPU_WARN("x87 Floating Point Exception (RIP=%p (core=%u, thread=%u)\n",
-            (void*)excp->rip, cpu_id, tid);
+            arch_instr_ptr_reg(regs), cpu_id, tid);
 
     clear_x87_excp();
 
@@ -131,7 +133,7 @@ int mf_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
 }
 
 
-int xm_handler (excp_entry_t * excp, excp_vec_t vec, void *state)
+int xm_handler (struct nk_irq_action *action, struct nk_regs *regs, void *state)
 {
     uint32_t m;
     asm volatile ("stmxcsr %[_m]" : [_m] "=m" (m) : : "memory");
@@ -535,12 +537,12 @@ fpu_init (struct naut_info * naut, int is_ap)
 
     if (is_ap == 0) {
 
-        if (register_int_handler(XM_EXCP, xm_handler, NULL) != 0) {
+        if (nk_irq_set_handler_early(x86_vector_to_irq(XM_EXCP), xm_handler, NULL) != 0) {
             ERROR_PRINT("Could not register excp handler for XM\n");
             return;
         }
 
-        if (register_int_handler(MF_EXCP, mf_handler, NULL) != 0) {
+        if (nk_irq_set_handler_early(x86_vector_to_irq(MF_EXCP), mf_handler, NULL) != 0) {
             ERROR_PRINT("Could not register excp handler for MF\n");
             return;
         }

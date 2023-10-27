@@ -25,7 +25,6 @@
 #include <nautilus/cpu.h>
 #include <nautilus/percpu.h>
 #include <nautilus/smp.h>
-#include <nautilus/irq.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/random.h>
 #include <nautilus/mm.h>
@@ -103,6 +102,10 @@ get_rand_byte (void)
     }
 
     return b + b2;
+#elif NAUT_CONFIG_ARCH_ARM64
+    // This 100% not pseudo-random I just need something
+    // that could potentially return any value 0x00-0xff
+    return (char)(arch_read_timestamp());
 #else
     return 0;
 #endif

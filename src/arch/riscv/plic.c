@@ -2,22 +2,19 @@
 #include <arch/riscv/sbi.h>
 #include <nautilus/cpu.h>
 #include <nautilus/naut_types.h>
-#include <nautilus/percpu.h>
-#include <nautilus/fdt.h>
+#include <nautilus/of/fdt.h>
+#include <nautilus/endian.h>
 
 typedef struct plic_context {
   off_t enable_offset;
   off_t context_offset;
 } plic_context_t;
 
-static addr_t plic_addr = 0;
-
 static plic_context_t *contexts = NULL;
 // static plic_context_t contexts[100];
 
-#define PLIC plic_addr
-#define MREG(x) *((volatile uint32_t *)(PLIC + (x)))
-#define READ_REG(x) *((volatile uint32_t *)((x)))
+#define MREG(plic_ptr, x) *((uint32_t *)((plic_ptr)->mmio_base + (x)))
+#define READ_REG(x) *((uint32_t *)((x)))
 
 #define PLIC_PRIORITY_BASE 0x000000U
 
@@ -38,7 +35,8 @@ static plic_context_t *contexts = NULL;
 #define PLIC_THRESHOLD(h) (contexts[h].context_offset + PLIC_CONTEXT_THRESHOLD)
 #define PLIC_CLAIM(h) (contexts[h].context_offset + PLIC_CONTEXT_CLAIM)
 
-__attribute__((annotate("nohook"))) void plic_init(unsigned long fdt, struct naut_info *naut) {
+__attribute__((annotate("nohook"))) 
+void plic_init_early(unsigned long fdt) {
     int offset = fdt_node_offset_by_compatible(fdt, -1, "sifive,plic-1.0.0");
     if (offset < 0) {
         // something is bad, no plic found
@@ -57,8 +55,8 @@ __attribute__((annotate("nohook"))) void plic_init(unsigned long fdt, struct nau
 
         for (int context = 0; context < context_count; context++) {
             int c_off = context * 2;
-            int phandle = bswap_32(vals[c_off]);
-            int nr = bswap_32(vals[c_off + 1]);
+            int phandle = be32toh(vals[c_off]);
+            int nr = be32toh(vals[c_off + 1]);
             if (nr != 9) {
                 continue;
             }

@@ -1,3 +1,5 @@
+#pragma once
+
 #define RISCV_CLOCKS_PER_SECOND 1000000
 #define TICK_INTERVAL (RISCV_CLOCKS_PER_SECOND / NAUT_CONFIG_HZ)
 
@@ -27,3 +29,5 @@
     unsigned long __v = (unsigned long)(val);                           \
     __asm__ __volatile__("csrc " #csr ", %0" : : "rK"(__v) : "memory"); \
   })
+
+#define MAX_IRQ_NUM 1024

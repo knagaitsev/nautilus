@@ -1,0 +1,6 @@
+
+name = "carat"
+kconfig = 'CARAT_PASS'
+
+[llvm]
+major = 16

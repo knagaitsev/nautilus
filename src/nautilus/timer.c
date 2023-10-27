@@ -24,7 +24,6 @@
  * redistribute, and modify it as specified in the file "LICENSE.txt".
  */
 #include <nautilus/nautilus.h>
-#include <nautilus/irq.h>
 #include <nautilus/cpu.h>
 #include <nautilus/percpu.h>
 #include <nautilus/mm.h>
@@ -33,6 +32,7 @@
 #include <nautilus/scheduler.h>
 #include <nautilus/spinlock.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 
 #include <stddef.h>
 
@@ -81,7 +81,7 @@ nk_timer_t *nk_timer_create(char *name)
     memset(t,0,sizeof(struct nk_timer));
 
     if (!name) {
-	snprintf(buf,NK_TIMER_NAME_LEN,"timer%lu",__sync_fetch_and_add(&count,1));
+	snprintf(buf,NK_TIMER_NAME_LEN,"timer%lu",atomic_add(count,1));
 	name = buf;
     }
 
@@ -133,7 +133,7 @@ int nk_timer_set(nk_timer_t *t,
 {
     int oldstate;
 
-    oldstate = __sync_lock_test_and_set(&t->state, NK_TIMER_INACTIVE);
+    oldstate = atomic_lock_test_and_set(t->state, NK_TIMER_INACTIVE);
 
     if (oldstate == NK_TIMER_ACTIVE) {
 	ERROR("Weird - setting active timer %s\n", t->name);
@@ -172,7 +172,7 @@ int nk_timer_reset(nk_timer_t *t,
 {
     int oldstate;
 
-    oldstate = __sync_lock_test_and_set(&t->state, NK_TIMER_INACTIVE);
+    oldstate = atomic_lock_test_and_set(t->state, NK_TIMER_INACTIVE);
 
     if (oldstate == NK_TIMER_ACTIVE) {
 	ERROR("Weird - resetting active timer %s\n", t->name);
@@ -258,7 +258,7 @@ int nk_timer_cancel(nk_timer_t *t)
 static int check(void *state)
 {
     nk_timer_t *t = state;
-    return __sync_fetch_and_add(&t->state,0) == NK_TIMER_SIGNALLED;
+    return atomic_add(t->state,0) == NK_TIMER_SIGNALLED;
 }
 
 int nk_timer_wait(nk_timer_t *t)
@@ -353,9 +353,9 @@ int nk_delay(uint64_t ns) { return _sleep(ns,1); }
 uint64_t nk_timer_handler (void)
 {
     uint32_t my_cpu = my_cpu_id();
-#ifdef NAUT_CONFIG_ARCH_X86
+#if defined(NAUT_CONFIG_ARCH_X86) || defined(NAUT_CONFIG_ARCH_ARM64)
     if (my_cpu!=0) {
-	//DEBUG("update: cpu %d - ignored/infinity\n",my_cpu);
+	DEBUG("update: cpu %d - ignored/infinity\n",my_cpu);
 	return -1;  // infinitely far in the future
     }
 #endif
@@ -370,9 +370,9 @@ uint64_t nk_timer_handler (void)
     
     // first, find expired timers with lock held
     list_for_each_entry_safe(cur, temp, &active_timer_list, active_node) {
-	//DEBUG("considering %s\n",cur->name);
+	DEBUG("considering %s\n",cur->name);
 	if (now >= cur->time_ns) { 
-	    //DEBUG("found expired timer %s\n",cur->name);
+	    DEBUG("found expired timer %s\n",cur->name);
 	    cur->state = NK_TIMER_SIGNALLED;
 	    list_del_init(&cur->active_node);
 	    list_add_tail(&cur->active_node, &expired_list);
@@ -384,17 +384,17 @@ uint64_t nk_timer_handler (void)
     // now handle expired timers without holding the lock
     // so that callbacks/etc can restart the timer if desired
     list_for_each_entry_safe(cur, temp, &expired_list, active_node) {
-	//DEBUG("handle expired timer %s\n",cur->name);
+	DEBUG("handle expired timer %s\n",cur->name);
 	list_del_init(&cur->active_node);
 	
 	if (cur->flags & NK_TIMER_WAIT_ONE) {
 	    
-	    //DEBUG("waking one thread\n");
+	    DEBUG("waking one thread\n");
 	    nk_wait_queue_wake_one(cur->waitq);
 	    
 	} else if (cur->flags & NK_TIMER_WAIT_ALL) {
 	    
-	    //DEBUG("waking all threads\n");
+	    DEBUG("waking all threads\n");
 	    nk_wait_queue_wake_all(cur->waitq);
 	    
 	} else if (cur->flags & NK_TIMER_CALLBACK) {
@@ -422,7 +422,7 @@ uint64_t nk_timer_handler (void)
 		}
 	    }
 	} else {
-	    //ERROR("unsupported 0x%lx\n", cur->flags);
+	    ERROR("unsupported 0x%lx\n", cur->flags);
 	}
     }
 
@@ -430,21 +430,21 @@ uint64_t nk_timer_handler (void)
     // may have started new timers, with lock held
     ACTIVE_LOCK();
     list_for_each_entry_safe(cur, temp, &active_timer_list, active_node) {
-	//DEBUG("check timer %s\n",cur->name);
+	DEBUG("check timer %s\n",cur->name);
 	if (cur->time_ns < earliest) { 
 	    earliest = cur->time_ns;
 	}
     }
     ACTIVE_UNLOCK();
 
-    //DEBUG("update: earliest is %llu\n",earliest);
+    DEBUG("update: earliest is %llu\n",earliest);
 
     now = nk_sched_get_realtime();
-#ifdef NAUT_CONFIG_ARCH_RISCV
-    return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
-#else
+//#ifdef NAUT_CONFIG_ARCH_RISCV
+//    return earliest != -1 ? earliest > now ? earliest-now : 0 : 0;
+//#else
     return earliest > now ? earliest-now : 0;
-#endif
+//#endif
 }
 
 

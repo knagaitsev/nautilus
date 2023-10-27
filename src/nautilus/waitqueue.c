@@ -27,6 +27,7 @@
 #include <nautilus/waitqueue.h>
 #include <nautilus/scheduler.h>
 #include <nautilus/shell.h>
+#include <nautilus/atomic.h>
 
 
 /*
@@ -63,7 +64,7 @@ nk_wait_queue_t *nk_wait_queue_create(char *name)
 	    strncpy(q->name,name,NK_WAIT_QUEUE_NAME_LEN);
 	    q->name[NK_WAIT_QUEUE_NAME_LEN-1] = 0;
 	} else {
-	    snprintf(q->name,NK_WAIT_QUEUE_NAME_LEN,"waitqueue%lu",__sync_fetch_and_add(&count,1));
+	    snprintf(q->name,NK_WAIT_QUEUE_NAME_LEN,"waitqueue%lu",atomic_add(count,1));
 	}
 	INIT_LIST_HEAD(&q->list);
 	INIT_LIST_HEAD(&q->node);
@@ -336,7 +337,7 @@ int nk_wait_queue_wake_one_extended(nk_wait_queue_t * q, int havelock)
     // hence we may be racing with a completed wakeup along a different path, which has
     // already made the thread schedulable
 
-    if (__sync_bool_compare_and_swap(&t->status, NK_THR_WAITING, NK_THR_SUSPENDED)) {
+    if (atomic_bool_cmpswap(t->status, NK_THR_WAITING, NK_THR_SUSPENDED)) {
 			// if we switched it from waiting to suspended, we are responsible for getting
 			// the scheduler involved
 			if (nk_sched_awaken(t, t->current_cpu)) { 
@@ -384,7 +385,7 @@ int nk_wait_queue_wake_all_extended(nk_wait_queue_t * q, int havelock)
 
     while ((t = nk_wait_queue_dequeue_extended(q,1))) {
 
-			if (__sync_bool_compare_and_swap(&t->status, NK_THR_WAITING, NK_THR_SUSPENDED)) {
+			if (atomic_bool_cmpswap(t->status, NK_THR_WAITING, NK_THR_SUSPENDED)) {
 				// if we switched it from waiting to suspended, we are responsible for getting
 				// the scheduler involved
 				if (nk_sched_awaken(t, t->current_cpu)) { 
