@@ -1,6 +1,6 @@
 
-.text
-.GLOBAL install_iv_tables_el1
+.section .text
+.global install_iv_tables_el1
 .align 3
 install_iv_tables_el1:
 
@@ -21,7 +21,7 @@ install_iv_tables_el1:
   msr VBAR_EL1, x1
   ret
 
-.GLOBAL install_iv_tables_el2
+.global install_iv_tables_el2
 .align 3
 install_iv_tables_el2:
 
@@ -44,8 +44,8 @@ install_iv_tables_el2:
 
 
 .text
-.EXTERN same_exception_entry
-.EXTERN lower_exception_entry
+.extern same_exception_entry
+.extern lower_exception_entry
 .align 11
 __iv_table:
 __el0_stack_iv_entrances:

@@ -267,8 +267,8 @@ static struct nk_irq_dev_int gicv2_dev_int = {
 #include<dev/gicv2m.h>
 #endif
 
-static int gicv2_init_dev_info(struct nk_dev_info *info) {
-
+static int gicv2_init_dev_info(struct nk_dev_info *info) 
+{
   GIC_DEBUG("initializing with nk_dev_info = \"%s\"\n", nk_dev_info_get_name(info));
 
   int did_alloc = 0;
@@ -276,6 +276,7 @@ static int gicv2_init_dev_info(struct nk_dev_info *info) {
 
   if(info->type != NK_DEV_INFO_OF) {
     GIC_ERROR("Currently only support device tree initialization!\n");
+    goto err_exit;
   } else {
     GIC_DEBUG("Using device tree info\n");
   }
@@ -462,7 +463,7 @@ static const struct of_dev_match gicv2_of_dev_match = {
 int gicv2_init(void) 
 { 
   GIC_DEBUG("init\n");
+  GIC_DEBUG("num_ids = %u\n", gicv2_of_dev_match.num_ids);
   return of_for_each_match(&gicv2_of_dev_match, gicv2_init_dev_info);
-  GIC_DEBUG("initialized\n");
 }
 

@@ -146,7 +146,7 @@
  * Peter Dinda 2017
  */
 
-//#define isdigit(d) ((d) >= '0' && (d) <= '9')
+#define isdigit(d) ((d) >= '0' && (d) <= '9')
 #define Ctod(c) ((c) - '0')
 
 #define MAXBUF (sizeof(long int) * 8)		 /* enough for binary */
@@ -530,30 +530,17 @@ void _doprnt (register const char * fmt,
 	        case 'F':
 	        case 'G':
 		    {
-			char dbuf[160];
+			char buf[160];
 			char *c;
-			int numdigits, myprec;
-
-			// BOGUS stuff here, precision, etc, not handled to spec
+			int dec, sign;
+			int pos;
 			
-			if (length != 0) {
-			    numdigits = length;
-			} else {
-			    numdigits = 6;
-			}
-
-			if (prec != -1) {
-			    myprec = prec;
-			} else {
-			    myprec = 6;
-			}
-
 			d = (double) va_arg(args, double);
-
 			
-			dtoa_printf_helper(d,*fmt,numdigits,myprec,dbuf,160);
+			dtoa_printf_helper(d,*fmt,length,prec,buf,160);
 			
-			c = dbuf;
+			c = buf;
+			(*putc)(putc_arg,'@');
 			while (*c) {
 			    (*putc)(putc_arg, *c++);
 			}
@@ -626,7 +613,7 @@ void _doprnt (register const char * fmt,
 		    static char digits[] = "0123456789abcdef";
 		    char *prefix = 0;
 
-		    if (truncate) u = (unsigned long)((unsigned int)(u));
+		    if (truncate) u = (long)((int)(u));
 
             /* KCH: if we get passed 0 */
             if (!base) {

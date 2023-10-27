@@ -669,7 +669,7 @@ int of_init(void *fdt)
     return -1;
   }
 
-  DEBUG("inited");
+  DEBUG("inited\n");
 
   return 0;
 }
@@ -716,16 +716,19 @@ int of_for_each_match(const struct of_dev_match *match, int(*callback)(struct nk
 {
   DEBUG("Beginning for_each_match\n");
   struct dt_node *node = dt_node_list;
+  DEBUG("dt_node_list = %p\n", dt_node_list);
 
   int fail_count = 0;
   int num_matches = 0;
 
   if(match->num_ids == 0) {
+    DEBUG("Tried to match with 0 ids!\n");
     return 0;
   }
   
   while(node != NULL) {
     if(match->max_num_matches > 0 && num_matches >= match->max_num_matches) {
+      DEBUG("max_num_matches reached!\n");
       break;
     }
     for(int id_index = 0; id_index < match->num_ids; id_index++) { 

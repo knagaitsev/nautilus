@@ -323,7 +323,7 @@ static inline void pt_print_table_desc(struct page_table *table, long level, str
   if(desc->valid) {
     PAGING_PRINT("VA[0x%016x - 0x%016x]%s%s%s%s%s perm = %x (L%d TABLE) (raw=0x%016x)\n",
         vaddr, vaddr + size,
-        table->flags & PAGE_TABLE_FLAG_SECURE ? perm->non_secure ? "" : " SECURE" : "",
+        table->flags & PAGE_TABLE_FLAG_SECURE ? (perm->non_secure ? "" : " SECURE") : "",
         perm->priv_exec_never ? " PXN" : "",
         perm->unpriv_exec_never ? " UXN" : "",
         perm->readonly ? " RD_ONLY" : "",

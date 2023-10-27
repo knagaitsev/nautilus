@@ -7,30 +7,31 @@ SECTIONS
 
   PROVIDE(kernel_start = .);
 
+  _loadStart = .;
   .text ALIGN(0x1000) : {
-    _loadStart = .;
-    *(.boot)
-    . = ALIGN(0x1000);
-    pml4 = .;
-    . += 0x1000; /* Probably no need for the space but the symbol pml4 is needed for now */
-    . = ALIGN(0x1000);
     _textStart = .;
+    *(.text.boot*)
     *(.text* .text.*)
     . = ALIGN(0x1000);
     _textEnd = .;
-    boot_stack_start = .;
-    . += 0x1000;  /* Allocate space for the boot stack */
-    boot_stack_end = .;
     etext = .;
     . = ALIGN(0x1000);
   }
 
-  .data ALIGN(0x1000) : {
+  .data ALIGN(0x10000) : {
+    _dataStart = .;
     *(.sdata .sdata.*) /* do not need to distinguish this from .data */
-    . = ALIGN(16);
+    /* . = ALIGN(16); */
     *(.data .data.*)
+    /* . = ALIGN(16); */
+    *(.tdata .tdata.*)
+    _dataEnd = .;
   }
 
+  .got ALIGN(0x1000) : {
+      *(.got*)
+      *(.gnu.linkconce.got*)
+  }
 
   _rodataStart = .;
   .rodata ALIGN(0x1000) : {
@@ -43,6 +44,12 @@ SECTIONS
     __start_flags = .;
     *(.cmdline_flags*);
     __stop_flags = .;
+  }
+
+  .tests ALIGN(0x1000) : {
+    __start_tests = .;
+    *(.tests*);
+    __stop_tests = .;
   }
 
   .shell_cmds ALIGN(0x1000) : {
@@ -58,7 +65,9 @@ SECTIONS
     _bssStart = .;
     *(.sbss .sbss.*) /* do not need to distinguish this from .bss */
     . = ALIGN(16);
-    *(.bss .bss.*)
+    *(.bss .bss.*);
+    . = ALIGN(16);
+    *(.tbss .tbss*);
     _bssEnd = .;
   }
 

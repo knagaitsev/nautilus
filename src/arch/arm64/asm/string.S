@@ -1,7 +1,7 @@
 
 .section .text
 
-.GLOBAL nk_low_level_memset
+.global nk_low_level_memset
 
 # x0 = void *dest
 # x1 = char data
@@ -25,7 +25,7 @@ nk_low_level_memset:
 
   ret
 
-.GLOBAL nk_low_level_memcpy
+.global nk_low_level_memcpy
 
 # x0 = void *dest
 # x1 = char *src

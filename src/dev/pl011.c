@@ -176,7 +176,7 @@ void pl011_uart_pre_vc_putchar(char c) {
   pl011_uart_putchar_blocking(&pre_vc_pl011, c);
 }
 
-void pl011_uart_pre_vc_init(uint64_t dtb) {
+int pl011_uart_pre_vc_init(uint64_t dtb) {
 
   struct pl011_uart *p = &pre_vc_pl011;
  
@@ -340,7 +340,7 @@ static struct nk_char_dev_int pl011_uart_char_dev_ops = {
   .status = pl011_uart_dev_status
 };
 
-static int pl011_interrupt_handler(struct nk_irq_action *action, struct nk_regs *, void *state) {
+static int pl011_interrupt_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state) {
 
   struct pl011_uart *p = (struct pl011_uart*)state;
 

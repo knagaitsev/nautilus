@@ -374,6 +374,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   printk("initializing in EL%u\n", arm64_get_current_el());
 
+  printk("some number: %16x\n", 100);
+
   per_cpu_sys_ctrl_reg_init();
 
   psci_init((void*)dtb);
@@ -462,7 +464,7 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 #if defined(NAUT_CONFIG_GIC_VERSION_2) || defined(NAUT_CONFIG_GIC_VERSION_2M)
   if(gicv2_init()) {
     panic("Failed to initialize GICv2!\n");  
-  }
+  } 
 #elif defined(NAUT_CONFIG_GIC_VERSION_3)
   if(gicv3_init()) {
     panic("Failed to initialize GICv3!\n");  

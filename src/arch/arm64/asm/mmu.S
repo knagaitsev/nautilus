@@ -1,5 +1,5 @@
 
-.GLOBAL arm64_mmu_enable
+.global arm64_mmu_enable
 
 .section .text
 

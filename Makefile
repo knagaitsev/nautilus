@@ -141,15 +141,13 @@ _all: all
 
 
 srctree		:= $(if $(KBUILD_SRC),$(KBUILD_SRC),$(CURDIR))
-TOPDIR		:= $(srctree)
-# FIXME - TOPDIR is obsolete, use srctree/objtree
 objtree		:= $(CURDIR)
 src		:= $(srctree)
 obj		:= $(objtree)
 
 VPATH		:= $(srctree)$(if $(KBUILD_EXTMOD),:$(KBUILD_EXTMOD))
 
-export srctree objtree VPATH TOPDIR
+export srctree objtree VPATH 
 
 
 # SUBARCH tells the usermode build what the underlying arch is.  That is set
@@ -181,8 +179,8 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/  )
 ARCH		?= $(SUBARCH)
 
 #CROSS_COMPILE ?=
-#CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
-CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/riscv64/bin/
+CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/aarch64/bin/aarch64-linux-gnu-
+#CROSS_COMPILE ?= /home/kjhayes/opt/toolchain/riscv64/bin/
 #CROSS_COMPILE	?= /home/kyle/opt/cross/bin/x86_64-elf-
 
 # Architecture as present in compile.h
@@ -362,17 +360,33 @@ endif
 # Note we use the system linker in all cases
 #
 ifdef NAUT_CONFIG_USE_CLANG
-  AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
-  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
-  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)clang$(COMPILER_SUFFIX)
-  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)clang++$(COMPILER_SUFFIX)
+  # KJH - Afaik these should work via --target options to cross compile, not prefixes
+  AS		= llvm-as$(COMPILER_SUFFIX)
+  LD		= ld.lld
+  CC		= clang$(COMPILER_SUFFIX)
+  CXX           = clang++$(COMPILER_SUFFIX)
+  OBJCOPY       = llvm-objcopy
+  OBJDUMP       = llvm-objdump
+
+  #AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
+  #LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
+  #CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)clang$(COMPILER_SUFFIX)
+  #CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)clang++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_WLLVM
-  AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
-  LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
-  CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm$(COMPILER_SUFFIX)
-  CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm++$(COMPILER_SUFFIX)
+  # KJH - Afaik these should work via --target options to cross compile, not prefixes
+  AS		= llvm-as$(COMPILER_SUFFIX)
+  LD		= ld.lld
+  CC		= wllvm$(COMPILER_SUFFIX)
+  CXX           = wllvm++$(COMPILER_SUFFIX)
+  OBJCOPY       = llvm-objcopy
+  OBJDUMP       = llvm-objdump
+
+  #AS		= $(CROSS_COMPILE)$(COMPILER_PREFIX)llvm-as$(COMPILER_SUFFIX)
+  #LD		= $(CROSS_COMPILE)$(COMPILER_PREFIX)ld.lld
+  #CC		= $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm$(COMPILER_SUFFIX)
+  #CXX           = $(CROSS_COMPILE)$(COMPILER_PREFIX)wllvm++$(COMPILER_SUFFIX)
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
@@ -411,7 +425,10 @@ endif
 
 
 ifdef NAUT_CONFIG_ARCH_ARM64
-  COMMON_FLAGS += -mcmodel=large 
+  COMMON_FLAGS += -mcmodel=large
+ifndef NAUT_CONFIG_USE_GCC
+  COMMON_FLAGS += --target=aarch64-linux-gnu
+endif
 endif
 
 ifdef NAUT_CONFIG_USE_GCC
@@ -885,8 +902,8 @@ $(QEMU_FLASH):
 	qemu-img create -f raw $(QEMU_FLASH) 64M
 
 QEMU_GDB_FLAGS := #-gdb tcp::5060 -S
-QEMU_DEVICES := #-display none
-QEMU_DEVICES += #-drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
+QEMU_DEVICES := -display none
+QEMU_DEVICES += -drive if=pflash,format=raw,index=1,file=$(QEMU_FLASH)
 QEMU_DEVICES += #-device virtio-gpu-pci #-netdev socket,id=net0,listen=localhost:4756 -device e1000e,netdev=net0,mac=00:11:22:33:44:55
 
 QEMU_MACHINE_FLAGS = virt,virtualization=on#,secure=on
@@ -901,7 +918,7 @@ OPENSBI = /home/kjhayes/opensbi/build/platform/generic/firmware/fw_jump.bin
 
 qemu: uImage
 ifdef NAUT_CONFIG_ARCH_RISCV
-	qemu-system-riscv64 -bios $(OPENSBI) -smp 1 -m 2G -M virt -kernel nautilus.bin -serial stdio $(QEMU_DEVICES) $(QEMU_GDB_FLAGS)
+	qemu-system-riscv64 -bios $(OPENSBI) -smp 2 -m 2G -M virt -kernel nautilus.bin -serial stdio $(QEMU_DEVICES) $(QEMU_GDB_FLAGS)
 endif
 ifdef NAUT_CONFIG_ARCH_ARM64
 	qemu-system-aarch64 \

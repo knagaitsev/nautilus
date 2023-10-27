@@ -5,7 +5,10 @@
 # AArch64 mode
 
 # To keep this in the first portion of the binary.
-.section .boot
+.section .text.boot
+
+.extern _loadEnd
+.extern _loadStart
 
 linux_header:
 b nautilus_entry
@@ -19,7 +22,9 @@ b nautilus_entry
 .word 0x644d5241 // Magic
 .word 0 // RES
 
-.globl nautilus_entry
+.section .text
+.extern install_iv_tables_el1
+.global nautilus_entry
 # Entry point for the kernel. Registers:
 # x0 -> 32 bit pointer to DTB in memory (primary core only) / 0 (secondary cores)
 # x1 -> 0
@@ -84,7 +89,7 @@ bsp_entry:  # We're on the main core!
     b .
 
 
-.GLOBAL secondary_start
+.global secondary_start
 secondary_start:
 
     // We pass a stack through context_id (save it incase we are in EL2)
@@ -154,6 +159,8 @@ try_el2_to_el1:
     msr ELR_EL2, lr
     eret
 
+.section .data
+.global boot_stack_end
 .align 16
 boot_stack:
 .space 4096

@@ -3,7 +3,7 @@
 
 #include<arch/arm64/sys_reg.h>
 
-void fpu_init(struct naut_info *, int is_ap) {
+void fpu_init(struct naut_info *info, int is_ap) {
 
   cpacr_el1_t cpacr;
   LOAD_SYS_REG(CPACR_EL1, cpacr.raw);

@@ -1,18 +1,18 @@
 
 .section .text
 
-.GLOBAL init_smp_boot
+.global init_smp_boot
 
 init_smp_boot:
   // TODO
   ret
 
-.ALIGN 3
-.GLOBAL end_smp_boot
+.align 3
+.global end_smp_boot
 end_smp_boot:
 
 
-.GLOBAL smp_ap_stack_switch
+.global smp_ap_stack_switch
 
 // x0 := new stack pointer
 // x1 := new base pointer
@@ -22,8 +22,8 @@ end_smp_boot:
 // so we're going to put in some extra effort to copy the bootstack
 // This means any stack we allocate for a thread, needs to be larger than
 // the bootstack (or atleast as large as the space the bootstack uses)
-.EXTERN boot_stack_end
-.GLOBAL smp_ap_stack_switch
+.extern boot_stack_end
+.global smp_ap_stack_switch
 smp_ap_stack_switch:
 
   mov x3, sp
@@ -43,7 +43,8 @@ smp_ap_stack_switch:
 2:
 
   mov sp, x0
-  mov x29, x1
+  // We have -fomit-frame-pointer on so this is just a GP register
+  //mov x29, x1
 
   mov x0, x2
   ret

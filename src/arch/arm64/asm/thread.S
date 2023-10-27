@@ -1,5 +1,5 @@
 
-.GLOBAL nk_thread_entry
+.global nk_thread_entry
 .section .text
 
 .include "arch/arm64/asm/save_regs.S"
@@ -19,19 +19,19 @@ nk_thread_entry:
 
   ret
 
-.GLOBAL nk_thread_switch
-.GLOBAL nk_thread_switch_intr_entry
+.global nk_thread_switch
+.global nk_thread_switch_intr_entry
 
-.MACRO BECOME_THREADLESS_THREAD
+.macro BECOME_THREADLESS_THREAD
   // Store the registers which would have 
   // been saved on the stack by an interrupt
   SAVE_CALLER_GPRS
 
   // Make sure that lr is zero if we don't enter through intr entry
   mov x30, 0
-.ENDM
+.endm
   
-.MACRO BECOME_THREADLESS
+.macro BECOME_THREADLESS
   // If we enter through interrupts, x30 should now be non-zero.
 
   // Save the other GP registers
@@ -77,9 +77,9 @@ nk_thread_entry:
   mov x2, sp
   str x2, [x16] // RSP field of thread struct
 
-.ENDM
+.endm
 
-.MACRO RESTORE_THREAD
+.macro RESTORE_THREAD
   // Get the current thread
   mrs x16, TPIDR_EL1
   ldr x0, [x16]
@@ -118,7 +118,7 @@ nk_thread_entry:
 
   RESTORE_CALLER_GPRS
 1:
-.ENDM
+.endm
 
 nk_thread_switch:
   BECOME_THREADLESS_THREAD
@@ -134,8 +134,8 @@ nk_thread_switch_on_exit:
   RESTORE_THREAD
   ret
 
-.GLOBAL nk_thread_fork
-.EXTERN __thread_fork_threadless
+.global nk_thread_fork
+.extern __thread_fork_threadless
 
 nk_thread_fork:
   BECOME_THREADLESS_THREAD
@@ -148,7 +148,7 @@ nk_thread_fork:
   RESTORE_THREAD
   ret
 
-.GLOBAL nk_thread_switch_exit_helper
+.global nk_thread_switch_exit_helper
 nk_thread_switch_exit_helper:
 
   mrs x3, TPIDR_EL1
@@ -168,7 +168,7 @@ nk_thread_switch_exit_helper:
   ret
 
 
-.GLOBAL nk_fp_save
+.global nk_fp_save
 
 nk_fp_save:
 
@@ -213,7 +213,7 @@ nk_fp_save:
 
   ret
 
-.GLOBAL nk_fp_restore
+.global nk_fp_restore
 
 nk_fp_restore:
 

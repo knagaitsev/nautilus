@@ -20,7 +20,7 @@ struct pl011_uart {
 };
 
 #ifdef NAUT_CONFIG_PL011_UART_EARLY_OUTPUT
-void pl011_uart_pre_vc_init(uint64_t dtb);
+int pl011_uart_pre_vc_init(uint64_t dtb);
 #endif
 
 int pl011_uart_init(void);

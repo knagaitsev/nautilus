@@ -54,7 +54,11 @@ char * mem_region_types[6] = {
 extern addr_t _loadStart;
 extern addr_t _loadEnd;
 extern addr_t _bssEnd;
+
+#ifdef NAUT_CONFIG_ARCH_X86
 extern ulong_t pml4;
+#endif
+
 extern ulong_t boot_stack_start;
 
 static mem_map_entry_t memory_map[MAX_MMAP_ENTRIES];
@@ -624,6 +628,7 @@ mm_boot_kmem_cleanup (void)
     }
 
 
+#ifdef NAUT_CONFIG_ARCH_X86
     BMM_PRINT("    [Boot page tables and stack]     (%0lu.%02u MB)\n", PAGE_SIZE_4KB*3/1000000, PAGE_SIZE_4KB%1000000);
     
     if (is_usable_ram(va_to_pa((ulong_t)(&pml4)), 
@@ -636,6 +641,7 @@ mm_boot_kmem_cleanup (void)
     } else {
 	ERROR_PRINT("Skipping reclaim of boot page tables and stack as memory is not usable: %p (%p bytes) - Likely memory map / SRAT mismatch\n",va_to_pa((ulong_t)(&pml4)), PAGE_SIZE_4KB*3 + PAGE_SIZE_2MB);
     }
+#endif
 
     BMM_PRINT("    =======\n");
     BMM_PRINT("    [TOTAL] (%lu.%lu MB)\n", count/1000000, count%1000000);

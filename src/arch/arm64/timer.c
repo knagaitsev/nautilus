@@ -72,7 +72,7 @@ void arch_update_timer(uint32_t ticks, nk_timer_condition_t cond) {
 void arch_set_timer(uint32_t ticks) {
     //TIMER_DEBUG("arch_set_timer(%u) current_timer = %u\n", ticks, arch_read_timer());
    
-    asm volatile("msr CNTP_TVAL_EL0, %0" :: "r" ((int)ticks));
+    asm volatile("msr CNTP_TVAL_EL0, %0" :: "r" ((uint64_t)ticks));
 
     current_ticks = ticks;
 }
@@ -82,7 +82,7 @@ int arch_read_timer(void) {
   return (tval<<32)>>32;
 }
 
-int arch_timer_handler(struct nk_irq_action*, struct nk_regs*, void *state) { 
+int arch_timer_handler(struct nk_irq_action *action, struct nk_regs *regs, void *state) { 
 
     uint64_t time_to_next_ns;
 

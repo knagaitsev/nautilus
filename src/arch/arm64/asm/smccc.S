@@ -1,5 +1,5 @@
 
-.GLOBAL smc64_call
+.global smc64_call
 smc64_call:
 sub sp, sp, 0x10
 stp x4,x5,[sp, 0x0]
@@ -64,7 +64,7 @@ str x0, [x4, 0x0]
 _end_smc64_call:
 ret
 
-.GLOBAL hvc64_call
+.global hvc64_call
 hvc64_call:
 sub sp, sp, 0x10
 stp x4,x5,[sp, 0x0]
@@ -127,7 +127,7 @@ str x0, [x4, 0x0]
 _end_hvc64_call:
 ret
 
-.GLOBAL smc32_call
+.global smc32_call
 smc32_call:
 sub sp, sp, 0x10
 stp x4,x5,[sp, 0x0]
@@ -190,7 +190,7 @@ str w0, [x4, 0x0]
 _end_smc32_call:
 ret
 
-.GLOBAL hvc32_call
+.global hvc32_call
 hvc32_call:
 sub sp, sp, 0x10
 stp x4,x5,[sp, 0x0]

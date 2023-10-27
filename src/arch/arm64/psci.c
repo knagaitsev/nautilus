@@ -31,10 +31,8 @@ int psci_version(uint16_t *major, uint16_t *minor) {
   CHECK_PSCI_VALID(-1);
   uint32_t ver;
   if(use_hvc) { 
-    uint32_t ver;
     hvc32_call(0x0, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, &ver, 1);
   } else {
-    uint32_t ver;
     smc32_call(0x0, SMCCC_CALL_TYPE_SS_SERV, NULL, 0, &ver, 1);
   }
   *major = (ver>>16) & 0xFFFF;

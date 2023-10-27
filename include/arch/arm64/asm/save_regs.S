@@ -1,7 +1,7 @@
 
 .section .text
 
-.MACRO SAVE_CALLER_GPRS
+.macro SAVE_CALLER_GPRS
 
   sub sp, sp, 0xb0
 
@@ -20,9 +20,9 @@
 
   stp x30, x1, [sp, 0xa0]
 
-.ENDM
+.endm
 
-.MACRO RESTORE_CALLER_GPRS
+.macro RESTORE_CALLER_GPRS
 
   ldp x0, x1, [sp, 0x00]
   ldp x2, x3, [sp, 0x10]
@@ -40,5 +40,5 @@
 
   add sp, sp, 0xb0
 
-.ENDM
+.endm
 

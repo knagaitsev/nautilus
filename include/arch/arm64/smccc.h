@@ -19,36 +19,36 @@ void smc64_call(
     uint16_t id,
     uint8_t type,
     uint64_t *args,
-    uint64_t arg_count;
+    uint64_t arg_count,
     uint64_t *rets, 
-    uint64_t ret_count;
+    uint64_t ret_count
     );
 
 void hvc64_call(
     uint16_t id,
     uint8_t type,
     uint64_t *args,
-    uint64_t arg_count;
+    uint64_t arg_count,
     uint64_t *rets, 
-    uint64_t ret_count;
+    uint64_t ret_count
     );
 
 void smc32_call(
     uint16_t id,
     uint8_t type,
     uint32_t *args,
-    uint64_t arg_count;
+    uint64_t arg_count,
     uint32_t *rets, 
-    uint64_t ret_count;
+    uint64_t ret_count
     );
 
 void hvc32_call(
     uint16_t id,
     uint8_t type,
     uint32_t *args,
-    uint64_t arg_count;
+    uint64_t arg_count,
     uint32_t *rets, 
-    uint64_t ret_count;
+    uint64_t ret_count
     );
 
 #endif

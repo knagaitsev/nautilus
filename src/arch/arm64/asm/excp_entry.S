@@ -2,7 +2,7 @@
 
 .include "arch/arm64/asm/save_regs.S"
 
-.MACRO NESTABLE_EXCP_ENTRY
+.macro NESTABLE_EXCP_ENTRY
 
   sub sp, sp, 0x20
 
@@ -27,9 +27,9 @@
   strh w3, [x2, 8]
 1: 
 
-.ENDM
+.endm
 
-.MACRO NESTABLE_EXCP_EXIT
+.macro NESTABLE_EXCP_EXIT
 
   // Restore interrupt registers
   ldp x0, x1, [sp, 0x00]
@@ -38,9 +38,9 @@
 
   add sp, sp, 0x20
 
-.ENDM
+.endm
 
-.MACRO DEC_EXCP_DEPTH
+.macro DEC_EXCP_DEPTH
   mrs x2, TPIDR_EL1
   cmp x2, 0
   b.eq 1f
@@ -48,13 +48,13 @@
   sub w3, w3, 1
   strh w3, [x2, 8]
 1:
-.ENDM
+.endm
 
-.EXTERN route_interrupt
-.EXTERN nk_thread_switch_intr_entry
+.extern route_interrupt
+.extern nk_thread_switch_intr_entry
 
-.GLOBAL lower_interrupt_entry
-.GLOBAL lower_fast_interrupt_entry
+.global lower_interrupt_entry
+.global lower_fast_interrupt_entry
 lower_interrupt_entry:
 lower_fast_interrupt_entry:
   SAVE_CALLER_GPRS 
@@ -75,8 +75,8 @@ lower_fast_interrupt_entry:
   RESTORE_CALLER_GPRS
   eret
 
-.GLOBAL same_interrupt_entry
-.GLOBAL same_fast_interrupt_entry
+.global same_interrupt_entry
+.global same_fast_interrupt_entry
 same_fast_interrupt_entry:
 same_interrupt_entry:
   SAVE_CALLER_GPRS
@@ -98,10 +98,10 @@ same_interrupt_entry:
 same_interrupt_end:
   eret
 
-.EXTERN route_exception
+.extern route_exception
 
-.GLOBAL lower_serror_entry
-.GLOBAL lower_exception_entry
+.global lower_serror_entry
+.global lower_exception_entry
 lower_serror_entry:
   SAVE_CALLER_GPRS
   mov x0, sp // Store nk_regs*
@@ -127,8 +127,8 @@ __lower_excp_entry_common:
   RESTORE_CALLER_GPRS
   eret
 
-.GLOBAL same_serror_entry
-.GLOBAL same_exception_entry
+.global same_serror_entry
+.global same_exception_entry
 same_serror_entry:
   SAVE_CALLER_GPRS
   mov x0, sp // Store nk_regs*
