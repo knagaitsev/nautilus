@@ -59,10 +59,12 @@ idle (void * in, void ** out)
     uint64_t numstolen;
 
     while (1) {
+#ifndef NAUT_CONFIG_BEANDIP
 	if (!irqs_enabled()) { 
 	    panic("Idle running with interrupts off!");
 	    return;
 	}
+#endif
 
 
 #if NAUT_CONFIG_TASK_IN_IDLE

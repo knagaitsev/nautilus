@@ -2,6 +2,7 @@
 #include<nautilus/arch.h>
 #include<nautilus/of/numa.h>
 #include<nautilus/of/mem.h>
+#include<nautilus/atomic.h>
 
 #include<arch/arm64/sys_reg.h>
 #include<arch/arm64/unimpl.h>
@@ -21,11 +22,22 @@
 #error "NAUT_CONFIG_ARCH_RISCV is defined for arm64!"
 #endif
 
+#ifdef NAUT_CONFIG_BEANDIP
+extern int in_time_hook;
+#endif
 void arch_enable_ints(void) {
+#ifdef NAUT_CONFIG_BEANDIP
+  atomic_lock_release(in_time_hook);
+#else
   __asm__ __volatile__ ("msr DAIFClr, 0xF; isb");
+#endif
 }
 void arch_disable_ints(void) {
+#ifdef NAUT_CONFIG_BEANDIP
+  while(atomic_lock_test_and_set(in_time_hook,1)) {}
+#else
   __asm__ __volatile__ ("msr DAIFSet, 0xF; isb");
+#endif
 }
 int arch_ints_enabled(void) {
   uint_t daif;

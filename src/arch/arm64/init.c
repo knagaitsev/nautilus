@@ -194,7 +194,9 @@ void secondary_init(void) {
   nk_sched_start();
  
   // Enable interrupts
+#ifndef NAUT_CONFIG_BEANDIP
   arch_enable_ints(); 
+#endif
 
   INIT_PRINT("Interrupts are now enabled\n");
 
@@ -346,6 +348,7 @@ int rockchip_halt_and_flash(int val0, int val1, int fast) {
   return 0;
 }
 
+__attribute__((annotate("nohook")))
 void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x3) {
 
   // Zero out .bss

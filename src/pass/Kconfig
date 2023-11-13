@@ -1,5 +1,12 @@
 menu "Compiler Passes"
 
+config BEANDIP
+  bool "BEANDIP"
+  default n
+  depends on !HALT_WHILE_IDLE
+  help
+    Enables the BEANDIP LLVM Pass
+
 config CARAT_PASS
   bool "CARAT Pass"
   default n

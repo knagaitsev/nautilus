@@ -35,8 +35,7 @@
 #include <nautilus/spinlock.h>
 #include <nautilus/shell.h>
 #include <nautilus/backtrace.h>
-#include <arch/riscv/riscv_idt.h>
-#include <arch/riscv/plic.h>
+#include <nautilus/interrupt.h>
 #include <dev/sifive_gpio.h>
 
 #define TIMES_COUNT 10000
@@ -52,16 +51,57 @@ extern void poll_irq();
 
 __attribute__((annotate("nohook"))) void poll_handle_irq(int irq)
 {
+#ifdef NAUT_CONFIG_ARCH_RISCV
   ulong_t irq_handler = 0;
   riscv_idt_get_entry(irq, &irq_handler);
   ((int (*)())irq_handler)(irq);
   plic_complete(irq);
+#endif
 }
+
+#ifdef NAUT_CONFIG_ARCH_ARM64
+int in_time_hook = 1;
+#endif
 
 __attribute__((annotate("nohook"))) void nk_time_hook_fire()
 {
+#ifdef NAUT_CONFIG_ARCH_RISCV
   poll_irq();
+#endif
+#ifdef NAUT_CONFIG_ARCH_ARM64
+#ifndef NAUT_CONFIG_GIC_VERSION_3
+#error "ARM64 BEANDIP Requires GICv3!"
+#endif
+  if(atomic_lock_test_and_set(in_time_hook,1)) {
+    return;
+  }
+  //printk("Timehook Fire!\n");
 
+  // KJH - This is very hardcoded to the GICv3
+  uint64_t hppir;
+  LOAD_SYS_REG(ICC_HPPIR0_EL1, hppir);
+  if(hppir < 1020 || hppir > 1023) {
+    // an interrupt!
+    extern struct nk_irq_dev *arm64_root_irq_dev;
+    nk_handle_interrupt_generic(
+        NULL, // action
+        NULL, // regs
+        arm64_root_irq_dev);
+  }
+
+  if(per_cpu_get(in_timer_interrupt)) {
+    void *thread = nk_sched_need_resched();
+    atomic_lock_release(in_time_hook);
+    if(thread != NULL) {
+      nk_thread_switch(thread);
+    }
+  } else {
+    atomic_lock_release(in_time_hook);
+  }
+
+#endif
+
+  //counter += 1;
   // int irq = plic_claim();
   // if (irq) {
   //   ulong_t irq_handler = 0;

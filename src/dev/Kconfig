@@ -44,6 +44,7 @@ endmenu
 
 config RISCV_GPIO_ENABLE
     bool "Enable RISC-V GPIO"
+    depends on ARCH_RISCV
     default y
     help
        Enable RISC-V GPIO

@@ -254,9 +254,12 @@ nk_get_nautilus_info (void)
 #ifdef NAUT_CONFIG_ARCH_X86
 #define INTERRUPT __attribute__((target("no-sse")))
 #else
+#ifdef NAUT_CONFIG_BEANDIP
+#define INTERRUPT __attribute__((annotate("nohook")))
+#else 
 #define INTERRUPT
 #endif
-
+#endif
 
 #include <nautilus/arch.h>
 #ifdef NAUT_CONFIG_XEON_PHI

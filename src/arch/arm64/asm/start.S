@@ -35,6 +35,8 @@ b nautilus_entry
 tmp                     .req x9
 
 nautilus_entry:
+    # Disable Interrupts
+    msr DAIFSet, 0b1111
     # Save the DTB
     mov x20, x0
 

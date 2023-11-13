@@ -7,7 +7,7 @@
 
 #define EXCP_SYNDROME_BITS 6
 
-int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same, uint8_t sync, void *state) {
+INTERRUPT int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same, uint8_t sync, void *state) {
 
     int curr_el = arm64_get_current_el();
 
@@ -77,7 +77,7 @@ int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *info, uint8_t
     return 0;
 }
 
-void route_exception(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same, uint8_t sync) {
+INTERRUPT void route_exception(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same, uint8_t sync) {
   unhandled_excp_handler(regs, info, el_from_same, sync, NULL);
 }
 
@@ -93,8 +93,11 @@ int arm64_set_root_irq_dev(struct nk_irq_dev *dev) {
   }
 }
 
-void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same) 
+INTERRUPT void * route_interrupt(struct nk_regs *regs, struct excp_info *info, uint8_t el_from_same) 
 {
+#ifdef NAUT_CONFIG_BEANDIP
+  panic("TRYING TO ROUTE INTERRUPTS!\n");
+#endif
   struct nk_irq_dev *irq_dev = arm64_root_irq_dev;
 
   if(nk_handle_interrupt_generic(NULL, regs, irq_dev)) {

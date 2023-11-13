@@ -2065,8 +2065,6 @@ static void set_timer(rt_scheduler *scheduler, rt_thread *thread, uint64_t now)
     // 	  arch_realtime_to_ticks(arch, scheduler->tsc.set_time - now + scheduler->slack));
 
     arch_update_timer(ticks, IF_EARLIER);
-			      
-
 }
 
 static inline void set_interrupt_priority(rt_thread *t)

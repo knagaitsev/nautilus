@@ -113,7 +113,6 @@ int
 vprintk (const char * fmt, va_list args)
 {
 	struct printk_state state;
-
         uint8_t flags = spin_lock_irq_save(&printk_lock);
 
 	state.index = 0;

@@ -11,6 +11,7 @@
 
 // Gives us MAX_IRQ_NUM
 #include<nautilus/arch.h>
+#include<nautilus/nautilus.h>
 
 #include<nautilus/shell.h>
 #include<nautilus/naut_assert.h>
@@ -391,7 +392,7 @@ nk_irq_t nk_irq_find_range(int num_needed, int flags, uint16_t needed_flags, uin
 // Really just to guard against loops
 #define MAX_IRQ_CHAIN_DEPTH 64
 
-static int __handle_irq_actions(struct nk_irq_desc *desc, struct nk_regs *regs, int depth) 
+INTERRUPT static int __handle_irq_actions(struct nk_irq_desc *desc, struct nk_regs *regs, int depth) 
 {
   if(depth > MAX_IRQ_CHAIN_DEPTH) {
     return -1;
@@ -428,7 +429,7 @@ static int __handle_irq_actions(struct nk_irq_desc *desc, struct nk_regs *regs, 
   return ret;
 }
 
-int nk_handle_irq_actions(struct nk_irq_desc * desc, struct nk_regs *regs) 
+INTERRUPT int nk_handle_irq_actions(struct nk_irq_desc * desc, struct nk_regs *regs) 
 { 
   return __handle_irq_actions(desc, regs, 0);
 }
@@ -507,7 +508,7 @@ int nk_unmask_irq(nk_irq_t irq) {
   return nk_irq_dev_enable_irq(irq_dev, desc->hwirq);
 }
 
-int nk_handle_interrupt_generic(struct nk_irq_action *action, struct nk_regs *regs, struct nk_irq_dev *irq_dev) 
+INTERRUPT int nk_handle_interrupt_generic(struct nk_irq_action *action, struct nk_regs *regs, struct nk_irq_dev *irq_dev) 
 {
   nk_hwirq_t hwirq;
   nk_irq_dev_ack(irq_dev, &hwirq);

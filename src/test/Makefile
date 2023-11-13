@@ -17,7 +17,6 @@ obj-$(NAUT_CONFIG_ARCH_ARM64) = \
 	groups.o \
 	tasks.o \
 	futures.o \
-	NPB-NAS/ \
 	bsp.o
 
 obj-$(NAUT_CONFIG_ARCH_RISCV) = \
