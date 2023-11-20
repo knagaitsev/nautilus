@@ -8,8 +8,7 @@ obj-$(NAUT_CONFIG_ARCH_X86) = \
         futures.o \
         bsp.o \
         net_udp_echo.o \
-        test.o \
-	NPB-NAS/ \
+        test.o
 #       lru_cache_test.o
 
 obj-$(NAUT_CONFIG_ARCH_ARM64) = \
@@ -24,7 +23,6 @@ obj-$(NAUT_CONFIG_ARCH_RISCV) = \
 	groups.o \
 	tasks.o \
 	futures.o \
-        NPB-NAS/ \
 	bsp.o
 
 obj-$(NAUT_CONFIG_ASPACE_CARAT) += skiplist_test.o \
@@ -71,6 +69,8 @@ obj-$(NAUT_CONFIG_LEGION_RT) += test_legion.o \
 								# tasks_and_futures.o	\
 
 obj-$(NAUT_CONFIG_ALLOC_TEST) += alloc/
+obj-$(NAUT_CONFIG_NPB_NAS_TEST) += NPB-NAS/
 
 obj-$(NAUT_CONFIG_TEST_ALLOC_IMPLICIT) += allocator_test.o
 obj-$(NAUT_CONFIG_TEST_TRACE_ALLOC_IMPLICIT) += allocator_test_trace.o
+

@@ -653,6 +653,12 @@ buddy_free(
     /* Overlay block structure on the memory block being freed */
     struct block * block = (struct block *) addr;
 
+    if(is_available(mp, block)) {
+      BUDDY_ERROR("Failing block: %p\n", addr);
+      BUDDY_ERROR("addr order = 0x%llx\n", order);
+      BUDDY_ERROR("id = 0x%llx\n", block_to_id(mp,block));
+      BUDDY_ERROR("tag bits = 0x%llx\n", mp->tag_bits);
+    }
     ASSERT(!is_available(mp, block));
 
     /* Coalesce as much as possible with adjacent free buddy blocks */

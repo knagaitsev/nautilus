@@ -1,0 +1,10 @@
+menu "Tests"
+
+config NPB_NAS_TEST
+    depends on !BASE_LIBM_COMPAT
+    bool "NPB NAS Tests"
+    default n
+    help
+        Include the NAS Parallel Benchmark Test Suite
+
+endmenu

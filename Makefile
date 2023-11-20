@@ -481,6 +481,7 @@ CFLAGS:=   $(COMMON_FLAGS) \
 		   -Wall \
 		   -Wno-unused-function \
 		   -Wno-unused-variable \
+		   -Wno-frame-address \
 		   -fno-common \
 		   -Wstrict-overflow=5 
 

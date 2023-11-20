@@ -76,7 +76,9 @@ struct nk_regs
   }
 
 static inline void halt(void) {
+#ifndef NAUT_CONFIG_BEANDIP
   asm volatile ("wfi");
+#endif
 }
 
 static inline void invlpg(unsigned long addr) {}

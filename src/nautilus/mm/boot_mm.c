@@ -521,10 +521,12 @@ add_free_pages (struct mem_region * region)
       ulong_t free_bits = ~pm[i/BITS_PER_LONG];
       bit_offset = i % BITS_PER_LONG; // Hopefully zero for every loop after the first
       BMM_DEBUG("bit_offset=%u\n",bit_offset);
-      for(uint8_t bit = bit_offset; bit < BITS_PER_LONG && i+bit < end_pfn; bit++) {
+      for(uint8_t bit = bit_offset; bit < BITS_PER_LONG && i+bit < end_pfn; bit++) 
+      {
         int mask = (1<<bit);
         void *address = (void*)(((uint64_t)(i+bit))<<PAGE_SHIFT);
-        if(free_bits & mask) {
+        if(free_bits & mask) 
+        {
           if(is_usable_ram(address,PAGE_SIZE)) {
             BMM_DEBUG("Handing page at %p (%p bytes) to kmem\n", address, PAGE_SIZE);
             kmem_add_memory(region, address, PAGE_SIZE);
