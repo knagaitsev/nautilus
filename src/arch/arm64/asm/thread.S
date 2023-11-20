@@ -212,11 +212,11 @@ nk_fp_save:
   str q29, [x0, 0x1d0]
   str q30, [x0, 0x1e0]
   str q31, [x0, 0x1f0]
-  mrs x1, FPSR
-  mrs x2, FPCR
- 
+
   // Out of range for dereference offset
   add x0, x0, 0x200
+  mrs x1, FPSR
+  mrs x2, FPCR 
   stp x1, x2, [x0, 0x0]
 
   ret

@@ -7,14 +7,15 @@ obj-y += common/\
 #EP and MG conflicts with others
 
 obj-y += \
-	 SP/\
+        BT/
+	 #SP/\
 	 LU/\
 	 IS/\
 	 FT/\
          CG/\
          EP/\
-         MG/\
-        BT/
+         MG/
+
 #obj-y+= common/\
 	rand/\
 	FT/
