@@ -74,3 +74,5 @@ obj-$(NAUT_CONFIG_NPB_NAS_TEST) += NPB-NAS/
 obj-$(NAUT_CONFIG_TEST_ALLOC_IMPLICIT) += allocator_test.o
 obj-$(NAUT_CONFIG_TEST_TRACE_ALLOC_IMPLICIT) += allocator_test_trace.o
 
+obj-$(NAUT_CONFIG_ARCH_ARM64) += fp.o
+

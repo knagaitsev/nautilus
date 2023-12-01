@@ -211,7 +211,7 @@ _nk_thread_init (nk_thread_t * t,
     return 0;
 }
 
-uint64_t __nk_thread_fpu_state_offset = offsetof(struct nk_thread, fpu_state);
+const uint64_t __nk_thread_fpu_state_offset = offsetof(struct nk_thread, fpu_state);
 
 void
 thread_cleanup (void)
