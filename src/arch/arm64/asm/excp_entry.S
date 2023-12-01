@@ -58,6 +58,7 @@
 lower_interrupt_entry:
 lower_fast_interrupt_entry:
   SAVE_CALLER_GPRS 
+  SAVE_CALLER_FPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY 
@@ -72,6 +73,7 @@ lower_fast_interrupt_entry:
 1:
 
   NESTABLE_EXCP_EXIT
+  RESTORE_CALLER_FPRS
   RESTORE_CALLER_GPRS
   eret
 
@@ -80,6 +82,7 @@ lower_fast_interrupt_entry:
 same_fast_interrupt_entry:
 same_interrupt_entry:
   SAVE_CALLER_GPRS
+  SAVE_CALLER_FPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
@@ -94,6 +97,7 @@ same_interrupt_entry:
 1:
   
   NESTABLE_EXCP_EXIT
+  RESTORE_CALLER_FPRS
   RESTORE_CALLER_GPRS
 same_interrupt_end:
   eret
@@ -104,6 +108,7 @@ same_interrupt_end:
 .global lower_exception_entry
 lower_serror_entry:
   SAVE_CALLER_GPRS
+  SAVE_CALLER_FPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
@@ -111,6 +116,7 @@ lower_serror_entry:
   b __lower_excp_entry_common
 lower_exception_entry:
   SAVE_CALLER_GPRS
+  SAVE_CALLER_FPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
@@ -124,6 +130,7 @@ __lower_excp_entry_common:
   DEC_EXCP_DEPTH
 
   NESTABLE_EXCP_EXIT
+  RESTORE_CALLER_FPRS
   RESTORE_CALLER_GPRS
   eret
 
@@ -131,6 +138,7 @@ __lower_excp_entry_common:
 .global same_exception_entry
 same_serror_entry:
   SAVE_CALLER_GPRS
+  SAVE_CALLER_FPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
@@ -138,6 +146,7 @@ same_serror_entry:
   b __same_excp_entry_common
 same_exception_entry:
   SAVE_CALLER_GPRS
+  SAVE_CALLER_FPRS
   mov x0, sp // Store nk_regs*
 
   NESTABLE_EXCP_ENTRY
@@ -150,6 +159,7 @@ __same_excp_entry_common:
   DEC_EXCP_DEPTH
 
   NESTABLE_EXCP_EXIT
+  RESTORE_CALLER_FPRS
   RESTORE_CALLER_GPRS
   eret
 
