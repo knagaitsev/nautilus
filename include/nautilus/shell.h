@@ -49,7 +49,7 @@ struct shell_cmd_impl {
 nk_thread_id_t nk_launch_shell(char *name, int cpu, char **script, uint32_t flags);
 
 #define nk_register_shell_cmd(cmd) \
-    const static struct shell_cmd_impl const * _nk_cmd_##cmd \
+    const static struct shell_cmd_impl * _nk_cmd_##cmd \
     __attribute__((used, unused, __section__(".shell_cmd."#cmd), \
         aligned(sizeof(void*)))) \
     = &cmd;

@@ -11,6 +11,7 @@
 #include<nautilus/of/dt.h>
 
 #include<arch/arm64/sys_reg.h>
+#include<arch/arm64/excp.h>
 
 #include<lib/bitops.h>
 

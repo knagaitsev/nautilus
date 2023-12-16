@@ -3,6 +3,7 @@
 #include<nautilus/of/fdt.h>
 #include<nautilus/dev.h>
 #include<nautilus/endian.h>
+#include<nautilus/interrupt.h>
 
 #include<lib/libfdt.h>
 

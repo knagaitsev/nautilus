@@ -348,6 +348,8 @@ void pt_dump_page_table(struct page_table *table);
 #define PT_RANGE_ROUND_IN       2
 #define PT_RANGE_ROUND_FILL_END 3
 
+int per_cpu_paging_init(void);
+
 // General Functions
 struct page_table * pt_allocate_table(void);
 void pt_free_table(struct page_table *table);

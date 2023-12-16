@@ -12,6 +12,9 @@
 #include<nautilus/netdev.h>
 #include<nautilus/gpudev.h>
 #include<nautilus/irqdev.h>
+#include<nautilus/gpiodev.h>
+#include<nautilus/gpio.h>
+#include<nautilus/iomap.h>
 #include<nautilus/arch.h>
 #include<nautilus/interrupt.h>
 #include<nautilus/mm.h>
@@ -36,6 +39,7 @@
 #include<arch/arm64/excp.h>
 #include<arch/arm64/timer.h>
 #include<arch/arm64/psci.h>
+#include<arch/arm64/paging.h>
 
 #ifdef NAUT_CONFIG_PL011_UART
 #include<dev/pl011.h>
@@ -82,6 +86,8 @@
   "+===============================================+  \n" \
   " Kyle C. Hale (c) 2014 | Northwestern University   \n" \
   "+===============================================+  \n\n"
+
+void smp_ap_stack_switch(void *new_stack, void *new_base, void *survive);
 
 int arch_paging_init(struct nk_mem_info *mm_info, void *fdt);
 

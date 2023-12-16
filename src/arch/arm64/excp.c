@@ -71,8 +71,6 @@ INTERRUPT int unhandled_excp_handler(struct nk_regs *regs, struct excp_info *inf
     LOAD_SYS_REG(MAIR_EL1, mair_el1.raw);
     printk("MAIR_EL1.raw = 0x%016x\n", mair_el1.raw);
 
-    rockchip_halt_and_flash(1,2,0);
-    
     panic("END OF EXCEPTION\n");
     return 0;
 }

@@ -134,7 +134,7 @@ int arch_atomics_enabled(void);
 
 #define atomic_store(var, val) do { \
     if(arch_atomics_enabled()) { \
-      __atomic_store((typeof(var)*)&(var), (typeof(val)*)&(val), __ATOMIC_SEQ_CST); \
+      __atomic_store((volatile typeof(var)*)&(var), &(val), __ATOMIC_SEQ_CST); \
     } else { \
       (var) = (val); \
     } \
