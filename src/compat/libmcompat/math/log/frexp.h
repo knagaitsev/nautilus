@@ -3,6 +3,8 @@ double d;
 unsigned long long u;
 }udouble;
 
+_Static_assert(sizeof(unsigned long long) == sizeof(double), "long long does not have the same size as double!");
+
 static double frexp(double x, int* e){
      udouble a;
      a.d = x;

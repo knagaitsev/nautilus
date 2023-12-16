@@ -157,6 +157,13 @@ const uint16_t __rsqrt_tab[128] = {
 };
 
 double sqrt(double x) {
+#ifdef NAUT_CONFIG_ARCH_ARM64
+
+  asm ("fsqrt %d0, %d0;" : "=w" (x));
+  return x;
+
+#else
+
   uint64_t ix, top, m;
 
 	/* special case handling.  */
@@ -211,6 +218,7 @@ double sqrt(double x) {
 	s |= top << 52;
 	y = (double)(s);
   	return y;
+#endif
 }
 
 #define fabs(x) __builtin_fabs(x)
