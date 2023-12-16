@@ -2,13 +2,22 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/shell.h>
 
+#if defined(NAUT_CONFIG_NPB_NAS_TEST)
+#include "./NPB-NAS/math/nas_math.h"
+#elif defined(NAUT_CONFIG_BASE_LIBM_COMPAT)
+#include "nautilus/libccompat.h"
+#else
+#error "Cannot compile Floating point tests without a math library!"
+#endif
+
+#ifdef NAUT_CONFIG_ARCH_ARM64
 #define FP_TEST_SAVE(r, v) \
   do {\
     asm volatile ("FMOV " #r ", " #v); \
   } while(0)
 #define FP_TEST_CHECK(r, s) \
   do {\
-    asm volatile ("FCVTPU %0, " #r : "=r" (s)); \
+    asm volatile ("FMOV %0, " #r : "=r" (s)); \
   } while(0)
 
 
@@ -58,7 +67,7 @@ annoying_func(void *in, void **out)
   has_been_annoying = 1;
 }
 
-static void test_fp(void) {
+static int test_fp_register_volatility(void) {
  
   wait_to_be_annoying = 1;
   has_been_annoying = 0;
@@ -66,38 +75,38 @@ static void test_fp(void) {
     ERROR_PRINT("Failed to launch annoying thread!\n");
   }
 
-  FP_TEST_SAVE(d0, 0);
-  FP_TEST_SAVE(d1, 0);
-  FP_TEST_SAVE(d2, 0);
-  FP_TEST_SAVE(d3, 0);
-  FP_TEST_SAVE(d4, 0);
-  FP_TEST_SAVE(d5, 0);
-  FP_TEST_SAVE(d6, 0);
-  FP_TEST_SAVE(d7, 0);
-  FP_TEST_SAVE(d8, 0);
-  FP_TEST_SAVE(d9, 0);
-  FP_TEST_SAVE(d10, 0);
-  FP_TEST_SAVE(d11, 0);
-  FP_TEST_SAVE(d12, 0);
-  FP_TEST_SAVE(d13, 0);
-  FP_TEST_SAVE(d14, 0);
-  FP_TEST_SAVE(d15, 0);
-  FP_TEST_SAVE(d16, 0);
-  FP_TEST_SAVE(d17, 0);
-  FP_TEST_SAVE(d18, 0);
-  FP_TEST_SAVE(d19, 0);
-  FP_TEST_SAVE(d20, 0);
-  FP_TEST_SAVE(d21, 0);
-  FP_TEST_SAVE(d22, 0);
-  FP_TEST_SAVE(d23, 0);
-  FP_TEST_SAVE(d24, 0);
-  FP_TEST_SAVE(d25, 0);
-  FP_TEST_SAVE(d26, 0);
-  FP_TEST_SAVE(d27, 0);
-  FP_TEST_SAVE(d28, 0);
-  FP_TEST_SAVE(d29, 0);
-  FP_TEST_SAVE(d30, 0);
-  FP_TEST_SAVE(d31, 0);
+  FP_TEST_SAVE(d0, 12.);
+  FP_TEST_SAVE(d1, 12.);
+  FP_TEST_SAVE(d2, 12.);
+  FP_TEST_SAVE(d3, 12.);
+  FP_TEST_SAVE(d4, 12.);
+  FP_TEST_SAVE(d5, 12.);
+  FP_TEST_SAVE(d6, 12.);
+  FP_TEST_SAVE(d7, 12.);
+  FP_TEST_SAVE(d8, 12.);
+  FP_TEST_SAVE(d9, 12.);
+  FP_TEST_SAVE(d10, 12.);
+  FP_TEST_SAVE(d11, 12.);
+  FP_TEST_SAVE(d12, 12.);
+  FP_TEST_SAVE(d13, 12.);
+  FP_TEST_SAVE(d14, 12.);
+  FP_TEST_SAVE(d15, 12.);
+  FP_TEST_SAVE(d16, 12.);
+  FP_TEST_SAVE(d17, 12.);
+  FP_TEST_SAVE(d18, 12.);
+  FP_TEST_SAVE(d19, 12.);
+  FP_TEST_SAVE(d20, 12.);
+  FP_TEST_SAVE(d21, 12.);
+  FP_TEST_SAVE(d22, 12.);
+  FP_TEST_SAVE(d23, 12.);
+  FP_TEST_SAVE(d24, 12.);
+  FP_TEST_SAVE(d25, 12.);
+  FP_TEST_SAVE(d26, 12.);
+  FP_TEST_SAVE(d27, 12.);
+  FP_TEST_SAVE(d28, 12.);
+  FP_TEST_SAVE(d29, 12.);
+  FP_TEST_SAVE(d30, 12.);
+  FP_TEST_SAVE(d31, 12.);
 
   // Let the other thread off the leash
   wait_to_be_annoying = 0;
@@ -108,50 +117,185 @@ static void test_fp(void) {
 
   // See if we were affected
 
-  uint64_t zeros[32];
+  double values[32];
 
-  FP_TEST_CHECK(d0, zeros[0]);
-  FP_TEST_CHECK(d1, zeros[1]);
-  FP_TEST_CHECK(d2, zeros[2]);
-  FP_TEST_CHECK(d3, zeros[3]);
-  FP_TEST_CHECK(d4, zeros[4]);
-  FP_TEST_CHECK(d5, zeros[5]);
-  FP_TEST_CHECK(d6, zeros[6]);
-  FP_TEST_CHECK(d7, zeros[7]);
-  FP_TEST_CHECK(d8, zeros[8]);
-  FP_TEST_CHECK(d9, zeros[9]);
-  FP_TEST_CHECK(d10, zeros[10]);
-  FP_TEST_CHECK(d11, zeros[11]);
-  FP_TEST_CHECK(d12, zeros[12]);
-  FP_TEST_CHECK(d13, zeros[13]);
-  FP_TEST_CHECK(d14, zeros[14]);
-  FP_TEST_CHECK(d15, zeros[15]);
-  FP_TEST_CHECK(d16, zeros[16]);
-  FP_TEST_CHECK(d17, zeros[17]);
-  FP_TEST_CHECK(d18, zeros[18]);
-  FP_TEST_CHECK(d19, zeros[19]);
-  FP_TEST_CHECK(d20, zeros[20]);
-  FP_TEST_CHECK(d21, zeros[21]);
-  FP_TEST_CHECK(d22, zeros[22]);
-  FP_TEST_CHECK(d23, zeros[23]);
-  FP_TEST_CHECK(d24, zeros[24]);
-  FP_TEST_CHECK(d25, zeros[25]);
-  FP_TEST_CHECK(d26, zeros[26]);
-  FP_TEST_CHECK(d27, zeros[27]);
-  FP_TEST_CHECK(d28, zeros[28]);
-  FP_TEST_CHECK(d29, zeros[29]);
-  FP_TEST_CHECK(d30, zeros[30]);
-  FP_TEST_CHECK(d31, zeros[31]);
+  FP_TEST_CHECK(d0, values[0]);
+  FP_TEST_CHECK(d1, values[1]);
+  FP_TEST_CHECK(d2, values[2]);
+  FP_TEST_CHECK(d3, values[3]);
+  FP_TEST_CHECK(d4, values[4]);
+  FP_TEST_CHECK(d5, values[5]);
+  FP_TEST_CHECK(d6, values[6]);
+  FP_TEST_CHECK(d7, values[7]);
+  FP_TEST_CHECK(d8, values[8]);
+  FP_TEST_CHECK(d9, values[9]);
+  FP_TEST_CHECK(d10, values[10]);
+  FP_TEST_CHECK(d11, values[11]);
+  FP_TEST_CHECK(d12, values[12]);
+  FP_TEST_CHECK(d13, values[13]);
+  FP_TEST_CHECK(d14, values[14]);
+  FP_TEST_CHECK(d15, values[15]);
+  FP_TEST_CHECK(d16, values[16]);
+  FP_TEST_CHECK(d17, values[17]);
+  FP_TEST_CHECK(d18, values[18]);
+  FP_TEST_CHECK(d19, values[19]);
+  FP_TEST_CHECK(d20, values[20]);
+  FP_TEST_CHECK(d21, values[21]);
+  FP_TEST_CHECK(d22, values[22]);
+  FP_TEST_CHECK(d23, values[23]);
+  FP_TEST_CHECK(d24, values[24]);
+  FP_TEST_CHECK(d25, values[25]);
+  FP_TEST_CHECK(d26, values[26]);
+  FP_TEST_CHECK(d27, values[27]);
+  FP_TEST_CHECK(d28, values[28]);
+  FP_TEST_CHECK(d29, values[29]);
+  FP_TEST_CHECK(d30, values[30]);
+  FP_TEST_CHECK(d31, values[31]);
 
+  int failed = 0;
   for(unsigned int i = 0; i < 32; i++) {
-    printk("d%u = %p\n", i, zeros[i]);
+    if(values[i] != 12.) {
+      printk("Register (d%u) was corrupted during context switch! value = %20.20llf, expected = %20.20llf\n", i, values[i], 12.);
+      failed++;
+    }
   }
+
+  uint64_t fpcr;
+  LOAD_SYS_REG(FPCR, fpcr);
+  printk("FPCR = 0x%llx\n", fpcr);
+
+  nk_join_all_children(NULL);
+
+  return failed;
+}
+#endif
+
+#define DEFINE_SIMPLE_TEST(FUNC_NAME) \
+int simple_ ## FUNC_NAME ## _test(double x, double check, double range) { \
+  double s = FUNC_NAME(x); \
+  if(s <= (check+range) && s >= (check-range)) { \
+    printk("\t" #FUNC_NAME "(%10.10lf) = %20.20lf [CORRECT]\n", x, s, check-range, check+range); \
+    return 0; \
+  } else { \
+    printk("\t" #FUNC_NAME "(%10.10lf) = %20.20lf (low_bound = %20.20lf, high_bound = %20.20lf)\n", x, s, check-range, check+range); \
+    return 1; \
+  } \
+}
+
+DEFINE_SIMPLE_TEST(sqrt)
+DEFINE_SIMPLE_TEST(exp)
+DEFINE_SIMPLE_TEST(log)
+DEFINE_SIMPLE_TEST(sin)
+DEFINE_SIMPLE_TEST(cos)
+
+#define PI 3.14159265358979323
+#define E 2.718281828459045
+#define E_SQR 7.38905609893
+
+int sqrt_test(void) 
+{
+  int failed = 0;
+  failed += simple_sqrt_test(2.0, 1.4142135, 0.00001);
+  failed += simple_sqrt_test(20000.0, 141.42135, 0.00001);
+  failed += simple_sqrt_test(1.0, 1.0, 0.0);
+  failed += simple_sqrt_test(0.0, 0.0, 0.0);
+  failed += simple_sqrt_test(0.25, 0.49999999, 0.0000001);
+  return failed;
+}
+
+int exp_test(void) 
+{
+  int failed = 0;
+  failed += simple_exp_test(2.0, 7.389056, 0.000001);
+  failed += simple_exp_test(0.0, 1.0, 0.0);
+  failed += simple_exp_test(-1.0, 0.367879, 0.00001);
+  return failed;
+}
+
+int log_test(void) 
+{
+  int failed = 0;
+  failed += simple_log_test(2.0, 0.693147, 0.000001);
+  failed += simple_log_test(1.0, 0.0, 0.0);
+  failed += simple_log_test(E, 1.0, 0.000001);
+  failed += simple_log_test(E_SQR, 2.0, 0.000001);
+  failed += simple_log_test(exp(E), E, 0.000001);
+  return failed;
+}
+
+int sin_test(void) {
+  int failed = 0;
+  failed += simple_sin_test(0.0, 0.0, 0.0);
+  failed += simple_sin_test(PI, 0.0, 0.000001);
+  failed += simple_sin_test(-PI, 0.0, 0.000001);
+  failed += simple_sin_test(PI/2, 1.0, 0.000001);
+  failed += simple_sin_test(-PI/2, -1.0, 0.000001);
+  failed += simple_sin_test((3*PI)/2, -1.0, 0.000001);
+  failed += simple_sin_test(-(3*PI)/2, 1.0, 0.000001);
+  failed += simple_sin_test(2*PI, 0.0, 0.000001);
+  failed += simple_sin_test(-2*PI, 0.0, 0.000001);
+  return failed;
+}
+
+int cos_test(void) {
+  int failed = 0;
+  failed += simple_cos_test(0.0, 1.0, 0.0);
+  failed += simple_cos_test(PI, -1.0, 0.000001);
+  failed += simple_cos_test(-PI, -1.0, 0.000001);
+  failed += simple_cos_test(PI/2, 0.0, 0.000001);
+  failed += simple_cos_test(-PI/2, 0.0, 0.000001);
+  failed += simple_cos_test((3*PI)/2, 0.0, 0.000001);
+  failed += simple_cos_test(-(3*PI)/2, 0.0, 0.000001);
+  return failed;
 }
 
 static int
 handle_fptest (char * buf, void * priv)
 {
-    test_fp();
+  const char *result;
+#ifdef NAUT_CONFIG_ARCH_ARM64
+    if(test_fp_register_volatility()) {
+      result = "FAILED";
+    } else {
+      result = "PASSED";
+    }
+    printk("FP Register Volatility Test: [%s]\n", result);
+#endif
+    if(sqrt_test()) {
+      result = "FAILED";
+    } else {
+      result = "PASSED";
+    }
+    printk("Sqrt Test: [%s]\n", result);
+
+    if(exp_test()) {
+      result = "FAILED";
+    } else {
+      result = "PASSED";
+    }
+    printk("Exp Test: [%s]\n", result);
+
+    if(log_test()) {
+      result = "FAILED";
+    } else {
+      result = "PASSED";
+    }
+    printk("Log Test: [%s]\n", result);
+
+    if(sin_test()) {
+      result = "FAILED";
+    } else {
+      result = "PASSED";
+    }
+    printk("Sin Test: [%s]\n", result);
+
+    if(cos_test()) {
+      result = "FAILED";
+    } else {
+      result = "PASSED";
+    }
+    printk("Cos Test: [%s]\n", result);
+
     return 0;
 }
 
