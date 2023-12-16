@@ -19,6 +19,12 @@ void fpu_init(struct naut_info *info, int is_ap) {
   LOAD_SYS_REG(FPCR, fpcr.raw);
 
   // Here we can modify the fpu settings
+  fpcr.raw = 0;
+  fpcr.raw |= (1<<8); // Invalid Operation Exception
+  fpcr.raw |= (1<<9); // Divide by Zero Exception
+  fpcr.raw |= (1<<10); // Overflow Exception
+  fpcr.raw |= (1<<11); // Underflow Exception
+  fpcr.raw |= (1<<12); // Inexact Exception
 
   STORE_SYS_REG(FPCR, fpcr.raw);
 }

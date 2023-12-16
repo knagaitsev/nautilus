@@ -42,8 +42,9 @@
 
 .endm
 
+// Call this after SAVE_CALLER_GPRS (uses x0 and x1)
 .macro SAVE_CALLER_FPRS
-  sub sp, sp, 0x180
+  sub sp, sp, 0x190
   str q0, [sp, 0x00]
   str q1, [sp, 0x10] 
   str q2, [sp, 0x20] 
@@ -68,6 +69,9 @@
   str q29, [sp, 0x150]
   str q30, [sp, 0x160]
   str q31, [sp, 0x170]
+  mrs x3, FPCR
+  mrs x4, FPSR
+  stp x3, x4, [sp, 0x180]
 .endm
 
 .macro RESTORE_CALLER_FPRS
@@ -95,6 +99,9 @@
   ldr q29, [sp, 0x150]
   ldr q30, [sp, 0x160]
   ldr q31, [sp, 0x170]
-  add sp, sp, 0x180
+  ldp x3, x4, [sp, 0x180]
+  msr FPCR, x3
+  msr FPSR, x4
+  add sp, sp, 0x190
 .endm
 
