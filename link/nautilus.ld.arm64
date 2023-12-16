@@ -12,6 +12,7 @@ SECTIONS
     _textStart = .;
     *(.text.boot*)
     *(.text* .text.*)
+    *(.gnu.linkonce.t*)
     . = ALIGN(0x1000);
     _textEnd = .;
     etext = .;
@@ -23,6 +24,7 @@ SECTIONS
     *(.sdata .sdata.*) /* do not need to distinguish this from .data */
     /* . = ALIGN(16); */
     *(.data .data.*)
+    *(.gnu.linkonce.d*)
     /* . = ALIGN(16); */
     *(.tdata .tdata.*)
     _dataEnd = .;
@@ -38,6 +40,7 @@ SECTIONS
     *(.srodata .srodata.*) /* do not need to distinguish this from .rodata */
     . = ALIGN(0x1000);
     *(.rodata .rodata.*)
+    *(.gnu.linkonce.r*)
   }
 
   .cmdline_flags ALIGN(0x1000) : {
@@ -66,6 +69,7 @@ SECTIONS
     *(.sbss .sbss.*) /* do not need to distinguish this from .bss */
     . = ALIGN(16);
     *(.bss .bss.*);
+    *(.gnu.linkonce.b*)
     . = ALIGN(16);
     *(.tbss .tbss*);
     _bssEnd = .;
