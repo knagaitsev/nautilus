@@ -36,6 +36,9 @@
 /* global variables */
 #include "global.h"
 
+int printf(const char *, ...);
+void exit(int status) __attribute__((noreturn));
+
 #include <nautilus/nautilus.h>
 #include <nautilus/shell.h>
 

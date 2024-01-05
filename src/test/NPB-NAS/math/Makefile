@@ -1,2 +1,2 @@
 obj-y += sincos/\
-	sqrt/ 
+	sqrt/

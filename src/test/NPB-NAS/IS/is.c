@@ -34,6 +34,24 @@
 #include <nautilus/nautilus.h>
 #include <nautilus/shell.h>
 
+// KJH
+int printf(const char *, ...);
+void exit(int status) __attribute__((noreturn));
+
+extern void timer_clear(int);
+extern void timer_start(int);
+extern void timer_stop(int);
+extern double timer_read(int);
+
+extern void c_print_results(char *name, char class, int n1, int n2,
+			    int n3, int niter, int nthreads, double t,
+			    double mops, char *optype, int passed_verification,
+			    char *npbversion, char *compiletime, char *cc,
+			    char *clink, char *c_lib, char *c_inc,
+			    char *cflags, char *clinkflags, char *rand);
+// KJH
+
+
 //#include <stdlib.h>
 //#include <stdio.h>
 //#if defined(_OPENMP)

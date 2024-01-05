@@ -2,6 +2,7 @@
 #include <nautilus/shell.h>
 #include "nas_sincos.h"
 
+int printf(const char*, ...);
 static int sincos(char *__buf, void* __priv);
 
 static struct shell_cmd_impl nas_sincos_impl = {

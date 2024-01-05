@@ -33,7 +33,11 @@
 --------------------------------------------------------------------*/
 
 #include "../common/npb-C.h"
+#include "../math/nas_math.h"
 #include <nautilus/shell.h>
+
+int printf(const char *, ...);
+void exit(int status) __attribute__((noreturn));
 
 /* global variables */
 #include "header.h"

@@ -47,6 +47,9 @@ c---------------------------------------------------------------------
 #include "../common/npb-C.h"
 #include "npbparams.h"
 
+int printf(const char *, ...);
+void exit(int status) __attribute__((noreturn));
+
 #include <nautilus/nautilus.h>
 #include <nautilus/shell.h>
 #include "../math/nas_math.h"
@@ -132,8 +135,6 @@ __attribute__((annotate("addhook"))) int program_CG_profile(char *_, void *__){
 #endif
 return 0;
 }
-
-
 
 static int program_CG(char *__buf, void* __priv) {
 

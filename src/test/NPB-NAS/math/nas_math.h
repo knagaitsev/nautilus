@@ -6,6 +6,7 @@
 #include "log/nas_log.h"
 #include "pow/nas_pow.h"
 #include "exp/nas_exp.h"
+#include "sqrt/nas_sqrt.h"
 #include "sincos/nas_sincos.h"
 //#define EXIT_FAILURE -1
 //#define EXIT_SUCCESS 0

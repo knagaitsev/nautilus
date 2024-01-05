@@ -155,7 +155,7 @@ static int test_fp_register_volatility(void) {
   int failed = 0;
   for(unsigned int i = 0; i < 32; i++) {
     if(values[i] != 12.) {
-      printk("Register (d%u) was corrupted during context switch! value = %20.20llf, expected = %20.20llf\n", i, values[i], 12.);
+      printk("Register (d%u) was corrupted during context switch!\n");
       failed++;
     }
   }

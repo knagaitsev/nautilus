@@ -160,7 +160,7 @@ double sqrt(double x) {
 
 #ifdef NAUT_CONFIG_ARCH_ARM64
 
-  asm ("fsqrt %d0, %d0" : "=w" (x));
+  asm ("fsqrt %d0, %d0;" : "=w" (x));
   return x;
 
 #else

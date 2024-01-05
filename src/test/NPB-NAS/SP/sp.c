@@ -38,6 +38,9 @@
 /* global variables */
 #include "header.h"
 
+int printf(const char *, ...);
+void exit(int status) __attribute__((noreturn));
+
 /* function declarations */
 static void add(void);
 static void adi(void);

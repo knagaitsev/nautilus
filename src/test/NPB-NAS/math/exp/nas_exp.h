@@ -59,6 +59,7 @@ static double exp(double x)	/* default IEEE double exp */
 	} 
 	else if(hx < 0x3e300000)  {	/* when |x|<2**-28 */
 	    if(huge+x>one) return one+x;/* trigger inexact */
+            else k = 0; // KJH - ARM does not need to support inexact floating point exceptions
 	}
 	else k = 0;
         

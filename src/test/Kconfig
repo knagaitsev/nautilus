@@ -8,7 +8,7 @@ config NPB_NAS_TEST
         Include the NAS Parallel Benchmark Test Suite
 
 config NPB_NAS_BT
-    bool "NPB NAS BT Benchmark"
+    bool "BT Benchmark"
     depends on NPB_NAS_TEST
     default n
     help

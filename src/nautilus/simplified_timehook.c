@@ -48,6 +48,7 @@ static uint64_t times[TIMES_COUNT];
 static uint64_t counter = 0;
 
 extern void poll_irq();
+extern void nk_thread_switch(struct nk_thread *thread);
 
 __attribute__((annotate("nohook"))) void poll_handle_irq(int irq)
 {

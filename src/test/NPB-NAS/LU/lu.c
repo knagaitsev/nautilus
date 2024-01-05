@@ -40,6 +40,10 @@
 /* global variables */
 #include "applu.h"
 
+int printf(const char *, ...);
+void exit(int status) __attribute__((noreturn));
+
+
 #if defined(_OPENMP)
 /* for thread synchronization */
 static boolean flag[ISIZ1/2*2+1];
