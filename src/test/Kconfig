@@ -10,56 +10,56 @@ config NPB_NAS_TEST
 config NPB_NAS_BT
     bool "BT Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the BT Benchmark from the NPB NAS benchmark suite.
 
 config NPB_NAS_CG
     bool "CG Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the CG Benchmark from the NPB NAS benchmark suite.
 
 config NPB_NAS_EP
     bool "EP Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the EP Benchmark from the NPB NAS benchmark suite.
 
 config NPB_NAS_FT
     bool "FT Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the FT Benchmark from the NPB NAS benchmark suite.
 
 config NPB_NAS_IS
     bool "IS Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the IS Benchmark from the NPB NAS benchmark suite.
 
 config NPB_NAS_LU
     bool "LU Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the LU Benchmark from the NPB NAS benchmark suite.
 
 config NPB_NAS_MG
     bool "MG Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the MG Benchmark from the NPB NAS benchmark suite.
 
 config NPB_NAS_SP
     bool "SP Benchmark"
     depends on NPB_NAS_TEST
-    default n
+    default y
     help
         Include the SP Benchmark from the NPB NAS benchmark suite.
 
