@@ -156,14 +156,21 @@ const uint16_t __rsqrt_tab[128] = {
     0xb560,
 };
 
+// KJH - Beandip really doesn't play well with inline assembly, so the simplest solution
+//       to make this work consistently is just to make this "noinline"
+#ifdef NAUT_CONFIG_ARCH_ARM64
+#ifdef NAUT_CONFIG_BEANDIP
+__attribute__((inline))
+#endif
+#endif
 double sqrt(double x) {
+
 #ifdef NAUT_CONFIG_ARCH_ARM64
 
-  asm ("fsqrt %d0, %d0;" : "=w" (x));
+  asm ("fsqrt %d1, %d0;" : "=w" (x) : "w" (x));
   return x;
 
 #else
-
   uint64_t ix, top, m;
 
 	/* special case handling.  */

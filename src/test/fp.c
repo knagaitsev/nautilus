@@ -13,7 +13,7 @@
 #ifdef NAUT_CONFIG_ARCH_ARM64
 #define FP_TEST_SAVE(r, v) \
   do {\
-    asm volatile ("FMOV " #r ", " #v); \
+    asm volatile ("FMOV " #r ", " #v ::: #r); \
   } while(0)
 #define FP_TEST_CHECK(r, s) \
   do {\
@@ -155,7 +155,7 @@ static int test_fp_register_volatility(void) {
   int failed = 0;
   for(unsigned int i = 0; i < 32; i++) {
     if(values[i] != 12.) {
-      printk("Register (d%u) was corrupted during context switch!\n");
+      printk("Register (d%u) was corrupted during context switch!\n", i);
       failed++;
     }
   }
