@@ -36,5 +36,6 @@ struct gicv2 {
 };
 
 int gicv2_init(void);
+int gicv2_percpu_init(void);
 
 #endif

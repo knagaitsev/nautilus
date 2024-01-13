@@ -18,7 +18,7 @@
 
 static nk_irq_t irq_next_base = 0;
 
-static nk_irq_t max_irq(void) {
+nk_irq_t nk_max_irq(void) {
   return irq_next_base - 1;
 }
 
@@ -357,7 +357,7 @@ nk_irq_t nk_irq_find_range(int num_needed, int flags, uint16_t needed_flags, uin
   nk_irq_t i,j;
   int aligned = flags & NK_IRQ_RANGE_ALIGNED;
 
-  for (i=0;i <= (max_irq()+1)-num_needed;i += aligned ? num_needed : 1) {
+  for (i=0;i <= (nk_max_irq()+1)-num_needed;i += aligned ? num_needed : 1) {
     int run_good = 1;
     for(j=0;j<num_needed;j++) {
       
@@ -508,6 +508,23 @@ int nk_unmask_irq(nk_irq_t irq) {
   return nk_irq_dev_enable_irq(irq_dev, desc->hwirq);
 }
 
+int nk_send_ipi(nk_irq_t irq, cpu_id_t cpu) {
+  struct nk_irq_desc *desc = nk_irq_to_desc(irq);
+  if(desc == NULL) {
+    return 1;
+  }
+  if(!(desc->flags & NK_IRQ_DESC_FLAG_IPI)) {
+    // Calling send_ipi on a Non-IPI interrupt no.
+    return 1;
+  }
+  struct nk_irq_dev *irq_dev = nk_irq_desc_to_irqdev(desc);
+  if(irq_dev == NULL) {
+    // Can't call send_ipi on a device-less IRQ
+    return 1;
+  }
+  return nk_irq_dev_send_ipi(irq_dev, desc->hwirq, cpu);
+}
+
 INTERRUPT int nk_handle_interrupt_generic(struct nk_irq_action *action, struct nk_regs *regs, struct nk_irq_dev *irq_dev) 
 {
   nk_hwirq_t hwirq;
@@ -525,74 +542,106 @@ INTERRUPT int nk_handle_interrupt_generic(struct nk_irq_action *action, struct n
   return 0;
 }
 
-void nk_dump_irq_info(void) 
+int nk_dump_irq(nk_irq_t i) 
 {
-  IRQ_PRINT("--- Interrupt Descriptors: (total = %u) ---\n", max_irq()+1);
-  for(nk_irq_t i = 0; i < max_irq()+1; i++) 
-  {
-    struct nk_irq_desc *desc = nk_irq_to_desc(i);
+  struct nk_irq_desc *desc = nk_irq_to_desc(i);
 
-    if(desc == NULL) 
+  if(desc == NULL) 
+  {
+    return -1;
+  }
+
+  IRQ_PRINT("%u: triggered count = %u, num_actions = %u, irqdev = %s, hwirq = %u "
+      "%s%s%s%s\n",
+      desc->irq,
+      desc->triggered_count,
+      desc->num_actions,
+      desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "PERCPU" : (desc->irq_dev != NULL ? desc->irq_dev->dev.name : "NULL"),
+      desc->hwirq,
+      desc->flags & NK_IRQ_DESC_FLAG_MSI ? "[MSI] " : "",
+      desc->flags & NK_IRQ_DESC_FLAG_MSI_X ? "[MSI-X] " : "",
+      desc->flags & NK_IRQ_DESC_FLAG_IPI ? "[IPI] " : "",
+      desc->flags & NK_IRQ_DESC_FLAG_NMI ? "[NMI] " : ""
+      );
+  if(desc->flags & NK_IRQ_DESC_FLAG_PERCPU) {
+
+    for(cpu_id_t cpuid = 0; cpuid < nk_get_num_cpus(); cpuid++) 
     {
-      continue;
+      struct nk_irq_dev *percpu_dev = NULL;
+      if(desc->per_cpu_irq_devs) {
+        percpu_dev = desc->per_cpu_irq_devs[cpuid];
+      }
+
+      int status = 0;
+      if(percpu_dev != NULL) {
+        status = nk_irq_dev_irq_status(percpu_dev, desc->hwirq);
+      } else {
+        status = desc->devless_status;
+      }
+
+      IRQ_PRINT("\tCPU[%u]: dev=\"%s\" %s%s%s\n", 
+          cpuid, 
+          desc->per_cpu_irq_devs[cpuid]->dev.name,
+          status & IRQ_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
+          status & IRQ_STATUS_PENDING ? "[PENDING] " : "",
+          status & IRQ_STATUS_ACTIVE ? "[ACTIVE] " : ""
+        );
     }
+
+  } else {
 
     int status = 0;
     if(desc->irq_dev != NULL) {
-      status = nk_irq_dev_irq_status(desc->irq_dev, i);
+      status = nk_irq_dev_irq_status(desc->irq_dev, desc->hwirq);
     } else {
       status = desc->devless_status;
     }
-   
-    IRQ_PRINT("%u: triggered count = %u, num_actions = %u, irqdev = %s, hwirq = %u "
-              "%s%s%s%s%s%s%s\n",
-		    desc->irq,
-                    desc->triggered_count,
-		    desc->num_actions,
-		    desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "PERCPU" : (desc->irq_dev != NULL ? desc->irq_dev->dev.name : "NULL"),
-                    desc->hwirq,
-                    status & IRQ_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
-                    status & IRQ_STATUS_PENDING ? "[PENDING] " : "",
-                    status & IRQ_STATUS_ACTIVE ? "[ACTIVE] " : "",
-		    desc->flags & NK_IRQ_DESC_FLAG_MSI ? "[MSI] " : "",
-		    desc->flags & NK_IRQ_DESC_FLAG_MSI_X ? "[MSI-X] " : "",
-		    desc->flags & NK_IRQ_DESC_FLAG_PERCPU ? "[PERCPU] " : "",
-		    desc->flags & NK_IRQ_DESC_FLAG_IPI ? "[IPI] " : "",
-                    desc->flags & NK_IRQ_DESC_FLAG_NMI ? "[NMI] " : ""
-		    );
 
-    struct nk_irq_action *action = &desc->action;
-    for(int act_num = 0; (act_num < desc->num_actions) && (action != NULL); act_num++, action = action->next) 
-    {
-      IRQ_PRINT("\tAction %u: type = %s, device = %s %s\n",
-		act_num,
-		action->type == NK_IRQ_ACTION_TYPE_HANDLER ? "HANDLER" : 
-		action->type == NK_IRQ_ACTION_TYPE_LINK    ? "LINK" :
-		"INVALID",
-		action->dev == NULL ? "NULL" : action->dev->name,
-                action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED] " : ""
-                );
-      switch(action->type) {
-        case NK_IRQ_ACTION_TYPE_HANDLER:
-          IRQ_PRINT("\t\t{handler = %p, state = %p}\n",
-              action->handler,
-              action->handler_state
-              );
-	  break;
-	case NK_IRQ_ACTION_TYPE_LINK:
-	  IRQ_PRINT("\t\t{link = %u}\n", action->link_irq);
-          break;
-        default:
-          IRQ_PRINT("\t\t{INVALID ACTION TYPE}\n");
-          break;
-      }
-    }    
+    IRQ_PRINT("\t%s%s%s\n",
+      status & IRQ_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
+      status & IRQ_STATUS_PENDING ? "[PENDING] " : "",
+      status & IRQ_STATUS_ACTIVE ? "[ACTIVE] " : ""
+      );
   }
+
+  struct nk_irq_action *action = &desc->action;
+  for(int act_num = 0; (act_num < desc->num_actions) && (action != NULL); act_num++, action = action->next) 
+  {
+    IRQ_PRINT("\tAction %u: type = %s, device = %s %s\n",
+      	act_num,
+      	action->type == NK_IRQ_ACTION_TYPE_HANDLER ? "HANDLER" : 
+      	action->type == NK_IRQ_ACTION_TYPE_LINK    ? "LINK" :
+      	"INVALID",
+      	action->dev == NULL ? "NULL" : action->dev->name,
+              action->flags & NK_IRQ_ACTION_FLAG_MASKED ? "[MASKED] " : ""
+              );
+    switch(action->type) {
+      case NK_IRQ_ACTION_TYPE_HANDLER:
+        IRQ_PRINT("\t\t{handler = %p, state = %p}\n",
+            action->handler,
+            action->handler_state
+            );
+        break;
+      case NK_IRQ_ACTION_TYPE_LINK:
+        IRQ_PRINT("\t\t{link = %u}\n", action->link_irq);
+        break;
+      default:
+        IRQ_PRINT("\t\t{INVALID ACTION TYPE}\n");
+        break;
+    }
+  }    
+
+  return 0;
 }
 
 static int handle_shell_interrupt(char * buf, void * priv) 
 {
-  nk_dump_irq_info();
+  IRQ_PRINT("--- Interrupt Descriptors: (total = %u) ---\n", nk_max_irq()+1);
+  for(nk_irq_t i = 0; i < nk_max_irq()+1; i++) 
+  {
+    nk_dump_irq(i);
+  }
+
   return 0;
 }
 

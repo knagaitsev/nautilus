@@ -75,8 +75,8 @@ typedef unsigned int nk_ivec_t;
 #endif
 
 // Must be large enough to represent every IRQ line number in the system
-typedef unsigned int nk_irq_t;
-typedef unsigned int nk_hwirq_t;
+typedef unsigned int nk_irq_t; // Unique global IRQ no.
+typedef unsigned int nk_hwirq_t; // IRQ Device local IRQ no.
 
 #define NK_NULL_IRQ (nk_irq_t)(-1)
 

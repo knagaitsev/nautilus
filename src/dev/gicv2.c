@@ -252,6 +252,30 @@ static int gicv2_dev_irq_status(void *state, nk_hwirq_t irq) {
   return status;
 }
 
+static int gicv2_dev_send_ipi(void *state, nk_hwirq_t hwirq, cpu_id_t cpu) 
+{
+  struct gicv2 *gic = (struct gicv2*)state;
+
+  if(cpu >= 8) {
+    return IRQ_IPI_ERROR_CPUID;
+  }
+
+  if(hwirq >= 16) {
+    return IRQ_IPI_ERROR_IRQ_NO;
+  }
+
+  uint32_t sgir_val = 0;
+  sgir_val |= (0b00 << 24); // Treat the target list as a bitmap
+                            // (Other options are target self, and broadcast)
+  sgir_val |= hwirq; // Set the SGI no.
+  sgir_val |= ((1<<cpu) << 16); // Set the target CPU
+  sgir_val |= (1<<15); // NSATT (Send to non-secure world)
+
+  GICD_STORE_REG(gic, GICD_SGIR_OFFSET, sgir_val);
+
+  return 0;
+}
+
 static struct nk_irq_dev_int gicv2_dev_int = {
   .get_characteristics = gicv2_dev_get_characteristics,
   .ack_irq = gicv2_dev_ack_irq,
@@ -260,7 +284,8 @@ static struct nk_irq_dev_int gicv2_dev_int = {
   .disable_irq = gicv2_dev_disable_irq,
   .irq_status = gicv2_dev_irq_status,
   .revmap = gicv2_dev_revmap,
-  .translate = gicv2_dev_translate
+  .translate = gicv2_dev_translate,
+  .send_ipi = gicv2_dev_send_ipi,
 };
 
 #ifdef NAUT_CONFIG_GIC_VERSION_2M

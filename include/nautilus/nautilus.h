@@ -167,7 +167,7 @@ void panic(const char *, ...) __attribute__((noreturn));
 #include <nautilus/numa.h>
 #include <nautilus/smp.h>
 
-
+#ifdef NAUT_CONFIG_ARCH_X86
 struct ioapic;
 struct irq_mapping {
     struct ioapic * ioapic;
@@ -182,6 +182,7 @@ struct nk_int_info {
 
     struct irq_mapping irq_map[256];
 };
+#endif
 
 struct hpet_dev;
 struct nk_locality_info;
@@ -212,7 +213,9 @@ struct sys_info {
     struct pci_info * pci;
     struct hpet_dev * hpet;
 
+#ifdef NAUT_CONFIG_ARCH_X86
     struct nk_int_info int_info;
+#endif
 
     struct nk_locality_info locality_info;
 

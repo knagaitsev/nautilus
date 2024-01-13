@@ -519,8 +519,6 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
 
   global_timer_init();
 
-  nk_dump_irq_info();
- 
   // Let the secondary processors into their second phase
   finish_secondaries(&(nautilus_info.sys)); 
 

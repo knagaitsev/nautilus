@@ -13,9 +13,11 @@ struct nk_irq_dev_int {
 
   int (*get_characteristics)(void *state, struct nk_irq_dev_characteristics *c);
 
+  // IRQ Flow Controls
   int (*ack_irq)(void *state, nk_hwirq_t *irq);
   int (*eoi_irq)(void *state, nk_hwirq_t irq);
 
+  //
   int (*enable_irq)(void *state, nk_hwirq_t irq);
   int (*disable_irq)(void *state, nk_hwirq_t irq);
   
@@ -24,6 +26,8 @@ struct nk_irq_dev_int {
   int (*revmap)(void *state, nk_hwirq_t hwirq, nk_irq_t *irq);
 
   int(*translate)(void *state, nk_dev_info_type_t type, void *raw_irq, nk_hwirq_t *out_hwirq);
+
+  int(*send_ipi)(struct nk_irq_dev *d, nk_hwirq_t hwirq, cpu_id_t cpu);
 };
 
 struct nk_irq_dev {
@@ -52,7 +56,7 @@ int nk_irq_dev_get_characteristics(struct nk_irq_dev *d, struct nk_irq_dev_chara
 #define IRQ_DEV_ACK_UNIMPL     3
 
 // Returns which irq was ack'ed in "irq"
-int nk_irq_dev_ack(struct nk_irq_dev *d, nk_irq_t *irq);
+int nk_irq_dev_ack(struct nk_irq_dev *d, nk_hwirq_t *irq);
 
 // Return Codes for nk_irq_dev_eoi
 #define IRQ_DEV_EOI_SUCCESS    0
@@ -70,7 +74,11 @@ int nk_irq_dev_disable_irq(struct nk_irq_dev *d, nk_hwirq_t irq);
 #define IRQ_STATUS_ENABLED (1<<2) // Interrupt is enabled (could be signalled but isn't)
 #define IRQ_STATUS_PENDING (1<<3) // Interrupt is pending (signalled but not ack'ed)
 #define IRQ_STATUS_ACTIVE  (1<<4) // Interrupt is active (between ack and eoi)
-int nk_irq_dev_irq_status(struct nk_irq_dev *d, nk_irq_t irq);
+int nk_irq_dev_irq_status(struct nk_irq_dev *d, nk_hwirq_t hwirq);
+
+#define IRQ_IPI_ERROR_IRQ_NO (1<<1) // Error with the nk_hwirq_t being requested
+#define IRQ_IPI_ERROR_CPUID  (1<<2) // Error with the cpu_id_t being requested
+int nk_irq_dev_send_ipi(struct nk_irq_dev *d, nk_hwirq_t hwirq, cpu_id_t cpu);
 
 /*
  * Maps from IRQ device local interrupt numbers to global nk_irq_t

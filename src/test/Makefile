@@ -8,6 +8,7 @@ obj-$(NAUT_CONFIG_ARCH_X86) = \
         futures.o \
         bsp.o \
         net_udp_echo.o \
+	ipi.o \
         test.o
 #       lru_cache_test.o
 
@@ -16,6 +17,7 @@ obj-$(NAUT_CONFIG_ARCH_ARM64) = \
 	groups.o \
 	tasks.o \
 	futures.o \
+	ipi.o \
 	bsp.o
 
 obj-$(NAUT_CONFIG_ARCH_RISCV) = \
@@ -23,6 +25,7 @@ obj-$(NAUT_CONFIG_ARCH_RISCV) = \
 	groups.o \
 	tasks.o \
 	futures.o \
+	ipi.o \
 	bsp.o
 
 obj-$(NAUT_CONFIG_ASPACE_CARAT) += skiplist_test.o \
@@ -45,10 +48,10 @@ obj-$(NAUT_CONFIG_TEST_CACHEPART) += cachepart.o
 obj-$(NAUT_CONFIG_NDPC_RT_TESTS) += ndpc/
 obj-$(NAUT_CONFIG_NESL_RT_TESTS) += nesl/
 
-obj-$(NAUT_CONFIG_X86_64_HOST) += ipi.o
+obj-$(NAUT_CONFIG_X86_64_HOST) += x86_ipi.o
 obj-$(NAUT_CONFIG_X86_64_HOST) += benchmark.o
 
-obj-$(NAUT_CONFIG_GEM5) += ipi.o
+obj-$(NAUT_CONFIG_GEM5) += x86_ipi.o
 obj-$(NAUT_CONFIG_GEM5) += benchmark.o
 
 obj-$(NAUT_CONFIG_LEGION_RT) += test_legion.o \

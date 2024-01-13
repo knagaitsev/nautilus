@@ -6,6 +6,7 @@
 #include<nautilus/endian.h>
 #include<nautilus/interrupt.h>
 #include<nautilus/iomap.h>
+#include<nautilus/smp.h>
 
 #include<nautilus/of/fdt.h>
 #include<nautilus/of/dt.h>
@@ -272,6 +273,19 @@ int gicv3_percpu_init(void) {
 
   STORE_SYS_REG(ICC_IGRPEN0_EL1, 1);
   STORE_SYS_REG(ICC_IGRPEN1_EL1, 1);
+  
+  struct nk_irq_dev *gicd_dev = nk_irq_dev_find("gicv3-dist");
+  if(gicd_dev == NULL) {
+    GIC_ERROR("Could not find device \"gicv3-dist\" when doing percpu initialization!\n");
+    return -1;
+  }
+
+  struct gicd_v3 *gicd = (struct gicd_v3*)gicd_dev->dev.state;
+
+  // Enable all SGI's
+  for(nk_irq_t sgi = gicd->irq_base; sgi < gicd->irq_base + 16; sgi++) {
+    nk_unmask_irq(sgi);
+  }
 
   GIC_DEBUG("GICv3 initialized for CPU %u\n", my_cpu_id());
 
@@ -334,68 +348,68 @@ static int gicr_v3_dev_eoi_irq(void *state, nk_irq_t irq)
 /*
  * enable_irq
  */
-static int gicd_v3_dev_enable_irq(void *state, nk_irq_t irq)
+static int gicd_v3_dev_enable_irq(void *state, nk_hwirq_t hwirq)
 {
   struct gicd_v3 *gicd = (struct gicd_v3 *)state;
-  GICD_BITMAP_SET(gicd, GICD_ISENABLER_0_OFFSET, irq);
+  GICD_BITMAP_SET(gicd, GICD_ISENABLER_0_OFFSET, hwirq);
   return 0;
 }
-static int gicr_v3_dev_enable_irq(void *state, nk_irq_t irq)
+static int gicr_v3_dev_enable_irq(void *state, nk_hwirq_t hwirq)
 {
   struct gicr_v3 *gicr = (struct gicr_v3 *)state;
-  GICR_BITMAP_SET(gicr, GICR_ISENABLER_0_OFFSET, irq);
+  GICR_BITMAP_SET(gicr, GICR_ISENABLER_0_OFFSET, hwirq);
   return 0;
 }
 
 /*
  * disable_irq
  */
-static int gicd_v3_dev_disable_irq(void *state, nk_irq_t irq)
+static int gicd_v3_dev_disable_irq(void *state, nk_hwirq_t hwirq)
 {
   struct gicd_v3 *gicd = (struct gicd_v3 *)state;
-  GICD_BITMAP_SET(gicd, GICD_ICENABLER_0_OFFSET, irq);
+  GICD_BITMAP_SET(gicd, GICD_ICENABLER_0_OFFSET, hwirq);
   return 0;
 }
-static int gicr_v3_dev_disable_irq(void *state, nk_irq_t irq)
+static int gicr_v3_dev_disable_irq(void *state, nk_hwirq_t hwirq)
 {
   struct gicr_v3 *gicr = (struct gicr_v3 *)state;
-  GICR_BITMAP_SET(gicr, GICR_ICENABLER_0_OFFSET, irq);
+  GICR_BITMAP_SET(gicr, GICR_ICENABLER_0_OFFSET, hwirq);
   return 0;
 }
 
 /*
  * irq_status
  */
-static int gicd_v3_dev_irq_status(void *state, nk_irq_t irq) 
+static int gicd_v3_dev_irq_status(void *state, nk_hwirq_t hwirq) 
 {
   struct gicd_v3 *gicd = (struct gicd_v3*)state;
 
   int status = 0;
 
-  status |= GICD_BITMAP_READ(gicd, GICD_ISENABLER_0_OFFSET, irq) ?
+  status |= GICD_BITMAP_READ(gicd, GICD_ISENABLER_0_OFFSET, hwirq) ?
     IRQ_STATUS_ENABLED : 0;
 
-  status |= GICD_BITMAP_READ(gicd, GICD_ISPENDR_0_OFFSET, irq) ?
+  status |= GICD_BITMAP_READ(gicd, GICD_ISPENDR_0_OFFSET, hwirq) ?
     IRQ_STATUS_PENDING : 0;
 
-  status |= GICD_BITMAP_READ(gicd, GICD_ISACTIVER_0_OFFSET, irq) ?
+  status |= GICD_BITMAP_READ(gicd, GICD_ISACTIVER_0_OFFSET, hwirq) ?
     IRQ_STATUS_ACTIVE : 0;
 
   return status;
 }
-static int gicr_v3_dev_irq_status(void *state, nk_irq_t irq) 
+static int gicr_v3_dev_irq_status(void *state, nk_hwirq_t hwirq) 
 {
   struct gicr_v3 *gicr = (struct gicr_v3*)state;
 
   int status = 0;
 
-  status |= GICR_BITMAP_READ(gicr, GICR_ISENABLER_0_OFFSET, irq) ?
+  status |= GICR_BITMAP_READ(gicr, GICR_ISENABLER_0_OFFSET, hwirq) ?
     IRQ_STATUS_ENABLED : 0;
 
-  status |= GICR_BITMAP_READ(gicr, GICR_ISPENDR_0_OFFSET, irq) ?
+  status |= GICR_BITMAP_READ(gicr, GICR_ISPENDR_0_OFFSET, hwirq) ?
     IRQ_STATUS_PENDING : 0;
 
-  status |= GICR_BITMAP_READ(gicr, GICR_ISACTIVER_0_OFFSET, irq) ?
+  status |= GICR_BITMAP_READ(gicr, GICR_ISACTIVER_0_OFFSET, hwirq) ?
     IRQ_STATUS_ACTIVE : 0;
 
   return status;
@@ -467,6 +481,50 @@ static int gicr_v3_dev_translate(void *state, nk_dev_info_type_t type, void *raw
   return gicd_v3_dev_translate((void*)gicr->gicd, type, raw, out);
 }
 
+static int gicd_v3_dev_send_ipi(void *state, nk_hwirq_t hwirq, cpu_id_t cpu_id) 
+{
+  struct gicd_v3 *gicd = (struct gicd_v3*)state;
+
+  if(hwirq >= 16) {
+    return IRQ_IPI_ERROR_IRQ_NO;
+  }
+
+  if(cpu_id >= nk_get_num_cpus()) {
+    return IRQ_IPI_ERROR_CPUID;
+  }
+
+  struct naut_info *naut_info = nk_get_nautilus_info();
+  struct cpu * cpu = naut_info->sys.cpus[cpu_id];
+
+  if(cpu == NULL) {
+    return IRQ_IPI_ERROR_CPUID;
+  }
+
+
+  uint64_t sgir_val = 0;
+
+  // Write affinities
+  sgir_val |= (0xF & (((uint64_t)cpu->aff0)>>4))<<44; // RSS
+  sgir_val |= ((uint64_t)cpu->aff1)<<16; // aff1
+  sgir_val |= ((uint64_t)cpu->aff2)<<32; // aff2
+  sgir_val |= ((uint64_t)cpu->aff3)<<48; // aff3
+  sgir_val |= (1ULL<<(cpu->aff0 & 0xF)) & 0xFFFF; // Target List
+
+  // Set the SGI no.
+  sgir_val |= ((uint64_t)hwirq)<<24;
+
+  // Send it as a Group 0 SGI
+  STORE_SYS_REG(ICC_SGI0R_EL1, sgir_val);
+
+  return 0;
+}
+
+static int gicr_v3_dev_send_ipi(void *state, nk_hwirq_t hwirq, cpu_id_t cpu) 
+{
+  struct gicr_v3 *gicr = (struct gicr_v3*)state;
+  return gicd_v3_dev_send_ipi((void*)gicr->gicd, hwirq, cpu);
+}
+
 /*
  * Initialization
  */
@@ -479,7 +537,8 @@ static struct nk_irq_dev_int gicd_v3_dev_int = {
   .disable_irq = gicd_v3_dev_disable_irq,
   .irq_status = gicd_v3_dev_irq_status,
   .revmap = gicd_v3_dev_revmap,
-  .translate = gicd_v3_dev_translate
+  .translate = gicd_v3_dev_translate,
+  .send_ipi = gicd_v3_dev_send_ipi,
 };
 
 static struct nk_irq_dev_int gicr_v3_dev_int = {
@@ -490,7 +549,8 @@ static struct nk_irq_dev_int gicr_v3_dev_int = {
   .disable_irq = gicr_v3_dev_disable_irq,
   .irq_status = gicr_v3_dev_irq_status,
   .revmap = gicr_v3_dev_revmap,
-  .translate = gicr_v3_dev_translate
+  .translate = gicr_v3_dev_translate,
+  .send_ipi = gicr_v3_dev_send_ipi,
 };
 
 struct nk_irq_dev **gicr_dev_cpu_map = NULL;
@@ -552,6 +612,8 @@ static int gicv3_init_gicr_dev(struct gicd_v3 *gicd, struct gicr_v3 *gicr, int i
     GIC_ERROR("More than 1 GICR device is trying to assign itself to CPU (%u)!\n", cpuid);
     goto gicr_err_exit;
   }
+
+
 
   return 0;
 

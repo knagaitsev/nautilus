@@ -61,7 +61,7 @@ int nk_irq_dev_get_characteristics(struct nk_irq_dev *dev, struct nk_irq_dev_cha
   }
 }
 
-int nk_irq_dev_ack(struct nk_irq_dev *dev, nk_irq_t *hwirq) {
+int nk_irq_dev_ack(struct nk_irq_dev *dev, nk_hwirq_t *hwirq) {
  
   struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
   struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
@@ -188,4 +188,21 @@ int nk_irq_dev_revmap(struct nk_irq_dev *dev, nk_hwirq_t hwirq, nk_irq_t *out_ir
 #endif 
 }
 
+int nk_irq_dev_send_ipi(struct nk_irq_dev *dev, nk_hwirq_t hwirq, cpu_id_t cpu) 
+{
+  struct nk_dev *d = (struct nk_dev *)(&(dev->dev));
+  struct nk_irq_dev_int *di = (struct nk_irq_dev_int *)(d->interface);
+
+#ifdef NAUT_CONFIG_ENABLE_ASSERTS
+  if(di && di->send_ipi) {
+    return di->send_ipi(d->state, hwirq, cpu);
+  } else {
+    // This device doesn't have IPI support!
+    ERROR("NULL send_ipi in interface of device %s\n", d->name);
+    return -1;
+  }
+#else
+  return di->send_ipi(d->state, hwirq, cpu);
+#endif 
+}
 

@@ -12,6 +12,11 @@ nk_irq_t nk_max_irq(void);
 struct nk_regs;
 struct nk_irq_action;
 
+// Returns the maximum IRQ no. registered
+// (Can be used to (inefficiently) iterate over
+// all IRQ descriptors)
+nk_irq_t nk_max_irq(void);
+
 /*
  * This defines the signature of all IRQ handler functions
  *
@@ -102,7 +107,7 @@ struct nk_irq_desc {
   uint32_t triggered_count;
 };
 
-void nk_dump_irq_info(void);
+int nk_dump_irq(nk_irq_t i);
 
 // Returns base IRQ number or NK_NULL_IRQ if an error occurred
 int nk_request_irq_range(int n, nk_irq_t *out_base);
@@ -175,6 +180,8 @@ int nk_irq_is_assigned_to_irqdev(nk_irq_t);
 
 int nk_mask_irq(nk_irq_t);
 int nk_unmask_irq(nk_irq_t);
+
+int nk_send_ipi(nk_irq_t, cpu_id_t);
 
 int nk_handle_interrupt_generic(struct nk_irq_action *null, struct nk_regs *regs, struct nk_irq_dev *dev);
 
