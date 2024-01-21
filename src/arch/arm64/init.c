@@ -32,6 +32,8 @@
 #include<nautilus/fs.h>
 #include<nautilus/shell.h>
 
+#include<nautilus/ipi.h>
+
 #include<nautilus/of/dt.h>
 
 #include<arch/arm64/unimpl.h>
@@ -546,6 +548,8 @@ void init(unsigned long dtb, unsigned long x1, unsigned long x2, unsigned long x
   arch_enable_ints(); 
 
   INIT_PRINT("Interrupts are now enabled\n"); 
+
+  ipi_stress_init();
 
   INIT_DEBUG("Starting the virtual console...\n");
   nk_vc_init();

@@ -81,13 +81,19 @@ __attribute__((annotate("nohook"))) void nk_time_hook_fire()
   // KJH - This is very hardcoded to the GICv3
   uint64_t hppir;
   LOAD_SYS_REG(ICC_HPPIR0_EL1, hppir);
+  if(hppir >= 1020 && hppir < 1024) {
+    LOAD_SYS_REG(ICC_HPPIR1_EL1, hppir);
+  }
   if(hppir < 1020 || hppir > 1023) {
     // an interrupt!
     extern struct nk_irq_dev *arm64_root_irq_dev;
-    nk_handle_interrupt_generic(
+    if(nk_handle_interrupt_generic(
         NULL, // action
         NULL, // regs
-        arm64_root_irq_dev);
+        arm64_root_irq_dev)) 
+    {
+      panic("Could not handle interrupt!\n");
+    }
   }
 
   if(per_cpu_get(in_timer_interrupt)) {

@@ -8,7 +8,6 @@ obj-$(NAUT_CONFIG_ARCH_X86) = \
         futures.o \
         bsp.o \
         net_udp_echo.o \
-	ipi.o \
         test.o
 #       lru_cache_test.o
 
@@ -17,7 +16,6 @@ obj-$(NAUT_CONFIG_ARCH_ARM64) = \
 	groups.o \
 	tasks.o \
 	futures.o \
-	ipi.o \
 	bsp.o
 
 obj-$(NAUT_CONFIG_ARCH_RISCV) = \
@@ -25,7 +23,6 @@ obj-$(NAUT_CONFIG_ARCH_RISCV) = \
 	groups.o \
 	tasks.o \
 	futures.o \
-	ipi.o \
 	bsp.o
 
 obj-$(NAUT_CONFIG_ASPACE_CARAT) += skiplist_test.o \

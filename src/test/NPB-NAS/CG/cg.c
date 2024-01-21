@@ -52,6 +52,7 @@ void exit(int status) __attribute__((noreturn));
 
 #include <nautilus/nautilus.h>
 #include <nautilus/shell.h>
+#include <nautilus/ipi.h>
 #include "../math/nas_math.h"
 
 #define	NZ	NA*(NONZER+1)*(NONZER+1)+NA*(NONZER+2)
@@ -123,7 +124,17 @@ nk_register_shell_cmd(nas_cg_impl);
 c-------------------------------------------------------------------*/
 
 __attribute__((annotate("addhook"))) int program_CG_profile(char *_, void *__){
-   
+
+      int delay;
+      int spam;
+      if(sscanf(_, "NAS-CG %d %d", &spam, &delay) != 2) {
+        spam = 0;
+        delay = 0;
+      }
+      cpu_id_t cpu;
+      if(spam) {
+        cpu = begin_ipi_stress_test((uint64_t)delay);
+      }
 #ifdef NAUT_CONFIG_PROFILE
       nk_instrument_clear();
       nk_instrument_start();
@@ -133,6 +144,9 @@ __attribute__((annotate("addhook"))) int program_CG_profile(char *_, void *__){
       nk_instrument_end();
       nk_instrument_query();
 #endif
+      if(spam) {
+        end_ipi_stress_test(cpu);
+      }
 return 0;
 }
 

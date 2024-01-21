@@ -100,6 +100,7 @@ INTERRUPT void * route_interrupt(struct nk_regs *regs, struct excp_info *info, u
 
   if(nk_handle_interrupt_generic(NULL, regs, irq_dev)) {
     // Nothing we can really do    
+    panic("Could not handle interrupt!");
   }
 
   void *thread = NULL;

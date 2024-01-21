@@ -49,6 +49,7 @@ obj-y += \
 	getopt.o \
 	cmdline.o \
 	lru_cache.o \
+	ipi.o \
 	iomap.o
 
 obj-$(NAUT_CONFIG_ARCH_X86) += \

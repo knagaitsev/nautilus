@@ -35,6 +35,7 @@
 #include "../common/npb-C.h"
 #include "../math/nas_math.h"
 #include <nautilus/shell.h>
+#include <nautilus/ipi.h>
 
 int printf(const char *, ...);
 void exit(int status) __attribute__((noreturn));
@@ -90,7 +91,17 @@ nk_register_shell_cmd(nas_bt_impl);
 
 
 __attribute__((annotate("addhook"))) int program_BT_profile(char *_, void *__){
-   
+
+      int delay;
+      int spam;
+      if(sscanf(_, "NAS-BT %d %d", &spam, &delay) != 2) {
+        spam = 0;
+        delay = 0;
+      }
+      cpu_id_t cpu;
+      if(spam) {
+        cpu = begin_ipi_stress_test((uint64_t)delay);
+      }
 #ifdef NAUT_CONFIG_PROFILE
       nk_instrument_clear();
       nk_instrument_start();
@@ -100,7 +111,10 @@ __attribute__((annotate("addhook"))) int program_BT_profile(char *_, void *__){
       nk_instrument_end();
       nk_instrument_query();
 #endif
-return 0;
+      if(spam) {
+        end_ipi_stress_test(cpu);
+      }
+      return 0;
 }
 
 

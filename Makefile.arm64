@@ -3,7 +3,6 @@
 # ==========================================================================
 
 CFLAGS += \
-          -mno-red-zone \
 	  -mno-outline-atomics \
 	  -mstrict-align \
 	  -Werror=pointer-sign \

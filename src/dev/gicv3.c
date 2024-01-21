@@ -193,6 +193,8 @@ struct gicd_v3
   nk_irq_t espi_irq_base;
   struct nk_irq_desc *espi_descs;
 
+  uint8_t last_acked_group;
+
   // Optional
   uint32_t interrupt_cells;
 
@@ -298,11 +300,14 @@ int gicv3_percpu_init(void) {
 static int gicv3_dev_ack_irq_common(struct gicd_v3 *gicd, nk_irq_t *irq) 
 {
   uint32_t int_id;
-  if(gicd->security) {
+
+  // Try group 0 first, and check group 1 if it's spurrious
+  LOAD_SYS_REG(ICC_IAR0_EL1, int_id);
+  if(int_id >= 1020 && int_id < 1024) {
     LOAD_SYS_REG(ICC_IAR1_EL1, int_id);
+    gicd->last_acked_group = 1;
   } else {
-    // Single Security State Systems default IGROUPRn to all 0's
-    LOAD_SYS_REG(ICC_IAR0_EL1, int_id);
+    gicd->last_acked_group = 0;
   }
 
   *irq = int_id;
@@ -325,11 +330,12 @@ static int gicr_v3_dev_ack_irq(void *state, nk_irq_t *irq)
  */
 static int gicv3_dev_eoi_irq_common(struct gicd_v3 *gicd, nk_irq_t irq) 
 {
-  if(gicd->security) {
+  if(gicd->last_acked_group == 0) {
+    STORE_SYS_REG(ICC_EOIR0_EL1, irq);
+  } else if(gicd->last_acked_group == 1) {
     STORE_SYS_REG(ICC_EOIR1_EL1, irq);
   } else {
-    // Single Security State Systems default IGROUPRn to all 0's
-    STORE_SYS_REG(ICC_EOIR0_EL1, irq);
+    return IRQ_DEV_EOI_ERROR;
   }
 
   return IRQ_DEV_EOI_SUCCESS;
@@ -513,8 +519,13 @@ static int gicd_v3_dev_send_ipi(void *state, nk_hwirq_t hwirq, cpu_id_t cpu_id)
   // Set the SGI no.
   sgir_val |= ((uint64_t)hwirq)<<24;
 
-  // Send it as a Group 0 SGI
-  STORE_SYS_REG(ICC_SGI0R_EL1, sgir_val);
+  if(gicd->security) {
+    STORE_SYS_REG(ICC_SGI1R_EL1, sgir_val);
+  }
+  else {
+    // Send it as a Group 0 SGI if no security extensions
+    STORE_SYS_REG(ICC_SGI0R_EL1, sgir_val);
+  }
 
   return 0;
 }

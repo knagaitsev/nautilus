@@ -104,7 +104,7 @@ struct nk_irq_desc {
   nk_irq_t irq;
   uint16_t flags;
 
-  uint32_t triggered_count;
+  uint64_t triggered_count;
 };
 
 int nk_dump_irq(nk_irq_t i);

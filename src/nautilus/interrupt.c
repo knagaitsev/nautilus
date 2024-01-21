@@ -579,9 +579,16 @@ int nk_dump_irq(nk_irq_t i)
         status = desc->devless_status;
       }
 
+      const char * name = "NULL";
+      if(desc->per_cpu_irq_devs &&
+         desc->per_cpu_irq_devs[cpuid]) 
+      {
+        name = desc->per_cpu_irq_devs[cpuid]->dev.name;
+      }
+
       IRQ_PRINT("\tCPU[%u]: dev=\"%s\" %s%s%s\n", 
           cpuid, 
-          desc->per_cpu_irq_devs[cpuid]->dev.name,
+          name,
           status & IRQ_STATUS_ENABLED ? "[ENABLED] " : "[DISABLED] ",
           status & IRQ_STATUS_PENDING ? "[PENDING] " : "",
           status & IRQ_STATUS_ACTIVE ? "[ACTIVE] " : ""
