@@ -385,8 +385,8 @@ ifdef NAUT_CONFIG_USE_WLLVM
   # KJH - Afaik these should work via --target options to cross compile, not prefixes
   AS		= llvm-as$(COMPILER_SUFFIX)
   LD		= ld.lld
-  CC		= wllvm$(COMPILER_SUFFIX)
-  CXX           = wllvm++$(COMPILER_SUFFIX)
+  CC		= gclang
+  CXX           = gclang++
   OBJCOPY       = llvm-objcopy
   OBJDUMP       = llvm-objdump
 
@@ -1059,11 +1059,12 @@ endif
 
 # Compiler-Timing
 # Build --- scripts/pass_build.sh compiler-timing CompilerTiming.cpp --- FIX
-timing: ~/CAT/lib/CT.so $(LL_NAME) $(BIN_NAME)
+timing: dep/beandip-linux/local/lib/BEANDIP.so $(LL_NAME) $(BIN_NAME)
 	# Run select loop simplification passes
-	opt -loop-simplify -lcssa -S $(LL_NAME) -o $(LOOP_LL_NAME)
-	# Run compiler-timing pass	
-	opt -load $< -ct -S -enable-new-pm=0 $(LOOP_LL_NAME) -o $(OPT_LL_NAME) > ct.out 2>&1
+	opt -basic-aa -mergereturn --break-crit-edges -loop-simplify -mem2reg -simplifycfg-sink-common=false -licm --polly-canonicalize --lowerswitch -lcssa -S $(LL_NAME) -o $(LOOP_LL_NAME)
+	# Run compiler-timing pass
+	clang -Xclang -fpass-plugin=$< -c -emit-llvm $(LOOP_LL_NAME) -o $(OPT_LL_NAME)
+	# opt -load-pass-plugin=$< -passes=Beandip -S $(LOOP_LL_NAME) -o $(OPT_LL_NAME)
 
 final_no_timing: $(LL_NAME)
 	# Recompile (with full opt levels) new object files, binaries
